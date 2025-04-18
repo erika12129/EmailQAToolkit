@@ -1,0 +1,251 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row =>
+                    row.some(cell => cell !== '' && cell !== null && cell !== undefined)
+                );
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email QA Automation</title>
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/babel-standalone@7/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState } = React;
+
+        function App() {
+            const [emailFile, setEmailFile] = useState(null);
+            const [reqFile, setReqFile] = useState(null);
+            const [results, setResults] = useState(null);
+            const [error, setError] = useState(null);
+            const [loading, setLoading] = useState(false);
+
+            const handleFileChange = (e, setFile) => {
+                setFile(e.target.files[0]);
+                setError(null);
+            };
+
+            const handleDrop = (e, setFile) => {
+                e.preventDefault();
+                setFile(e.dataTransfer.files[0]);
+                setError(null);
+            };
+
+            const handleDragOver = (e) => e.preventDefault();
+
+            const runQA = async () => {
+                if (!emailFile || !reqFile) {
+                    setError("Please upload both email HTML and requirements JSON files.");
+                    return;
+                }
+                setLoading(true);
+                setError(null);
+                setResults(null);
+
+                const formData = new FormData();
+                formData.append("email", emailFile);
+                formData.append("requirements", reqFile);
+
+                try {
+                    const response = await fetch("http://localhost:8000/run-qa", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        setResults(data);
+                    } else {
+                        setError(data.detail || "Failed to process QA.");
+                    }
+                } catch (err) {
+                    setError("Error connecting to server: " + err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-100 p-6">
+                    <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
+                        <h1 className="text-2xl font-bold mb-6 text-center">Email QA Automation</h1>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Upload Email HTML
+                            </label>
+                            <div
+                                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center"
+                                onDrop={(e) => handleDrop(e, setEmailFile)}
+                                onDragOver={handleDragOver}
+                            >
+                                <input
+                                    type="file"
+                                    accept=".html"
+                                    onChange={(e) => handleFileChange(e, setEmailFile)}
+                                    className="hidden"
+                                    id="email-upload"
+                                />
+                                <label htmlFor="email-upload" className="cursor-pointer text-blue-600 hover:underline">
+                                    {emailFile ? emailFile.name : "Drag or click to upload email HTML"}
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Upload Requirements JSON
+                            </label>
+                            <div
+                                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center"
+                                onDrop={(e) => handleDrop(e, setReqFile)}
+                                onDragOver={handleDragOver}
+                            >
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    onChange={(e) => handleFileChange(e, setReqFile)}
+                                    className="hidden"
+                                    id="req-upload"
+                                />
+                                <label htmlFor="req-upload" className="cursor-pointer text-blue-600 hover:underline">
+                                    {reqFile ? reqFile.name : "Drag or click to upload requirements JSON"}
+                                </label>
+                            </div>
+                        </div>
+
+                        {error && (
+                            <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
+                                {error}
+                            </div>
+                        )}
+
+                        <button
+                            onClick={runQA}
+                            disabled={loading}
+                            className={`w-full py-2 px-4 rounded-lg text-white font-semibold ${
+                                loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                            }`}
+                        >
+                            {loading ? "Running QA..." : "Run QA"}
+                        </button>
+
+                        {results && (
+                            <div className="mt-8">
+                                <h2 className="text-xl font-semibold mb-4">QA Results</h2>
+                                <div className="space-y-6">
+                                    <div>
+                                        <h3 className="text-lg font-medium mb-2">Metadata</h3>
+                                        <table className="w-full border-collapse">
+                                            <thead>
+                                                <tr className="bg-gray-200">
+                                                    <th className="border p-2">Field</th>
+                                                    <th className="border p-2">Expected</th>
+                                                    <th className="border p-2">Actual</th>
+                                                    <th className="border p-2">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {results.metadata.map((item, index) => (
+                                                    <tr key={index} className="border">
+                                                        <td className="border p-2">{item.field}</td>
+                                                        <td className="border p-2">{item.expected}</td>
+                                                        <td className="border p-2">{item.actual}</td>
+                                                        <td
+                                                            className={`border p-2 ${
+                                                                item.status === "PASS"
+                                                                    ? "text-green-600"
+                                                                    : "text-red-600"
+                                                            }`}
+                                                        >
+                                                            {item.status}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-medium mb-2">Links</h3>
+                                        <table className="w-full border-collapse">
+                                            <thead>
+                                                <tr className="bg-gray-200">
+                                                    <th className="border p-2">Link Text</th>
+                                                    <th className="border p-2">URL</th>
+                                                    <th className="border p-2">Status</th>
+                                                    <th className="border p-2">Issues</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {results.links.map((item, index) => (
+                                                    <tr key={index} className="border">
+                                                        <td className="border p-2">{item.link_text}</td>
+                                                        <td className="border p-2">
+                                                            <a
+                                                                href={item.url}
+                                                                target="_blank"
+                                                                className="text-blue-600 hover:underline"
+                                                            >
+                                                                {item.url}
+                                                            </a>
+                                                        </td>
+                                                        <td
+                                                            className={`border p-2 ${
+                                                                item.status === "PASS"
+                                                                    ? "text-green-600"
+                                                                    : "text-red-600"
+                                                            }`}
+                                                        >
+                                                            {item.status}
+                                                        </td>
+                                                        <td className="border p-2">
+                                                            {item.utm_issues.length > 0
+                                                                ? item.utm_issues.join("; ")
+                                                                : "None"}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById("root"));
+    </script>
+</body>
+</html>
