@@ -72,4 +72,5 @@ async def run_qa(email: UploadFile = File(...), requirements: UploadFile = File(
 
 if __name__ == "__main__":
     import uvicorn
+    # Using port 5000 which is recommended for Replit
     uvicorn.run(app, host="0.0.0.0", port=5000)
