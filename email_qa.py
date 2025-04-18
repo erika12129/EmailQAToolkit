@@ -73,16 +73,31 @@ def check_links(links, expected_utm):
         driver = webdriver.Chrome(service=service, options=chrome_options)
     except Exception as e:
         logger.error(f"Failed to initialize Chrome WebDriver: {e}")
-        # Fallback - returning results without checking URLs
-        return [
-            {
-                'link_text': text,
-                'url': url,
-                'final_url': None,
-                'status': 'ERROR',
-                'utm_issues': [f"Browser automation unavailable: {str(e)}"]
-            } for text, url in links
-        ]
+        # Fallback - validate UTM parameters without browser automation
+        results = []
+        for text, url in links:
+            try:
+                # Just validate the UTM parameters in the initial URL
+                discrepancies = validate_utm_parameters(url, expected_utm)
+                status = 'PASS' if not discrepancies else 'FAIL'
+                
+                results.append({
+                    'link_text': text,
+                    'url': url,
+                    'final_url': url,  # Same as initial since we can't check redirects
+                    'status': status,
+                    'utm_issues': discrepancies or ["Browser automation unavailable - basic URL check only"]
+                })
+            except Exception as link_error:
+                results.append({
+                    'link_text': text,
+                    'url': url,
+                    'final_url': None,
+                    'status': 'ERROR',
+                    'utm_issues': [f"Failed to analyze URL: {str(link_error)}"]
+                })
+        
+        return results
     
     results = []
     

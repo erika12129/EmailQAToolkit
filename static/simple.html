@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Test Page</title>
+    <title>Email QA Test Page</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: #f0f4f8;
         }
         .container {
             max-width: 800px;
@@ -20,15 +19,32 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         h1 {
-            color: #333;
-            text-align: center;
+            color: #2c5282;
+        }
+        .links {
+            margin-top: 20px;
+        }
+        .links a {
+            display: inline-block;
+            margin-right: 15px;
+            color: #4299e1;
+            text-decoration: none;
+        }
+        .links a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Email QA Tool is Running</h1>
-        <p>This is a simple test page to verify the server is running correctly.</p>
+        <h1>Email QA Automation Test Page</h1>
+        <p>This is a test page to verify that the server is working correctly.</p>
+        
+        <div class="links">
+            <a href="/">Go to Main Application</a>
+            <a href="/static/sample_email.html" download>Download Sample Email</a>
+            <a href="/static/sample_requirements.json" download>Download Sample Requirements</a>
+        </div>
     </div>
 </body>
 </html>

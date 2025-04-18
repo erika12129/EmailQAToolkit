@@ -23,15 +23,19 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 async def read_root():
-    """Redirect to the frontend application."""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/index.html")
+    """Serve the frontend application directly."""
+    from fastapi.responses import HTMLResponse
+    with open("static/index.html", "r") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content, status_code=200)
 
 @app.get("/test")
 async def test_page():
     """Serve a simple test page directly."""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/static/simple.html")
+    from fastapi.responses import HTMLResponse
+    with open("static/simple.html", "r") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content, status_code=200)
 
 @app.post("/run-qa")
 async def run_qa(email: UploadFile = File(...), requirements: UploadFile = File(...)):
