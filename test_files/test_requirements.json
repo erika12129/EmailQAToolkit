@@ -1,0 +1,10 @@
+{
+    "sender": "marketing@example.com",
+    "subject": "Special Offer for You!",
+    "preheader": "20% off all products this weekend only!",
+    "utm_parameters": {
+        "utm_source": "email",
+        "utm_medium": "marketing",
+        "utm_campaign": "weekend_sale"
+    }
+}

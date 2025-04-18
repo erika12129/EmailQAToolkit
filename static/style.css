@@ -1,0 +1,53 @@
+/* Additional styles beyond Tailwind */
+
+/* Improve drag and drop area appearance */
+.border-dashed {
+    transition: all 0.3s ease;
+}
+
+.border-dashed:hover {
+    border-color: #4F46E5;
+    background-color: rgba(79, 70, 229, 0.05);
+}
+
+/* Make tables more responsive */
+.overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Improve button transitions */
+button {
+    transition: all 0.2s ease;
+}
+
+/* Limit long URLs in tables */
+table td {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Improve mobile experience */
+@media (max-width: 640px) {
+    table td {
+        max-width: 200px;
+    }
+    
+    .p-8 {
+        padding: 1rem;
+    }
+}
+
+/* Add loading animation */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+button:disabled {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
