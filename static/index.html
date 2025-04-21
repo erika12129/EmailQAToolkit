@@ -80,6 +80,36 @@
         .results-container {
             margin-top: 20px;
         }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .text-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: #f7fafc;
+        }
+        .text-input:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+            background-color: #fff;
+        }
+        #requirements-form {
+            padding: 16px;
+            background-color: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -108,10 +138,55 @@
                 <div id="email-file-name" class="file-name"></div>
             </div>
             
-            <div class="file-input-container">
-                <label>Upload Requirements JSON:</label>
-                <input type="file" accept=".json" id="req-file" />
-                <div id="req-file-name" class="file-name"></div>
+            <div>
+                <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 16px;">Email Requirements</h3>
+                    <button type="button" id="toggle-advanced" style="margin-left: 10px; font-size: 12px; padding: 4px 8px; background-color: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">
+                        Switch to JSON Upload
+                    </button>
+                </div>
+                
+                <!-- Form Fields for Requirements -->
+                <div id="requirements-form">
+                    <div class="form-group">
+                        <label for="sender-email">Sender Email:</label>
+                        <input type="email" id="sender-email" class="text-input" placeholder="marketing@company.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subject">Subject Line:</label>
+                        <input type="text" id="subject" class="text-input" placeholder="Special Discount - 25% Off">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="preheader">Preheader Text:</label>
+                        <input type="text" id="preheader" class="text-input" placeholder="Limited time offer: 25% discount on all products!">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="utm-source">UTM Source:</label>
+                        <input type="text" id="utm-source" class="text-input" placeholder="email">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="utm-medium">UTM Medium:</label>
+                        <input type="text" id="utm-medium" class="text-input" placeholder="marketing">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="utm-campaign">UTM Campaign:</label>
+                        <input type="text" id="utm-campaign" class="text-input" placeholder="special_offer">
+                    </div>
+                </div>
+                
+                <!-- JSON Upload (hidden by default) -->
+                <div id="json-upload-container" class="hidden">
+                    <div class="file-input-container">
+                        <label>Upload Requirements JSON:</label>
+                        <input type="file" accept=".json" id="req-file" />
+                        <div id="req-file-name" class="file-name"></div>
+                    </div>
+                </div>
             </div>
             
             <div id="error-message" class="error hidden"></div>
@@ -179,6 +254,34 @@
         const metadataResults = document.getElementById('metadata-results');
         const linksResults = document.getElementById('links-results');
         
+        // Form fields for requirements
+        const requirementsForm = document.getElementById('requirements-form');
+        const jsonUploadContainer = document.getElementById('json-upload-container');
+        const toggleButton = document.getElementById('toggle-advanced');
+        const senderEmailInput = document.getElementById('sender-email');
+        const subjectInput = document.getElementById('subject');
+        const preheaderInput = document.getElementById('preheader');
+        const utmSourceInput = document.getElementById('utm-source');
+        const utmMediumInput = document.getElementById('utm-medium');
+        const utmCampaignInput = document.getElementById('utm-campaign');
+        
+        let useJsonUpload = false; // Start with form fields by default
+        
+        // Toggle between form fields and JSON upload
+        toggleButton.addEventListener('click', function() {
+            useJsonUpload = !useJsonUpload;
+            
+            if (useJsonUpload) {
+                hideElement(requirementsForm);
+                showElement(jsonUploadContainer);
+                toggleButton.textContent = 'Switch to Form Fields';
+            } else {
+                showElement(requirementsForm);
+                hideElement(jsonUploadContainer);
+                toggleButton.textContent = 'Switch to JSON Upload';
+            }
+        });
+        
         // Update file name display
         emailFileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
@@ -202,9 +305,9 @@
         form.addEventListener('submit', function(event) {
             event.preventDefault();
             
-            // Validate inputs
-            if (!emailFileInput.files.length || !reqFileInput.files.length) {
-                errorMessage.textContent = 'Please upload both email HTML and requirements JSON files.';
+            // Validate email file input
+            if (!emailFileInput.files.length) {
+                errorMessage.textContent = 'Please upload an email HTML file.';
                 showElement(errorMessage);
                 return;
             }
@@ -219,7 +322,49 @@
             // Create form data
             const formData = new FormData();
             formData.append('email', emailFileInput.files[0]);
-            formData.append('requirements', reqFileInput.files[0]);
+            
+            if (useJsonUpload) {
+                // Validate requirements JSON file input
+                if (!reqFileInput.files.length) {
+                    errorMessage.textContent = 'Please upload a requirements JSON file.';
+                    showElement(errorMessage);
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Run QA';
+                    hideElement(loadingMessage);
+                    return;
+                }
+                
+                formData.append('requirements', reqFileInput.files[0]);
+            } else {
+                // Validate form fields
+                if (!senderEmailInput.value || !subjectInput.value || !preheaderInput.value) {
+                    errorMessage.textContent = 'Please fill in the required fields (Sender Email, Subject Line, and Preheader).';
+                    showElement(errorMessage);
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Run QA';
+                    hideElement(loadingMessage);
+                    return;
+                }
+                
+                // Create requirements JSON from form fields
+                const requirementsObj = {
+                    sender: senderEmailInput.value,
+                    subject: subjectInput.value,
+                    preheader: preheaderInput.value,
+                    utm_parameters: {}
+                };
+                
+                // Add UTM parameters if provided
+                if (utmSourceInput.value) requirementsObj.utm_parameters.utm_source = utmSourceInput.value;
+                if (utmMediumInput.value) requirementsObj.utm_parameters.utm_medium = utmMediumInput.value;
+                if (utmCampaignInput.value) requirementsObj.utm_parameters.utm_campaign = utmCampaignInput.value;
+                
+                // Convert to JSON and create a file
+                const requirementsBlob = new Blob([JSON.stringify(requirementsObj, null, 2)], { type: 'application/json' });
+                const requirementsFile = new File([requirementsBlob], 'generated_requirements.json', { type: 'application/json' });
+                
+                formData.append('requirements', requirementsFile);
+            }
             
             // Submit the form
             fetch('/run-qa', {
