@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email QA Automation - Localization QA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .file-input-container {
+            margin-bottom: 20px;
+        }
+        .button {
+            background-color: #4299e1;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+        .button:hover {
+            background-color: #3182ce;
+        }
+        .button:disabled {
+            background-color: #a0aec0;
+            cursor: not-allowed;
+        }
+        .error {
+            background-color: #fed7d7;
+            color: #c53030;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .nav-links {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .nav-links a {
+            margin: 0 10px;
+            text-decoration: none;
+            color: #4299e1;
+        }
+        .nav-links a.active {
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        th {
+            background-color: #edf2f7;
+        }
+        .pass {
+            color: #38a169;
+        }
+        .fail {
+            color: #e53e3e;
+        }
+        .warning {
+            color: #dd6b20;
+        }
+        .hidden {
+            display: none;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-right: 5px;
+            background-color: #f7fafc;
+        }
+        .tab.active {
+            background-color: white;
+            border-color: #e2e8f0;
+            border-bottom-color: white;
+            margin-bottom: -1px;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .checkbox-group {
+            margin: 15px 0;
+        }
+        .file-columns {
+            display: flex;
+            gap: 20px;
+        }
+        .file-column {
+            flex: 1;
+        }
+        .column-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .section {
+            background-color: #f8fafc;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Email QA Automation</h1>
+        
+        <div class="nav-links">
+            <a href="/">Single Email QA</a>
+            <a href="/static/batch.html">Batch Processing</a>
+            <a href="/static/localization.html" class="active">Localization QA</a>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="localization">Localization QA</div>
+            <div class="tab" data-tab="help">Help</div>
+        </div>
+        
+        <div id="localization-tab" class="tab-content active">
+            <p>Compare localized emails against parent (en_US) versions and validate against localized requirements.</p>
+            
+            <div class="section" style="background-color: #ebf8ff; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">
+                <p style="margin-bottom: 0.5rem;">Need examples? Download sample files to test the localization feature:</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 0.5rem;">
+                    <a href="/static/sample_email.html" download style="color: #4299e1;">Parent Email (en_US)</a>
+                    <a href="/static/sample_requirements.json" download style="color: #4299e1;">Parent Requirements</a>
+                    <a href="/static/sample_localized_email.html" download style="color: #4299e1;">Localized Email (es_MX)</a>
+                    <a href="/static/sample_localized_requirements.json" download style="color: #4299e1;">Localized Requirements</a>
+                </div>
+            </div>
+            
+            <form id="localization-form">
+                <div class="section">
+                    <div class="column-title">Localized Email (Required)</div>
+                    <div class="file-input-container">
+                        <label>Upload Localized Email HTML:</label>
+                        <input type="file" accept=".html" id="localized-email-file" required />
+                        <div id="localized-email-file-name" class="file-name"></div>
+                    </div>
+                    
+                    <div class="file-input-container">
+                        <label>Upload Localized Requirements JSON:</label>
+                        <input type="file" accept=".json" id="localized-requirements-file" required />
+                        <div id="localized-requirements-file-name" class="file-name"></div>
+                    </div>
+                </div>
+                
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="compare-parent" />
+                        Compare with parent (en_US) email
+                    </label>
+                </div>
+                
+                <div id="parent-section" class="section hidden">
+                    <div class="column-title">Parent Email (en_US)</div>
+                    <div class="file-input-container">
+                        <label>Upload Parent Email HTML:</label>
+                        <input type="file" accept=".html" id="parent-email-file" />
+                        <div id="parent-email-file-name" class="file-name"></div>
+                    </div>
+                    
+                    <div class="file-input-container">
+                        <label>Upload Parent Requirements JSON:</label>
+                        <input type="file" accept=".json" id="parent-requirements-file" />
+                        <div id="parent-requirements-file-name" class="file-name"></div>
+                    </div>
+                </div>
+                
+                <div id="error-message" class="error hidden"></div>
+                
+                <button type="submit" class="button" id="submit-button">Run Localization QA</button>
+            </form>
+            
+            <div id="loading-message" class="hidden">Running QA checks...</div>
+            
+            <div id="results-container" class="results-container hidden">
+                <h2>Localization QA Results</h2>
+                
+                <!-- Localized Requirements Validation -->
+                <div class="section">
+                    <h3>Validation Against Localized Requirements</h3>
+                    
+                    <h4>Metadata</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Expected</th>
+                                <th>Actual</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="localized-metadata-results">
+                            <!-- Results will be inserted here -->
+                        </tbody>
+                    </table>
+                    
+                    <h4>Links</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Link Text</th>
+                                <th>URL</th>
+                                <th>Status</th>
+                                <th>Issues</th>
+                            </tr>
+                        </thead>
+                        <tbody id="localized-links-results">
+                            <!-- Results will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Parent Requirements Validation (Optional) -->
+                <div id="parent-validation-section" class="section hidden">
+                    <h3>Validation Against Parent (en_US) Requirements</h3>
+                    
+                    <h4>Metadata</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Expected</th>
+                                <th>Actual</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="parent-metadata-results">
+                            <!-- Results will be inserted here -->
+                        </tbody>
+                    </table>
+                    
+                    <h4>Links</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Link Text</th>
+                                <th>URL</th>
+                                <th>Status</th>
+                                <th>Issues</th>
+                            </tr>
+                        </thead>
+                        <tbody id="parent-links-results">
+                            <!-- Results will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Link Structure Comparison (Optional) -->
+                <div id="link-comparison-section" class="section hidden">
+                    <h3>Link Structure Comparison with Parent Email</h3>
+                    <p>Validates if localized links match the structure of the parent email links (ignoring locale-specific differences).</p>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Link Text</th>
+                                <th>Localized URL</th>
+                                <th>Matches Parent Structure</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="link-comparison-results">
+                            <!-- Results will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div id="help-tab" class="tab-content">
+            <h2>How to Use Localization QA</h2>
+            <ol>
+                <li>Upload your localized email HTML file and its corresponding requirements JSON.</li>
+                <li>Optionally check "Compare with parent email" to enable comparison with the parent (en_US) version.</li>
+                <li>If comparing with parent, upload the parent email HTML and requirements JSON files.</li>
+                <li>Click "Run Localization QA" to process the validation and comparison.</li>
+            </ol>
+            
+            <h3>What This Tool Checks:</h3>
+            <ul>
+                <li><strong>Localized Requirements:</strong> Validates the localized email against its specific requirements (subject, preheader, sender, UTM parameters).</li>
+                <li><strong>Parent Requirements (Optional):</strong> Validates if the localized email would also pass the parent requirements.</li>
+                <li><strong>Link Structure Comparison (Optional):</strong> Checks if the localized email links follow the same structure as the parent email links, accounting for locale-specific differences like domain changes (e.g., .com vs .com.mx) and language path changes (e.g., /en/ vs /es/).</li>
+            </ul>
+            
+            <h3>Example of Localized Requirements JSON:</h3>
+            <pre>{
+  "sender": "marketing@company.com.mx",
+  "subject": "Descuento Especial - 25% de Descuento",
+  "preheader": "Oferta por tiempo limitado: ¡25% de descuento en todos los productos!",
+  "utm_parameters": {
+    "utm_source": "email",
+    "utm_medium": "marketing",
+    "utm_campaign": "special_offer"
+  }
+}</pre>
+        </div>
+    </div>
+    
+    <script>
+        // Tab functionality
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.getAttribute('data-tab');
+                
+                // Remove active class from all tabs and contents
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // Add active class to selected tab and content
+                tab.classList.add('active');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Helper functions
+        function showElement(element) {
+            element.classList.remove('hidden');
+        }
+        
+        function hideElement(element) {
+            element.classList.add('hidden');
+        }
+        
+        // Localization form elements
+        const localizationForm = document.getElementById('localization-form');
+        const localizedEmailInput = document.getElementById('localized-email-file');
+        const localizedReqInput = document.getElementById('localized-requirements-file');
+        const localizedEmailName = document.getElementById('localized-email-file-name');
+        const localizedReqName = document.getElementById('localized-requirements-file-name');
+        const compareParentCheckbox = document.getElementById('compare-parent');
+        const parentSection = document.getElementById('parent-section');
+        const parentEmailInput = document.getElementById('parent-email-file');
+        const parentReqInput = document.getElementById('parent-requirements-file');
+        const parentEmailName = document.getElementById('parent-email-file-name');
+        const parentReqName = document.getElementById('parent-requirements-file-name');
+        const errorMessage = document.getElementById('error-message');
+        const submitButton = document.getElementById('submit-button');
+        const loadingMessage = document.getElementById('loading-message');
+        const resultsContainer = document.getElementById('results-container');
+        const parentValidationSection = document.getElementById('parent-validation-section');
+        const linkComparisonSection = document.getElementById('link-comparison-section');
+        
+        // Result containers
+        const localizedMetadataResults = document.getElementById('localized-metadata-results');
+        const localizedLinksResults = document.getElementById('localized-links-results');
+        const parentMetadataResults = document.getElementById('parent-metadata-results');
+        const parentLinksResults = document.getElementById('parent-links-results');
+        const linkComparisonResults = document.getElementById('link-comparison-results');
+        
+        // Toggle parent email section
+        compareParentCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                showElement(parentSection);
+            } else {
+                hideElement(parentSection);
+            }
+        });
+        
+        // Update file name displays
+        localizedEmailInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                localizedEmailName.textContent = this.files[0].name;
+            } else {
+                localizedEmailName.textContent = '';
+            }
+            hideElement(errorMessage);
+        });
+        
+        localizedReqInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                localizedReqName.textContent = this.files[0].name;
+            } else {
+                localizedReqName.textContent = '';
+            }
+            hideElement(errorMessage);
+        });
+        
+        parentEmailInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                parentEmailName.textContent = this.files[0].name;
+            } else {
+                parentEmailName.textContent = '';
+            }
+            hideElement(errorMessage);
+        });
+        
+        parentReqInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                parentReqName.textContent = this.files[0].name;
+            } else {
+                parentReqName.textContent = '';
+            }
+            hideElement(errorMessage);
+        });
+        
+        // Localization form submission
+        localizationForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Validate inputs
+            if (!localizedEmailInput.files.length || !localizedReqInput.files.length) {
+                errorMessage.textContent = 'Please upload both localized email HTML and requirements JSON files.';
+                showElement(errorMessage);
+                return;
+            }
+            
+            if (compareParentCheckbox.checked && (!parentEmailInput.files.length || !parentReqInput.files.length)) {
+                errorMessage.textContent = 'When comparing with parent, please upload both parent email HTML and requirements JSON files.';
+                showElement(errorMessage);
+                return;
+            }
+            
+            // Start loading state
+            submitButton.disabled = true;
+            submitButton.textContent = 'Running QA...';
+            hideElement(errorMessage);
+            hideElement(resultsContainer);
+            showElement(loadingMessage);
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('localized_email', localizedEmailInput.files[0]);
+            formData.append('localized_requirements', localizedReqInput.files[0]);
+            formData.append('compare_to_parent', compareParentCheckbox.checked);
+            
+            if (compareParentCheckbox.checked) {
+                formData.append('parent_email', parentEmailInput.files[0]);
+                formData.append('parent_requirements', parentReqInput.files[0]);
+            }
+            
+            // Submit the form
+            fetch('/run-localized-qa', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.detail || 'Failed to process localization QA');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayLocalizationResults(data);
+            })
+            .catch(error => {
+                errorMessage.textContent = error.message || 'An error occurred while processing the request.';
+                showElement(errorMessage);
+            })
+            .finally(() => {
+                // End loading state
+                submitButton.disabled = false;
+                submitButton.textContent = 'Run Localization QA';
+                hideElement(loadingMessage);
+            });
+        });
+        
+        // Display localization QA results
+        function displayLocalizationResults(data) {
+            // Clear previous results
+            localizedMetadataResults.innerHTML = '';
+            localizedLinksResults.innerHTML = '';
+            parentMetadataResults.innerHTML = '';
+            parentLinksResults.innerHTML = '';
+            linkComparisonResults.innerHTML = '';
+            
+            // Hide optional sections by default
+            hideElement(parentValidationSection);
+            hideElement(linkComparisonSection);
+            
+            // Display localized metadata results
+            data.metadata.forEach(item => {
+                const row = document.createElement('tr');
+                
+                const fieldCell = document.createElement('td');
+                fieldCell.textContent = item.field;
+                row.appendChild(fieldCell);
+                
+                const expectedCell = document.createElement('td');
+                expectedCell.textContent = item.expected;
+                row.appendChild(expectedCell);
+                
+                const actualCell = document.createElement('td');
+                actualCell.textContent = item.actual;
+                
+                if (item.details) {
+                    const detailsElement = document.createElement('div');
+                    detailsElement.innerHTML = `<em>${item.details}</em>`;
+                    detailsElement.style.fontSize = 'smaller';
+                    detailsElement.style.marginTop = '5px';
+                    actualCell.appendChild(detailsElement);
+                }
+                
+                row.appendChild(actualCell);
+                
+                const statusCell = document.createElement('td');
+                statusCell.textContent = item.status;
+                statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
+                row.appendChild(statusCell);
+                
+                localizedMetadataResults.appendChild(row);
+            });
+            
+            // Display localized links results
+            data.links.forEach(item => {
+                const row = document.createElement('tr');
+                
+                const textCell = document.createElement('td');
+                textCell.textContent = item.link_text;
+                row.appendChild(textCell);
+                
+                const urlCell = document.createElement('td');
+                const link = document.createElement('a');
+                link.href = item.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = item.url.length > 50 ? item.url.substring(0, 50) + '...' : item.url;
+                urlCell.appendChild(link);
+                row.appendChild(urlCell);
+                
+                const statusCell = document.createElement('td');
+                statusCell.textContent = item.status;
+                statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
+                row.appendChild(statusCell);
+                
+                const issuesCell = document.createElement('td');
+                if (item.utm_issues && item.utm_issues.length > 0) {
+                    const issuesList = document.createElement('ul');
+                    issuesList.style.paddingLeft = '20px';
+                    
+                    item.utm_issues.forEach(issue => {
+                        const issueItem = document.createElement('li');
+                        issueItem.textContent = issue;
+                        issuesList.appendChild(issueItem);
+                    });
+                    
+                    issuesCell.appendChild(issuesList);
+                } else {
+                    issuesCell.textContent = 'None';
+                }
+                row.appendChild(issuesCell);
+                
+                localizedLinksResults.appendChild(row);
+            });
+            
+            // Display parent requirements validation if available
+            if (data.parent_requirements_validation) {
+                showElement(parentValidationSection);
+                
+                // Display parent metadata results
+                data.parent_requirements_validation.metadata.forEach(item => {
+                    const row = document.createElement('tr');
+                    
+                    const fieldCell = document.createElement('td');
+                    fieldCell.textContent = item.field;
+                    row.appendChild(fieldCell);
+                    
+                    const expectedCell = document.createElement('td');
+                    expectedCell.textContent = item.expected;
+                    row.appendChild(expectedCell);
+                    
+                    const actualCell = document.createElement('td');
+                    actualCell.textContent = item.actual;
+                    
+                    if (item.details) {
+                        const detailsElement = document.createElement('div');
+                        detailsElement.innerHTML = `<em>${item.details}</em>`;
+                        detailsElement.style.fontSize = 'smaller';
+                        detailsElement.style.marginTop = '5px';
+                        actualCell.appendChild(detailsElement);
+                    }
+                    
+                    row.appendChild(actualCell);
+                    
+                    const statusCell = document.createElement('td');
+                    statusCell.textContent = item.status;
+                    statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
+                    row.appendChild(statusCell);
+                    
+                    parentMetadataResults.appendChild(row);
+                });
+                
+                // Display parent links results
+                data.parent_requirements_validation.links.forEach(item => {
+                    const row = document.createElement('tr');
+                    
+                    const textCell = document.createElement('td');
+                    textCell.textContent = item.link_text;
+                    row.appendChild(textCell);
+                    
+                    const urlCell = document.createElement('td');
+                    const link = document.createElement('a');
+                    link.href = item.url;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = item.url.length > 50 ? item.url.substring(0, 50) + '...' : item.url;
+                    urlCell.appendChild(link);
+                    row.appendChild(urlCell);
+                    
+                    const statusCell = document.createElement('td');
+                    statusCell.textContent = item.status;
+                    statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
+                    row.appendChild(statusCell);
+                    
+                    const issuesCell = document.createElement('td');
+                    if (item.utm_issues && item.utm_issues.length > 0) {
+                        const issuesList = document.createElement('ul');
+                        issuesList.style.paddingLeft = '20px';
+                        
+                        item.utm_issues.forEach(issue => {
+                            const issueItem = document.createElement('li');
+                            issueItem.textContent = issue;
+                            issuesList.appendChild(issueItem);
+                        });
+                        
+                        issuesCell.appendChild(issuesList);
+                    } else {
+                        issuesCell.textContent = 'None';
+                    }
+                    row.appendChild(issuesCell);
+                    
+                    parentLinksResults.appendChild(row);
+                });
+            }
+            
+            // Display link structure comparison if available
+            if (data.locale_comparison && data.locale_comparison.length > 0) {
+                showElement(linkComparisonSection);
+                
+                // Display link structure comparison results
+                data.locale_comparison.forEach(item => {
+                    const row = document.createElement('tr');
+                    
+                    const textCell = document.createElement('td');
+                    textCell.textContent = item.link_text;
+                    row.appendChild(textCell);
+                    
+                    const urlCell = document.createElement('td');
+                    const link = document.createElement('a');
+                    link.href = item.localized_url;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = item.localized_url.length > 50 ? item.localized_url.substring(0, 50) + '...' : item.localized_url;
+                    urlCell.appendChild(link);
+                    row.appendChild(urlCell);
+                    
+                    const matchCell = document.createElement('td');
+                    matchCell.textContent = item.matches_parent_structure ? 'Yes' : 'No';
+                    row.appendChild(matchCell);
+                    
+                    const statusCell = document.createElement('td');
+                    statusCell.textContent = item.status;
+                    statusCell.className = item.status === 'PASS' ? 'pass' : 'warning';
+                    row.appendChild(statusCell);
+                    
+                    linkComparisonResults.appendChild(row);
+                });
+            }
+            
+            // Show results
+            showElement(resultsContainer);
+        }
+    </script>
+</body>
+</html>
