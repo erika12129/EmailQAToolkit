@@ -1,50 +1,20 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Email QA Test Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f4f8;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #2c5282;
-        }
-        .links {
-            margin-top: 20px;
-        }
-        .links a {
-            display: inline-block;
-            margin-right: 15px;
-            color: #4299e1;
-            text-decoration: none;
-        }
-        .links a:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email QA Automation - Simple Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Email QA Automation Test Page</h1>
-        <p>This is a test page to verify that the server is working correctly.</p>
-        
-        <div class="links">
-            <a href="/">Go to Main Application</a>
-            <a href="/static/sample_email.html" download>Download Sample Email</a>
-            <a href="/static/sample_requirements.json" download>Download Sample Requirements</a>
-        </div>
-    </div>
+    <h1>Email QA Automation - Basic Test</h1>
+    <div id="root">If you see this text, React is not rendering properly</div>
+    
+    <script>
+        // Basic JavaScript to verify that the page loads and JavaScript runs
+        const rootElement = document.getElementById('root');
+        rootElement.innerHTML = "JavaScript is working properly. This text was added by JavaScript.";
+    </script>
 </body>
 </html>

@@ -1,0 +1,10 @@
+{
+    "sender": "marketing@company.com",
+    "subject": "Summer Sale: 30% Off All Products!",
+    "preheader": "Summer is here! Enjoy 30% off all products for a limited time only.",
+    "utm_parameters": {
+        "utm_source": "email",
+        "utm_medium": "marketing",
+        "utm_campaign": "summer_sale"
+    }
+}

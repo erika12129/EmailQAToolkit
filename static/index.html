@@ -4,267 +4,335 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email QA Automation</title>
-    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/babel-standalone@7/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .file-drop-area {
-            border: 2px dashed #cbd5e0;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            text-align: center;
-            transition: all 0.3s ease;
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
         }
-        .file-drop-area:hover, .file-drop-area.drag-active {
-            border-color: #4299e1;
-            background-color: #ebf8ff;
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .file-input-container {
+            margin-bottom: 20px;
+        }
+        .button {
+            background-color: #4299e1;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+        .button:hover {
+            background-color: #3182ce;
+        }
+        .button:disabled {
+            background-color: #a0aec0;
+            cursor: not-allowed;
+        }
+        .error {
+            background-color: #fed7d7;
+            color: #c53030;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        th {
+            background-color: #edf2f7;
+        }
+        .pass {
+            color: #38a169;
+        }
+        .fail {
+            color: #e53e3e;
+        }
+        .hidden {
+            display: none;
+        }
+        .file-name {
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .results-container {
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <div id="root"></div>
-    <script type="text/babel">
-        const { useState } = React;
+    <div class="container">
+        <h1>Email QA Automation</h1>
+        
+        <div class="mb-4 p-4" style="background-color: #ebf8ff; border-radius: 0.5rem; margin-bottom: 1rem; padding: 1rem;">
+            <p style="margin-bottom: 0.5rem;">
+                This tool validates HTML emails against predefined requirements for metadata and UTM parameters.
+            </p>
+            <div style="margin-top: 0.5rem;">
+                <span style="font-weight: 600;">Need examples?</span> 
+                <a href="/static/sample_email.html" download style="color: #4299e1; margin-left: 0.5rem;">
+                    Download Sample Email HTML
+                </a>
+                <a href="/static/sample_requirements.json" download style="color: #4299e1; margin-left: 1rem;">
+                    Download Sample Requirements JSON
+                </a>
+            </div>
+        </div>
+        
+        <form id="qa-form">
+            <div class="file-input-container">
+                <label>Upload Email HTML:</label>
+                <input type="file" accept=".html" id="email-file" />
+                <div id="email-file-name" class="file-name"></div>
+            </div>
+            
+            <div class="file-input-container">
+                <label>Upload Requirements JSON:</label>
+                <input type="file" accept=".json" id="req-file" />
+                <div id="req-file-name" class="file-name"></div>
+            </div>
+            
+            <div id="error-message" class="error hidden"></div>
+            
+            <button type="submit" class="button" id="submit-button">Run QA</button>
+        </form>
+        
+        <div id="loading-message" class="hidden">Running QA checks...</div>
+        
+        <div id="results-container" class="results-container hidden">
+            <h2>QA Results</h2>
+            
+            <h3>Metadata</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Expected</th>
+                        <th>Actual</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="metadata-results">
+                    <!-- Results will be inserted here -->
+                </tbody>
+            </table>
+            
+            <h3>Links</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Link Text</th>
+                        <th>URL</th>
+                        <th>Status</th>
+                        <th>Issues</th>
+                    </tr>
+                </thead>
+                <tbody id="links-results">
+                    <!-- Results will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-        function App() {
-            const [emailFile, setEmailFile] = useState(null);
-            const [reqFile, setReqFile] = useState(null);
-            const [results, setResults] = useState(null);
-            const [error, setError] = useState(null);
-            const [loading, setLoading] = useState(false);
-
-            const handleFileChange = (e, setFile) => {
-                setFile(e.target.files[0]);
-                setError(null);
-            };
-
-            const handleDrop = (e, setFile) => {
-                e.preventDefault();
-                setFile(e.dataTransfer.files[0]);
-                setError(null);
-            };
-
-            const handleDragOver = (e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add('drag-active');
-            };
-
-            const handleDragLeave = (e) => {
-                e.currentTarget.classList.remove('drag-active');
-            };
-
-            const runQA = async () => {
-                if (!emailFile || !reqFile) {
-                    setError("Please upload both email HTML and requirements JSON files.");
-                    return;
-                }
-                setLoading(true);
-                setError(null);
-                setResults(null);
-
-                const formData = new FormData();
-                formData.append("email", emailFile);
-                formData.append("requirements", reqFile);
-
-                try {
-                    // Use relative URL for API endpoint - works when served by same server
-                    const response = await fetch("/run-qa", {
-                        method: "POST",
-                        body: formData,
-                    });
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        setResults(data);
-                    } else {
-                        setError(data.detail || "Failed to process QA.");
-                    }
-                } catch (err) {
-                    setError("Error connecting to server: " + err.message);
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            return (
-                <div className="min-h-screen bg-gray-100 p-6">
-                    <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
-                        <h1 className="text-2xl font-bold mb-6 text-center">Email QA Automation</h1>
-
-                        <div className="mb-4 p-4 bg-blue-50 rounded-lg text-sm">
-                            <p className="mb-2">
-                                This tool validates HTML emails against predefined requirements for metadata and UTM parameters.
-                            </p>
-                            <div className="mt-2">
-                                <span className="font-medium">Need examples?</span> 
-                                <a href="/static/sample_email.html" download className="text-blue-600 hover:underline ml-2">
-                                    Download Sample Email HTML
-                                </a>
-                                <a href="/static/sample_requirements.json" download className="text-blue-600 hover:underline ml-4">
-                                    Download Sample Requirements JSON
-                                </a>
-                            </div>
-                        </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Upload Email HTML
-                            </label>
-                            <div
-                                className="file-drop-area"
-                                onDrop={(e) => handleDrop(e, setEmailFile)}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                            >
-                                <input
-                                    type="file"
-                                    accept=".html"
-                                    onChange={(e) => handleFileChange(e, setEmailFile)}
-                                    className="hidden"
-                                    id="email-upload"
-                                />
-                                <label htmlFor="email-upload" className="cursor-pointer text-blue-600 hover:underline">
-                                    {emailFile ? emailFile.name : "Drag or click to upload email HTML"}
-                                </label>
-                            </div>
-                        </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Upload Requirements JSON
-                            </label>
-                            <div
-                                className="file-drop-area"
-                                onDrop={(e) => handleDrop(e, setReqFile)}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                            >
-                                <input
-                                    type="file"
-                                    accept=".json"
-                                    onChange={(e) => handleFileChange(e, setReqFile)}
-                                    className="hidden"
-                                    id="req-upload"
-                                />
-                                <label htmlFor="req-upload" className="cursor-pointer text-blue-600 hover:underline">
-                                    {reqFile ? reqFile.name : "Drag or click to upload requirements JSON"}
-                                </label>
-                            </div>
-                        </div>
-
-                        {error && (
-                            <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
-                                {error}
-                            </div>
-                        )}
-
-                        <button
-                            onClick={runQA}
-                            disabled={loading}
-                            className={`w-full py-2 px-4 rounded-lg text-white font-semibold ${
-                                loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                            }`}
-                        >
-                            {loading ? "Running QA..." : "Run QA"}
-                        </button>
-
-                        {results && (
-                            <div className="mt-8">
-                                <h2 className="text-xl font-semibold mb-4">QA Results</h2>
-                                <div className="space-y-6">
-                                    <div>
-                                        <h3 className="text-lg font-medium mb-2">Metadata</h3>
-                                        <table className="w-full border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-200">
-                                                    <th className="border p-2">Field</th>
-                                                    <th className="border p-2">Expected</th>
-                                                    <th className="border p-2">Actual</th>
-                                                    <th className="border p-2">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {results.metadata.map((item, index) => (
-                                                    <tr key={index} className="border">
-                                                        <td className="border p-2">{item.field}</td>
-                                                        <td className="border p-2">{item.expected}</td>
-                                                        <td className="border p-2">{item.actual}</td>
-                                                        <td
-                                                            className={`border p-2 ${
-                                                                item.status === "PASS"
-                                                                    ? "text-green-600"
-                                                                    : "text-red-600"
-                                                            }`}
-                                                        >
-                                                            {item.status}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-medium mb-2">Links</h3>
-                                        <table className="w-full border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-200">
-                                                    <th className="border p-2">Link Text</th>
-                                                    <th className="border p-2">URL</th>
-                                                    <th className="border p-2">Status</th>
-                                                    <th className="border p-2">Issues</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {results.links.map((item, index) => (
-                                                    <tr key={index} className="border">
-                                                        <td className="border p-2">{item.link_text}</td>
-                                                        <td className="border p-2">
-                                                            <a
-                                                                href={item.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-blue-600 hover:underline"
-                                                            >
-                                                                {item.url.length > 50 ? item.url.substring(0, 50) + '...' : item.url}
-                                                            </a>
-                                                        </td>
-                                                        <td
-                                                            className={`border p-2 ${
-                                                                item.status === "PASS"
-                                                                    ? "text-green-600"
-                                                                    : item.status === "ERROR"
-                                                                    ? "text-yellow-600"
-                                                                    : "text-red-600"
-                                                            }`}
-                                                        >
-                                                            {item.status}
-                                                        </td>
-                                                        <td className="border p-2">
-                                                            {item.utm_issues.length > 0
-                                                                ? (
-                                                                    <ul className="list-disc pl-4">
-                                                                        {item.utm_issues.map((issue, i) => (
-                                                                            <li key={i}>{issue}</li>
-                                                                        ))}
-                                                                    </ul>
-                                                                )
-                                                                : "None"}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
+    <script>
+        // Helper function to show/hide elements
+        function showElement(element) {
+            element.classList.remove('hidden');
         }
-
-        ReactDOM.render(<App />, document.getElementById("root"));
+        
+        function hideElement(element) {
+            element.classList.add('hidden');
+        }
+        
+        // Form elements
+        const form = document.getElementById('qa-form');
+        const emailFileInput = document.getElementById('email-file');
+        const reqFileInput = document.getElementById('req-file');
+        const emailFileName = document.getElementById('email-file-name');
+        const reqFileName = document.getElementById('req-file-name');
+        const errorMessage = document.getElementById('error-message');
+        const submitButton = document.getElementById('submit-button');
+        const loadingMessage = document.getElementById('loading-message');
+        const resultsContainer = document.getElementById('results-container');
+        const metadataResults = document.getElementById('metadata-results');
+        const linksResults = document.getElementById('links-results');
+        
+        // Update file name display
+        emailFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                emailFileName.textContent = this.files[0].name;
+            } else {
+                emailFileName.textContent = '';
+            }
+            hideElement(errorMessage);
+        });
+        
+        reqFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                reqFileName.textContent = this.files[0].name;
+            } else {
+                reqFileName.textContent = '';
+            }
+            hideElement(errorMessage);
+        });
+        
+        // Form submission
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            // Validate inputs
+            if (!emailFileInput.files.length || !reqFileInput.files.length) {
+                errorMessage.textContent = 'Please upload both email HTML and requirements JSON files.';
+                showElement(errorMessage);
+                return;
+            }
+            
+            // Start loading state
+            submitButton.disabled = true;
+            submitButton.textContent = 'Running QA...';
+            hideElement(errorMessage);
+            hideElement(resultsContainer);
+            showElement(loadingMessage);
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('email', emailFileInput.files[0]);
+            formData.append('requirements', reqFileInput.files[0]);
+            
+            // Submit the form
+            fetch('/run-qa', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.detail || 'Failed to process QA');
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                displayResults(data);
+            })
+            .catch(error => {
+                errorMessage.textContent = error.message || 'An error occurred while processing the request.';
+                showElement(errorMessage);
+            })
+            .finally(() => {
+                // End loading state
+                submitButton.disabled = false;
+                submitButton.textContent = 'Run QA';
+                hideElement(loadingMessage);
+            });
+        });
+        
+        // Display QA results
+        function displayResults(data) {
+            // Clear previous results
+            metadataResults.innerHTML = '';
+            linksResults.innerHTML = '';
+            
+            // Display metadata results
+            data.metadata.forEach(item => {
+                const row = document.createElement('tr');
+                
+                const fieldCell = document.createElement('td');
+                fieldCell.textContent = item.field;
+                row.appendChild(fieldCell);
+                
+                const expectedCell = document.createElement('td');
+                expectedCell.textContent = item.expected;
+                row.appendChild(expectedCell);
+                
+                const actualCell = document.createElement('td');
+                actualCell.textContent = item.actual;
+                
+                if (item.details) {
+                    const detailsElement = document.createElement('div');
+                    detailsElement.innerHTML = `<em>${item.details}</em>`;
+                    detailsElement.style.fontSize = 'smaller';
+                    detailsElement.style.marginTop = '5px';
+                    actualCell.appendChild(detailsElement);
+                }
+                
+                row.appendChild(actualCell);
+                
+                const statusCell = document.createElement('td');
+                statusCell.textContent = item.status;
+                statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
+                row.appendChild(statusCell);
+                
+                metadataResults.appendChild(row);
+            });
+            
+            // Display links results
+            data.links.forEach(item => {
+                const row = document.createElement('tr');
+                
+                const textCell = document.createElement('td');
+                textCell.textContent = item.link_text;
+                row.appendChild(textCell);
+                
+                const urlCell = document.createElement('td');
+                const link = document.createElement('a');
+                link.href = item.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = item.url.length > 50 ? item.url.substring(0, 50) + '...' : item.url;
+                urlCell.appendChild(link);
+                row.appendChild(urlCell);
+                
+                const statusCell = document.createElement('td');
+                statusCell.textContent = item.status;
+                statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
+                row.appendChild(statusCell);
+                
+                const issuesCell = document.createElement('td');
+                if (item.utm_issues && item.utm_issues.length > 0) {
+                    const issuesList = document.createElement('ul');
+                    issuesList.style.paddingLeft = '20px';
+                    
+                    item.utm_issues.forEach(issue => {
+                        const issueItem = document.createElement('li');
+                        issueItem.textContent = issue;
+                        issuesList.appendChild(issueItem);
+                    });
+                    
+                    issuesCell.appendChild(issuesList);
+                } else {
+                    issuesCell.textContent = 'None';
+                }
+                row.appendChild(issuesCell);
+                
+                linksResults.appendChild(row);
+            });
+            
+            // Show results
+            showElement(resultsContainer);
+        }
     </script>
 </body>
 </html>

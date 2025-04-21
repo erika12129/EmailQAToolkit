@@ -179,7 +179,14 @@
                                                     <tr key={index} className="border">
                                                         <td className="border p-2">{item.field}</td>
                                                         <td className="border p-2">{item.expected}</td>
-                                                        <td className="border p-2">{item.actual}</td>
+                                                        <td className="border p-2">
+                                                            {item.actual}
+                                                            {item.details && (
+                                                                <div className="text-xs text-gray-600 mt-1">
+                                                                    <em>{item.details}</em>
+                                                                </div>
+                                                            )}
+                                                        </td>
                                                         <td
                                                             className={`border p-2 ${
                                                                 item.status === "PASS"

@@ -1,0 +1,10 @@
+{
+    "sender": "marketing@company.com",
+    "subject": "Welcome to Our Newsletter",
+    "preheader": "Thanks for joining our newsletter community!",
+    "utm_parameters": {
+        "utm_source": "email",
+        "utm_medium": "newsletter",
+        "utm_campaign": "welcome"
+    }
+}

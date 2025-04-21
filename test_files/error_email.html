@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="sender" content="sales@company.com">
+    <meta name="subject" content="Special Discount - 25% Off">
+    <title>Special Discount - 25% Off</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            color: #333;
+        }
+        .header {
+            background-color: #cc0000;
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+        .content {
+            padding: 20px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #ff9900;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            padding: 20px;
+            background-color: #f1f1f1;
+            font-size: 12px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Intentionally using wrong class name for preheader -->
+    <div class="preview-text">Limited time offer: 25% discount on all products!</div>
+
+    <div class="header">
+        <h1>SPECIAL DISCOUNT</h1>
+        <h2>25% OFF EVERYTHING</h2>
+    </div>
+
+    <div class="content">
+        <p>Dear Customer,</p>
+        
+        <p>We're offering an exclusive <strong>25% discount</strong> on all our products!</p>
+        
+        <!-- Intentional UTM parameter error (wrong campaign name) -->
+        <p><a href="https://example.com/shop?utm_source=email&utm_medium=marketing&utm_campaign=discount_promo" class="button">SHOP NOW</a></p>
+        
+        <p>Browse our categories:</p>
+        <ul>
+            <!-- Another UTM parameter error (missing utm_medium) -->
+            <li><a href="https://example.com/electronics?utm_source=email&utm_campaign=special_offer">Electronics</a></li>
+            
+            <!-- Completely missing UTM parameters -->
+            <li><a href="https://example.com/clothing">Clothing</a></li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>© 2025 Company Inc. All rights reserved.</p>
+        <p>
+            <a href="https://example.com/unsubscribe?utm_source=email&utm_medium=marketing&utm_campaign=special_offer">Unsubscribe</a>
+        </p>
+    </div>
+</body>
+</html>

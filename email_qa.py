@@ -35,12 +35,28 @@ def extract_email_metadata(soup):
     """Extract sender, subject, and preheader from email HTML."""
     sender = soup.find('meta', {'name': 'sender'}) or soup.find('from') or {}
     subject = soup.find('meta', {'name': 'subject'}) or soup.find('title') or {}
-    preheader = soup.find('div', {'class': 'preheader'}) or soup.find('span', {'class': 'preheader'}) or {}
+    
+    # Try various common preheader class names
+    preheader_classes = ['preheader', 'preview-text', 'preview', 'hidden-preheader']
+    preheader = None
+    attempted_classes = []
+    
+    for cls in preheader_classes:
+        attempted_classes.append(cls)
+        element = soup.find('div', {'class': cls}) or soup.find('span', {'class': cls})
+        if element:
+            preheader = element
+            break
+    
+    if not preheader:
+        preheader = {}
+        logger.warning(f"Preheader not found. Attempted classes: {', '.join(attempted_classes)}")
     
     return {
         'sender': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
         'subject': subject.get('content') or (subject.get_text(strip=True) if hasattr(subject, 'get_text') else '') or 'Not found',
-        'preheader': preheader.get_text(strip=True) if hasattr(preheader, 'get_text') else 'Not found'
+        'preheader': preheader.get_text(strip=True) if hasattr(preheader, 'get_text') else 'Not found',
+        'preheader_details': f"Attempted classes: {', '.join(attempted_classes)}" if not hasattr(preheader, 'get_text') else ''
     }
 
 def extract_links(soup):
@@ -140,12 +156,19 @@ def validate_email(email_path, requirements_path):
         actual = metadata[key]
         expected = requirements.get(key, 'Not specified')
         status = 'PASS' if actual == expected else 'FAIL'
-        results['metadata'].append({
+        
+        result_item = {
             'field': key,
             'expected': expected,
             'actual': actual,
             'status': status
-        })
+        }
+        
+        # Add additional details for preheader if available
+        if key == 'preheader' and status == 'FAIL' and metadata.get('preheader_details'):
+            result_item['details'] = metadata['preheader_details']
+        
+        results['metadata'].append(result_item)
         logger.info(f"Validated {key}: {status}")
     
     links = extract_links(soup)
