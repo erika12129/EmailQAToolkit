@@ -1,0 +1,15 @@
+{
+  "sender": "marketing@example.com",
+  "sender_name": "Example Company",
+  "reply_to": "support@example.com",
+  "subject": "Special Summer Offer Just For You",
+  "preheader": "Get 25% off summer products with our special discount code.",
+  "utm_parameters": {
+    "utm_source": "marketing",
+    "utm_medium": "email",
+    "utm_campaign": "summer_sale",
+    "utm_content": "main_button",
+    "country": "us",
+    "webtrends": "summer2023"
+  }
+}

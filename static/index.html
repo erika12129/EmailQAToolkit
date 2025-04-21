@@ -547,12 +547,44 @@
             metadataResults.innerHTML = '';
             linksResults.innerHTML = '';
             
+            // Map field names for display
+            const fieldNameMap = {
+                'sender': 'sender_address',
+                'sender_name': 'sender_name',
+                'reply_to': 'reply_address'
+            };
+            
+            // Get expected metadata values from original form inputs
+            let allMetadata = [...data.metadata];
+            
+            // Make sure we have sender_name and reply_address in the results
+            const hasField = (field) => allMetadata.some(item => item.field === field);
+            
+            if (!hasField('sender_name') && senderNameInput.value) {
+                allMetadata.push({
+                    field: 'sender_name',
+                    expected: senderNameInput.value,
+                    actual: 'Not found',
+                    status: 'FAIL'
+                });
+            }
+            
+            if (!hasField('reply_to') && replyEmailInput.value) {
+                allMetadata.push({
+                    field: 'reply_to',
+                    expected: replyEmailInput.value,
+                    actual: 'Not found',
+                    status: 'FAIL'
+                });
+            }
+            
             // Display metadata results
-            data.metadata.forEach(item => {
+            allMetadata.forEach(item => {
                 const row = document.createElement('tr');
                 
                 const fieldCell = document.createElement('td');
-                fieldCell.textContent = item.field;
+                // Use the mapped field name if available, otherwise use the original field name
+                fieldCell.textContent = fieldNameMap[item.field] || item.field;
                 row.appendChild(fieldCell);
                 
                 const expectedCell = document.createElement('td');
@@ -598,7 +630,14 @@
                 row.appendChild(urlCell);
                 
                 const statusCell = document.createElement('td');
-                statusCell.textContent = item.status;
+                
+                // Include the HTTP status code if available
+                if (item.http_status) {
+                    statusCell.textContent = `${item.status} (${item.http_status})`;
+                } else {
+                    statusCell.textContent = item.status;
+                }
+                
                 statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
                 row.appendChild(statusCell);
                 
@@ -609,7 +648,15 @@
                     
                     item.utm_issues.forEach(issue => {
                         const issueItem = document.createElement('li');
-                        issueItem.textContent = issue;
+                        
+                        // Note that empty webtrends is OK
+                        if (issue.includes('webtrends') && issue.includes('missing')) {
+                            issueItem.textContent = issue + ' (This is acceptable)';
+                            issueItem.style.color = '#718096'; // Gray color to indicate it's not a critical issue
+                        } else {
+                            issueItem.textContent = issue;
+                        }
+                        
                         issuesList.appendChild(issueItem);
                     });
                     
