@@ -110,6 +110,36 @@
             border: 1px solid #e2e8f0;
             margin-bottom: 20px;
         }
+        .form-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .form-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #4a5568;
+        }
+        .form-group-radio {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        .radio-container {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .radio-label {
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -148,34 +178,96 @@
                 
                 <!-- Form Fields for Requirements -->
                 <div id="requirements-form">
-                    <div class="form-group">
-                        <label for="sender-email">Sender Email:</label>
-                        <input type="email" id="sender-email" class="text-input" placeholder="marketing@company.com">
+                    <!-- Email Type Selection -->
+                    <div class="form-section">
+                        <h4 class="section-title">Email Type</h4>
+                        <div class="form-group-radio">
+                            <label class="radio-container">
+                                <input type="radio" name="email-type" id="promotional" value="promotional" checked>
+                                <span class="radio-label">Promotional</span>
+                            </label>
+                            <label class="radio-container">
+                                <input type="radio" name="email-type" id="transactional" value="transactional">
+                                <span class="radio-label">Transactional</span>
+                            </label>
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="subject">Subject Line:</label>
-                        <input type="text" id="subject" class="text-input" placeholder="Special Discount - 25% Off">
+                    <!-- Sender Information Section -->
+                    <div class="form-section">
+                        <h4 class="section-title">Sender Information</h4>
+                        <div class="form-group">
+                            <label for="sender-name">Sender From Name:</label>
+                            <input type="text" id="sender-name" class="text-input" placeholder="Company Name" value="Company Name">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="sender-email">Sender From Email Address:</label>
+                            <input type="email" id="sender-email" class="text-input" placeholder="marketing@company.com">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="reply-email">Reply Email Address:</label>
+                            <input type="email" id="reply-email" class="text-input" placeholder="support@company.com">
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="preheader">Preheader Text:</label>
-                        <input type="text" id="preheader" class="text-input" placeholder="Limited time offer: 25% discount on all products!">
+                    <!-- Email Content Section -->
+                    <div class="form-section">
+                        <h4 class="section-title">Email Content</h4>
+                        <div class="form-group">
+                            <label for="subject">Subject Line:</label>
+                            <input type="text" id="subject" class="text-input" placeholder="Special Discount - 25% Off">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="preheader">Preheader Text:</label>
+                            <input type="text" id="preheader" class="text-input" placeholder="Limited time offer: 25% discount on all products!">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="country">Country:</label>
+                            <input type="text" id="country" class="text-input" placeholder="United States">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="language">Language:</label>
+                            <input type="text" id="language" class="text-input" placeholder="English">
+                        </div>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="utm-source">UTM Source:</label>
-                        <input type="text" id="utm-source" class="text-input" placeholder="email">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="utm-medium">UTM Medium:</label>
-                        <input type="text" id="utm-medium" class="text-input" placeholder="marketing">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="utm-campaign">UTM Campaign:</label>
-                        <input type="text" id="utm-campaign" class="text-input" placeholder="special_offer">
+                    <!-- UTM Parameters Section -->
+                    <div class="form-section">
+                        <h4 class="section-title">UTM Parameters</h4>
+                        <div class="form-group">
+                            <label for="utm-medium">UTM Medium:</label>
+                            <input type="text" id="utm-medium" class="text-input" placeholder="email">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="utm-source">UTM Source:</label>
+                            <input type="text" id="utm-source" class="text-input" placeholder="marketing">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="utm-campaign">UTM Campaign:</label>
+                            <input type="text" id="utm-campaign" class="text-input" placeholder="special_offer">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="utm-content">UTM Content:</label>
+                            <input type="text" id="utm-content" class="text-input" placeholder="summer-sale-2025">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="utm-country">Country Code:</label>
+                            <input type="text" id="utm-country" class="text-input" placeholder="us">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="webtrends">Webtrends:</label>
+                            <input type="text" id="webtrends" class="text-input" placeholder="summer-promo">
+                        </div>
                     </div>
                 </div>
                 
@@ -258,14 +350,61 @@
         const requirementsForm = document.getElementById('requirements-form');
         const jsonUploadContainer = document.getElementById('json-upload-container');
         const toggleButton = document.getElementById('toggle-advanced');
+        
+        // Email type radio buttons
+        const promotionalRadio = document.getElementById('promotional');
+        const transactionalRadio = document.getElementById('transactional');
+        
+        // Form fields - Sender information
+        const senderNameInput = document.getElementById('sender-name');
         const senderEmailInput = document.getElementById('sender-email');
+        const replyEmailInput = document.getElementById('reply-email');
+        
+        // Form fields - Email content
         const subjectInput = document.getElementById('subject');
         const preheaderInput = document.getElementById('preheader');
-        const utmSourceInput = document.getElementById('utm-source');
+        const countryInput = document.getElementById('country');
+        const languageInput = document.getElementById('language');
+        
+        // Form fields - UTM parameters
         const utmMediumInput = document.getElementById('utm-medium');
+        const utmSourceInput = document.getElementById('utm-source');
         const utmCampaignInput = document.getElementById('utm-campaign');
+        const utmContentInput = document.getElementById('utm-content');
+        const utmCountryInput = document.getElementById('utm-country');
+        const webtrendsInput = document.getElementById('webtrends');
         
         let useJsonUpload = false; // Start with form fields by default
+        
+        // Set default values based on email type
+        function setDefaultsByEmailType() {
+            if (promotionalRadio.checked) {
+                // Promotional email defaults
+                utmMediumInput.value = utmMediumInput.value || 'email';
+                utmSourceInput.value = utmSourceInput.value || 'marketing';
+                utmCampaignInput.placeholder = 'promotional_campaign';
+                // Clear any specific placeholder for sender email if empty
+                if (!senderEmailInput.value) {
+                    senderEmailInput.placeholder = 'marketing@company.com';
+                }
+            } else {
+                // Transactional email defaults
+                utmMediumInput.value = utmMediumInput.value || 'email';
+                utmSourceInput.value = utmSourceInput.value || 'transactional';
+                utmCampaignInput.placeholder = 'receipt_notification';
+                // Clear any specific placeholder for sender email if empty
+                if (!senderEmailInput.value) {
+                    senderEmailInput.placeholder = 'noreply@company.com';
+                }
+            }
+        }
+        
+        // Initialize defaults
+        setDefaultsByEmailType();
+        
+        // Listen for changes to email type
+        promotionalRadio.addEventListener('change', setDefaultsByEmailType);
+        transactionalRadio.addEventListener('change', setDefaultsByEmailType);
         
         // Toggle between form fields and JSON upload
         toggleButton.addEventListener('click', function() {
@@ -348,16 +487,24 @@
                 
                 // Create requirements JSON from form fields
                 const requirementsObj = {
+                    sender_name: senderNameInput.value,
                     sender: senderEmailInput.value,
+                    reply_to: replyEmailInput.value,
                     subject: subjectInput.value,
                     preheader: preheaderInput.value,
+                    country: countryInput.value,
+                    language: languageInput.value,
+                    email_type: promotionalRadio.checked ? 'promotional' : 'transactional',
                     utm_parameters: {}
                 };
                 
                 // Add UTM parameters if provided
-                if (utmSourceInput.value) requirementsObj.utm_parameters.utm_source = utmSourceInput.value;
                 if (utmMediumInput.value) requirementsObj.utm_parameters.utm_medium = utmMediumInput.value;
+                if (utmSourceInput.value) requirementsObj.utm_parameters.utm_source = utmSourceInput.value;
                 if (utmCampaignInput.value) requirementsObj.utm_parameters.utm_campaign = utmCampaignInput.value;
+                if (utmContentInput.value) requirementsObj.utm_parameters.utm_content = utmContentInput.value;
+                if (utmCountryInput.value) requirementsObj.utm_parameters.country = utmCountryInput.value;
+                if (webtrendsInput.value) requirementsObj.utm_parameters.webtrends = webtrendsInput.value;
                 
                 // Convert to JSON and create a file
                 const requirementsBlob = new Blob([JSON.stringify(requirementsObj, null, 2)], { type: 'application/json' });
