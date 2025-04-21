@@ -3,320 +3,381 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email QA Automation</title>
+    <title>Email QA Automation Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1 {
-            color: #2563eb;
-            text-align: center;
-        }
-        .container {
-            background-color: #f9fafb;
-            border-radius: 5px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input[type="file"] {
-            border: 1px solid #ddd;
-            padding: 8px;
-            width: 100%;
-            border-radius: 4px;
-        }
-        button {
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #1d4ed8;
-        }
-        .tab-buttons {
-            display: flex;
-            border-bottom: 1px solid #ddd;
-            margin-bottom: 20px;
-        }
-        .tab-button {
-            padding: 10px 20px;
-            background: none;
-            border: none;
-            color: #666;
-            cursor: pointer;
-        }
-        .tab-button.active {
-            border-bottom: 2px solid #2563eb;
-            color: #2563eb;
-            font-weight: bold;
-        }
         .tab-content {
             display: none;
         }
         .tab-content.active {
             display: block;
         }
-        .results {
-            margin-top: 20px;
-            display: none;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        .pass {
-            color: green;
-        }
-        .fail {
-            color: red;
-        }
     </style>
 </head>
-<body>
-    <h1>Email QA Automation Tool</h1>
-    <p style="text-align: center;">Validate HTML emails against campaign requirements</p>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-center text-blue-600">Email QA Automation Tool</h1>
+            <p class="text-center text-gray-600 mt-2">Validate HTML emails against campaign requirements</p>
+        </header>
 
-    <div class="tab-buttons">
-        <button class="tab-button active" data-tab="single">Single Email QA</button>
-        <button class="tab-button" data-tab="batch">Batch Processing</button>
-        <button class="tab-button" data-tab="localized">Localization QA</button>
-    </div>
-
-    <!-- Single Email QA -->
-    <div id="single-tab" class="tab-content active">
-        <div class="container">
-            <h2>Validate a Single Email</h2>
-            <p>Upload an email HTML file and its requirements to validate.</p>
-            
-            <form id="single-form">
-                <div class="form-group">
-                    <label for="email">Email HTML File</label>
-                    <input type="file" id="email" name="email" accept=".html">
-                </div>
-                
-                <div class="form-group">
-                    <label for="requirements">Requirements JSON File</label>
-                    <input type="file" id="requirements" name="requirements" accept=".json">
-                </div>
-                
-                <button type="submit">Validate Email</button>
-                <button type="button" id="load-sample">Load Sample</button>
-            </form>
-            
-            <div id="single-results" class="results">
-                <h3>Validation Results</h3>
-                
-                <h4>Metadata Validation</h4>
-                <table id="metadata-table">
-                    <thead>
-                        <tr>
-                            <th>Field</th>
-                            <th>Expected</th>
-                            <th>Actual</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                
-                <h4>Link Validation</h4>
-                <table id="links-table">
-                    <thead>
-                        <tr>
-                            <th>Link Text</th>
-                            <th>URL</th>
-                            <th>Status</th>
-                            <th>Issues</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
+        <!-- Navigation Tabs -->
+        <div class="flex mb-6 border-b border-gray-200">
+            <button id="tab-single" class="px-4 py-2 border-b-2 border-blue-500 text-blue-500 font-medium">
+                Single Email QA
+            </button>
+            <button id="tab-batch" class="px-4 py-2 text-gray-600 font-medium">
+                Batch Processing
+            </button>
+            <button id="tab-localization" class="px-4 py-2 text-gray-600 font-medium">
+                Localization QA
+            </button>
         </div>
-    </div>
 
-    <!-- Batch Processing -->
-    <div id="batch-tab" class="tab-content">
-        <div class="container">
-            <h2>Batch Process Multiple Emails</h2>
-            <p>Upload multiple email HTML files with a single requirements file.</p>
-            
-            <form id="batch-form">
-                <div class="form-group">
-                    <label for="batch-emails">Email HTML Files (multiple)</label>
-                    <input type="file" id="batch-emails" name="emails" accept=".html" multiple>
-                </div>
+        <!-- Single Email QA Content -->
+        <div id="content-single" class="tab-content active">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Validate a Single Email</h2>
+                <p class="text-gray-600 mb-4">Upload an email HTML file and its requirements to validate.</p>
                 
-                <div class="form-group">
-                    <label for="batch-requirements">Requirements JSON File</label>
-                    <input type="file" id="batch-requirements" name="requirements" accept=".json">
-                </div>
-                
-                <button type="submit">Run Batch Validation</button>
-            </form>
-            
-            <div id="batch-results" class="results">
-                <h3>Batch Validation Results</h3>
-                <div id="batch-results-container"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Localization QA -->
-    <div id="localized-tab" class="tab-content">
-        <div class="container">
-            <h2>Localization QA</h2>
-            <p>Compare a localized email with its parent version.</p>
-            
-            <form id="localized-form">
-                <div class="form-group">
-                    <label for="localized-email">Localized Email HTML File</label>
-                    <input type="file" id="localized-email" name="localized_email" accept=".html">
-                </div>
-                
-                <div class="form-group">
-                    <label for="localized-requirements">Localized Requirements JSON File</label>
-                    <input type="file" id="localized-requirements" name="localized_requirements" accept=".json">
-                </div>
-                
-                <div class="form-group">
-                    <input type="checkbox" id="compare-parent" name="compare_to_parent" checked>
-                    <label for="compare-parent" style="display: inline;">Compare with parent (en_US) email</label>
-                </div>
-                
-                <div id="parent-fields">
-                    <div class="form-group">
-                        <label for="parent-email">Parent Email HTML File (en_US)</label>
-                        <input type="file" id="parent-email" name="parent_email" accept=".html">
+                <form id="single-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Email HTML File</label>
+                        <input type="file" name="email" accept=".html" class="w-full p-2 border rounded">
                     </div>
                     
-                    <div class="form-group">
-                        <label for="parent-requirements">Parent Requirements JSON File</label>
-                        <input type="file" id="parent-requirements" name="parent_requirements" accept=".json">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Requirements File</label>
+                        <input type="file" name="requirements" accept=".json" class="w-full p-2 border rounded">
+                    </div>
+
+                    <div class="flex items-center">
+                        <input type="checkbox" id="use-form" class="mr-2">
+                        <label for="use-form">Use form instead of JSON file</label>
+                    </div>
+
+                    <div id="form-fields" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2">Sender Email</label>
+                            <input type="email" name="sender" class="w-full p-2 border rounded" placeholder="marketing@company.com">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">Subject Line</label>
+                            <input type="text" name="subject" class="w-full p-2 border rounded" placeholder="Special Discount - 25% Off">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">Preheader Text</label>
+                            <input type="text" name="preheader" class="w-full p-2 border rounded" placeholder="Limited time offer...">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">UTM Source</label>
+                            <input type="text" name="utm_source" class="w-full p-2 border rounded" placeholder="email">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">UTM Medium</label>
+                            <input type="text" name="utm_medium" class="w-full p-2 border rounded" placeholder="marketing">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">UTM Campaign</label>
+                            <input type="text" name="utm_campaign" class="w-full p-2 border rounded" placeholder="special_offer">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                            Validate Email
+                        </button>
+                        <button type="button" id="load-sample" class="ml-2 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300">
+                            Load Sample
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="results-container" class="mt-8 hidden">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Validation Results</h2>
+                    
+                    <div class="mb-6">
+                        <h3 class="font-medium text-lg mb-2">Metadata Validation</h3>
+                        <div id="metadata-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-medium text-lg mb-2">Link Validation</h3>
+                        <div id="links-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Batch Processing Content -->
+        <div id="content-batch" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Batch Process Multiple Emails</h2>
+                <p class="text-gray-600 mb-4">Upload multiple email HTML files with a single requirements file.</p>
                 
-                <button type="submit">Run Localization Check</button>
-                <button type="button" id="load-localized-sample">Load Sample</button>
-            </form>
+                <form id="batch-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Email HTML Files (multiple)</label>
+                        <input type="file" name="emails" accept=".html" multiple class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 mb-2">Requirements File</label>
+                        <input type="file" name="requirements" accept=".json" class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                            Run Batch Validation
+                        </button>
+                    </div>
+                </form>
+            </div>
             
-            <div id="localized-results" class="results">
-                <h3>Localization Validation Results</h3>
+            <div id="batch-results-container" class="mt-8 hidden">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Batch Validation Results</h2>
+                    <div id="batch-results" class="space-y-4">
+                        <!-- Batch results will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Localization QA Content -->
+        <div id="content-localization" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Localization QA</h2>
+                <p class="text-gray-600 mb-4">Compare a localized email with its parent version.</p>
                 
-                <h4>Metadata Validation</h4>
-                <table id="localized-metadata-table">
-                    <thead>
-                        <tr>
-                            <th>Field</th>
-                            <th>Expected</th>
-                            <th>Actual</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                
-                <h4>Link Validation</h4>
-                <table id="localized-links-table">
-                    <thead>
-                        <tr>
-                            <th>Link Text</th>
-                            <th>URL</th>
-                            <th>Status</th>
-                            <th>Issues</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-                
-                <div id="locale-comparison-section">
-                    <h4>Localization Pattern Comparison</h4>
-                    <table id="locale-comparison-table">
-                        <thead>
-                            <tr>
-                                <th>Link Text</th>
-                                <th>Localized URL</th>
-                                <th>Matches Parent</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                <form id="localization-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Localized Email HTML File</label>
+                        <input type="file" name="localized_email" accept=".html" class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 mb-2">Localized Requirements File</label>
+                        <input type="file" name="localized_requirements" accept=".json" class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div class="flex items-center mb-4">
+                        <input type="checkbox" id="compare-parent" name="compare_to_parent" class="mr-2" checked>
+                        <label for="compare-parent">Compare with parent (en_US) email</label>
+                    </div>
+                    
+                    <div id="parent-fields">
+                        <div>
+                            <label class="block text-gray-700 mb-2">Parent Email HTML File (en_US)</label>
+                            <input type="file" name="parent_email" accept=".html" class="w-full p-2 border rounded">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">Parent Requirements File</label>
+                            <input type="file" name="parent_requirements" accept=".json" class="w-full p-2 border rounded">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                            Run Localization Check
+                        </button>
+                        <button type="button" id="load-locale-sample" class="ml-2 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300">
+                            Load Sample
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="localization-results-container" class="mt-8 hidden">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Localization Validation Results</h2>
+                    
+                    <div class="mb-6">
+                        <h3 class="font-medium text-lg mb-2">Metadata Validation</h3>
+                        <div id="locale-metadata-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h3 class="font-medium text-lg mb-2">Link Validation</h3>
+                        <div id="locale-links-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <div id="locale-comparison-container" class="mb-6">
+                        <h3 class="font-medium text-lg mb-2">Localization Pattern Comparison</h3>
+                        <div id="locale-comparison-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <div id="parent-validation-container" class="mb-6 hidden">
+                        <h3 class="font-medium text-lg mb-2">Validation Against Parent Requirements</h3>
+                        <div id="parent-validation-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <footer class="mt-12 bg-gray-200 py-4">
+        <div class="container mx-auto px-4 text-center text-gray-600">
+            <p>Email QA Automation Tool - &copy; 2025</p>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Tab switching
-            const tabButtons = document.querySelectorAll('.tab-button');
-            const tabContents = document.querySelectorAll('.tab-content');
-            
-            tabButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const tab = this.getAttribute('data-tab');
-                    
-                    // Update active tab button
-                    tabButtons.forEach(btn => btn.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    // Show active tab content
-                    tabContents.forEach(content => content.classList.remove('active'));
-                    document.getElementById(tab + '-tab').classList.add('active');
-                });
+        $(document).ready(function() {
+            // Tab Navigation
+            $('#tab-single, #tab-batch, #tab-localization').click(function() {
+                // Update tab buttons
+                $('#tab-single, #tab-batch, #tab-localization').removeClass('border-b-2 border-blue-500 text-blue-500').addClass('text-gray-600');
+                $(this).addClass('border-b-2 border-blue-500 text-blue-500').removeClass('text-gray-600');
+                
+                // Show appropriate content
+                $('.tab-content').removeClass('active');
+                
+                if (this.id === 'tab-single') {
+                    $('#content-single').addClass('active');
+                } else if (this.id === 'tab-batch') {
+                    $('#content-batch').addClass('active');
+                } else if (this.id === 'tab-localization') {
+                    $('#content-localization').addClass('active');
+                }
             });
             
-            // Single Email Form
-            const singleForm = document.getElementById('single-form');
-            singleForm.addEventListener('submit', function(e) {
+            // Toggle form fields based on checkbox
+            $('#use-form').change(function() {
+                if ($(this).is(':checked')) {
+                    $('#form-fields').removeClass('hidden');
+                    $('input[name="requirements"]').prop('disabled', true);
+                } else {
+                    $('#form-fields').addClass('hidden');
+                    $('input[name="requirements"]').prop('disabled', false);
+                }
+            });
+            
+            // Toggle parent fields based on checkbox
+            $('#compare-parent').change(function() {
+                if ($(this).is(':checked')) {
+                    $('#parent-fields').removeClass('hidden');
+                } else {
+                    $('#parent-fields').addClass('hidden');
+                }
+            });
+            
+            // Load sample data for single email validation
+            $('#load-sample').click(function() {
+                alert('Loading sample data... This feature requires browser file API which may not work in all environments.');
+                
+                // Try to fetch sample data but this might not work due to browser security limitations
+                fetch('/static/sample_email.html')
+                    .then(response => response.text())
+                    .then(data => {
+                        console.log('Sample email loaded');
+                    })
+                    .catch(error => {
+                        console.error('Error loading sample email:', error);
+                    });
+                
+                fetch('/static/sample_requirements.json')
+                    .then(response => response.text())
+                    .then(data => {
+                        console.log('Sample requirements loaded');
+                    })
+                    .catch(error => {
+                        console.error('Error loading sample requirements:', error);
+                    });
+            });
+
+            // Single email validation form submission
+            $('#single-form').submit(function(e) {
                 e.preventDefault();
                 
-                const formData = new FormData(this);
+                const formData = new FormData();
                 
+                if ($('#use-form').is(':checked')) {
+                    // Create a JSON requirements file from form fields
+                    const formReq = {
+                        sender: $('input[name="sender"]').val(),
+                        subject: $('input[name="subject"]').val(),
+                        preheader: $('input[name="preheader"]').val(),
+                        utm_parameters: {
+                            utm_source: $('input[name="utm_source"]').val(),
+                            utm_medium: $('input[name="utm_medium"]').val(),
+                            utm_campaign: $('input[name="utm_campaign"]').val()
+                        }
+                    };
+                    
+                    // Create a file from the JSON object
+                    const reqBlob = new Blob([JSON.stringify(formReq)], {type: 'application/json'});
+                    const reqFile = new File([reqBlob], 'requirements.json');
+                    
+                    formData.append('email', $('input[name="email"]')[0].files[0]);
+                    formData.append('requirements', reqFile);
+                } else {
+                    // Use the uploaded requirements file
+                    formData.append('email', $('input[name="email"]')[0].files[0]);
+                    formData.append('requirements', $('input[name="requirements"]')[0].files[0]);
+                }
+                
+                // Show loading indicator
+                $('#results-container').removeClass('hidden');
+                $('#metadata-results').html('<p class="p-4">Loading results...</p>');
+                $('#links-results').html('<p class="p-4">Loading results...</p>');
+                
+                // Send request to API
                 fetch('/run-qa', {
                     method: 'POST',
                     body: formData
                 })
                 .then(response => response.json())
                 .then(data => {
-                    displaySingleResults(data);
+                    displayResults(data);
                 })
                 .catch(error => {
-                    alert('Error: ' + error);
+                    $('#metadata-results').html('<p class="p-4 text-red-500">Error: ' + error.message + '</p>');
+                    $('#links-results').html('<p class="p-4 text-red-500">Error: ' + error.message + '</p>');
                 });
             });
             
-            // Batch Processing Form
-            const batchForm = document.getElementById('batch-form');
-            batchForm.addEventListener('submit', function(e) {
+            // Batch validation form submission
+            $('#batch-form').submit(function(e) {
                 e.preventDefault();
                 
-                const formData = new FormData(this);
+                const formData = new FormData();
                 
+                // Append all selected email files
+                const emailFiles = $('input[name="emails"]')[0].files;
+                for (let i = 0; i < emailFiles.length; i++) {
+                    formData.append('emails', emailFiles[i]);
+                }
+                
+                // Append requirements file
+                formData.append('requirements', $('input[name="requirements"]')[0].files[0]);
+                
+                // Show loading indicator
+                $('#batch-results-container').removeClass('hidden');
+                $('#batch-results').html('<p class="p-4">Loading results...</p>');
+                
+                // Send request to API
                 fetch('/run-batch-qa', {
                     method: 'POST',
                     body: formData
@@ -326,161 +387,294 @@
                     displayBatchResults(data);
                 })
                 .catch(error => {
-                    alert('Error: ' + error);
+                    $('#batch-results').html('<p class="p-4 text-red-500">Error: ' + error.message + '</p>');
                 });
             });
             
-            // Localization QA Form
-            const localizedForm = document.getElementById('localized-form');
-            localizedForm.addEventListener('submit', function(e) {
+            // Localization validation form submission
+            $('#localization-form').submit(function(e) {
                 e.preventDefault();
                 
-                const formData = new FormData(this);
+                const formData = new FormData();
                 
+                // Add required files
+                formData.append('localized_email', $('input[name="localized_email"]')[0].files[0]);
+                formData.append('localized_requirements', $('input[name="localized_requirements"]')[0].files[0]);
+                
+                // Check if comparing to parent
+                const compareToParent = $('#compare-parent').is(':checked');
+                formData.append('compare_to_parent', compareToParent);
+                
+                if (compareToParent) {
+                    formData.append('parent_email', $('input[name="parent_email"]')[0].files[0]);
+                    formData.append('parent_requirements', $('input[name="parent_requirements"]')[0].files[0]);
+                }
+                
+                // Show loading indicator
+                $('#localization-results-container').removeClass('hidden');
+                $('#locale-metadata-results').html('<p class="p-4">Loading results...</p>');
+                $('#locale-links-results').html('<p class="p-4">Loading results...</p>');
+                $('#locale-comparison-results').html('<p class="p-4">Loading results...</p>');
+                
+                // Send request to API
                 fetch('/run-localized-qa', {
                     method: 'POST',
                     body: formData
                 })
                 .then(response => response.json())
                 .then(data => {
-                    displayLocalizedResults(data);
+                    displayLocalizationResults(data);
                 })
                 .catch(error => {
-                    alert('Error: ' + error);
+                    const errorMsg = '<p class="p-4 text-red-500">Error: ' + error.message + '</p>';
+                    $('#locale-metadata-results').html(errorMsg);
+                    $('#locale-links-results').html(errorMsg);
+                    $('#locale-comparison-results').html(errorMsg);
                 });
             });
             
-            // Load Sample Button
-            document.getElementById('load-sample').addEventListener('click', function() {
-                // This functionality would require additional JavaScript to handle
-                // Typically we'd use the fetch API to load sample data and create File objects
-                alert('Loading sample data is not implemented in this simplified version');
-            });
-            
-            // Load Localized Sample Button
-            document.getElementById('load-localized-sample').addEventListener('click', function() {
-                // This functionality would require additional JavaScript to handle
-                alert('Loading sample data is not implemented in this simplified version');
-            });
-            
-            // Toggle Parent Fields
-            document.getElementById('compare-parent').addEventListener('change', function() {
-                document.getElementById('parent-fields').style.display = this.checked ? 'block' : 'none';
-            });
-            
-            // Function to display single email results
-            function displaySingleResults(data) {
-                // Metadata results
-                const metadataTable = document.querySelector('#metadata-table tbody');
-                metadataTable.innerHTML = '';
+            // Function to display single email validation results
+            function displayResults(data) {
+                // Display metadata results
+                let metadataHtml = '<table class="min-w-full border-collapse">';
+                metadataHtml += '<thead class="bg-gray-100"><tr><th class="p-2 text-left">Field</th><th class="p-2 text-left">Expected</th><th class="p-2 text-left">Actual</th><th class="p-2 text-left">Status</th></tr></thead>';
+                metadataHtml += '<tbody>';
                 
                 data.metadata.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.field}</td>
-                        <td>${item.expected}</td>
-                        <td>${item.actual}</td>
-                        <td class="${item.status === 'PASS' ? 'pass' : 'fail'}">${item.status}</td>
-                    `;
-                    metadataTable.appendChild(row);
+                    const statusClass = item.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                    metadataHtml += `<tr class="border-t border-gray-200">
+                        <td class="p-2">${item.field}</td>
+                        <td class="p-2">${item.expected}</td>
+                        <td class="p-2">${item.actual}</td>
+                        <td class="p-2 ${statusClass} font-medium">${item.status}</td>
+                    </tr>`;
                 });
                 
-                // Links results
-                const linksTable = document.querySelector('#links-table tbody');
-                linksTable.innerHTML = '';
+                metadataHtml += '</tbody></table>';
+                $('#metadata-results').html(metadataHtml);
+                
+                // Display links results
+                let linksHtml = '<table class="min-w-full border-collapse">';
+                linksHtml += '<thead class="bg-gray-100"><tr><th class="p-2 text-left">Link Text</th><th class="p-2 text-left">URL</th><th class="p-2 text-left">Final URL</th><th class="p-2 text-left">Status</th></tr></thead>';
+                linksHtml += '<tbody>';
                 
                 data.links.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.link_text}</td>
-                        <td>${item.url}</td>
-                        <td class="${item.status === 'PASS' ? 'pass' : 'fail'}">${item.status}</td>
-                        <td>${item.utm_issues ? item.utm_issues.join('<br>') : 'None'}</td>
-                    `;
-                    linksTable.appendChild(row);
-                });
-                
-                // Show results
-                document.getElementById('single-results').style.display = 'block';
-            }
-            
-            // Function to display batch results
-            function displayBatchResults(data) {
-                const batchResultsContainer = document.getElementById('batch-results-container');
-                batchResultsContainer.innerHTML = '';
-                
-                for (const [filename, results] of Object.entries(data)) {
-                    const emailResult = document.createElement('div');
-                    emailResult.className = 'email-result';
-                    emailResult.innerHTML = `
-                        <h4>${filename}</h4>
-                        <p>Metadata: ${results.metadata.filter(m => m.status === 'PASS').length}/${results.metadata.length} passed</p>
-                        <p>Links: ${results.links.filter(l => l.status === 'PASS').length}/${results.links.length} passed</p>
-                    `;
-                    batchResultsContainer.appendChild(emailResult);
-                }
-                
-                // Show results
-                document.getElementById('batch-results').style.display = 'block';
-            }
-            
-            // Function to display localized results
-            function displayLocalizedResults(data) {
-                // Metadata results
-                const metadataTable = document.querySelector('#localized-metadata-table tbody');
-                metadataTable.innerHTML = '';
-                
-                data.metadata.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.field}</td>
-                        <td>${item.expected}</td>
-                        <td>${item.actual}</td>
-                        <td class="${item.status === 'PASS' ? 'pass' : 'fail'}">${item.status}</td>
-                    `;
-                    metadataTable.appendChild(row);
-                });
-                
-                // Links results
-                const linksTable = document.querySelector('#localized-links-table tbody');
-                linksTable.innerHTML = '';
-                
-                data.links.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${item.link_text}</td>
-                        <td>${item.url}</td>
-                        <td class="${item.status === 'PASS' ? 'pass' : 'fail'}">${item.status}</td>
-                        <td>${item.utm_issues ? item.utm_issues.join('<br>') : 'None'}</td>
-                    `;
-                    linksTable.appendChild(row);
-                });
-                
-                // Locale comparison results
-                const comparisonSection = document.getElementById('locale-comparison-section');
-                
-                if (data.locale_comparison && data.locale_comparison.length > 0) {
-                    const comparisonTable = document.querySelector('#locale-comparison-table tbody');
-                    comparisonTable.innerHTML = '';
+                    const statusClass = item.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                    const utmIssues = item.utm_issues && item.utm_issues.length > 0 
+                        ? `<div class="mt-1 text-sm text-gray-500">${item.utm_issues.join(', ')}</div>` 
+                        : '';
                     
-                    data.locale_comparison.forEach(item => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${item.link_text}</td>
-                            <td>${item.localized_url}</td>
-                            <td>${item.matches_parent_structure ? 'Yes' : 'No'}</td>
-                            <td class="${item.status === 'PASS' ? 'pass' : 'fail'}">${item.status}</td>
-                        `;
-                        comparisonTable.appendChild(row);
+                    linksHtml += `<tr class="border-t border-gray-200">
+                        <td class="p-2">${item.link_text}</td>
+                        <td class="p-2 text-xs overflow-hidden">${item.url}</td>
+                        <td class="p-2 text-xs overflow-hidden">${item.final_url || 'N/A'}</td>
+                        <td class="p-2 ${statusClass} font-medium">${item.status} ${utmIssues}</td>
+                    </tr>`;
+                });
+                
+                linksHtml += '</tbody></table>';
+                $('#links-results').html(linksHtml);
+            }
+            
+            // Function to display batch validation results
+            function displayBatchResults(data) {
+                let batchHtml = '';
+                
+                // For each email in the batch
+                Object.entries(data).forEach(([filename, results]) => {
+                    batchHtml += `<div class="mb-6 p-4 border rounded bg-gray-50">
+                        <h3 class="font-medium text-lg mb-2">${filename}</h3>
+                        
+                        <div class="mb-4">
+                            <h4 class="font-medium mb-2">Metadata</h4>
+                            <table class="min-w-full border-collapse bg-white">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-2 text-left">Field</th>
+                                        <th class="p-2 text-left">Expected</th>
+                                        <th class="p-2 text-left">Actual</th>
+                                        <th class="p-2 text-left">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    
+                    results.metadata.forEach(item => {
+                        const statusClass = item.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                        batchHtml += `<tr class="border-t border-gray-200">
+                            <td class="p-2">${item.field}</td>
+                            <td class="p-2">${item.expected}</td>
+                            <td class="p-2">${item.actual}</td>
+                            <td class="p-2 ${statusClass} font-medium">${item.status}</td>
+                        </tr>`;
                     });
                     
-                    comparisonSection.style.display = 'block';
+                    batchHtml += `</tbody>
+                            </table>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium mb-2">Links</h4>
+                            <table class="min-w-full border-collapse bg-white">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-2 text-left">Link Text</th>
+                                        <th class="p-2 text-left">URL</th>
+                                        <th class="p-2 text-left">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    
+                    results.links.forEach(item => {
+                        const statusClass = item.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                        const utmIssues = item.utm_issues && item.utm_issues.length > 0 
+                            ? `<div class="mt-1 text-sm text-gray-500">${item.utm_issues.join(', ')}</div>` 
+                            : '';
+                        
+                        batchHtml += `<tr class="border-t border-gray-200">
+                            <td class="p-2">${item.link_text}</td>
+                            <td class="p-2 text-xs overflow-hidden">${item.url}</td>
+                            <td class="p-2 ${statusClass} font-medium">${item.status} ${utmIssues}</td>
+                        </tr>`;
+                    });
+                    
+                    batchHtml += `</tbody>
+                            </table>
+                        </div>
+                    </div>`;
+                });
+                
+                $('#batch-results').html(batchHtml);
+            }
+            
+            // Function to display localization validation results
+            function displayLocalizationResults(data) {
+                // Display metadata results
+                let metadataHtml = '<table class="min-w-full border-collapse">';
+                metadataHtml += '<thead class="bg-gray-100"><tr><th class="p-2 text-left">Field</th><th class="p-2 text-left">Expected</th><th class="p-2 text-left">Actual</th><th class="p-2 text-left">Status</th></tr></thead>';
+                metadataHtml += '<tbody>';
+                
+                data.metadata.forEach(item => {
+                    const statusClass = item.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                    metadataHtml += `<tr class="border-t border-gray-200">
+                        <td class="p-2">${item.field}</td>
+                        <td class="p-2">${item.expected}</td>
+                        <td class="p-2">${item.actual}</td>
+                        <td class="p-2 ${statusClass} font-medium">${item.status}</td>
+                    </tr>`;
+                });
+                
+                metadataHtml += '</tbody></table>';
+                $('#locale-metadata-results').html(metadataHtml);
+                
+                // Display links results
+                let linksHtml = '<table class="min-w-full border-collapse">';
+                linksHtml += '<thead class="bg-gray-100"><tr><th class="p-2 text-left">Link Text</th><th class="p-2 text-left">URL</th><th class="p-2 text-left">Status</th></tr></thead>';
+                linksHtml += '<tbody>';
+                
+                data.links.forEach(item => {
+                    const statusClass = item.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                    const utmIssues = item.utm_issues && item.utm_issues.length > 0 
+                        ? `<div class="mt-1 text-sm text-gray-500">${item.utm_issues.join(', ')}</div>` 
+                        : '';
+                    
+                    linksHtml += `<tr class="border-t border-gray-200">
+                        <td class="p-2">${item.link_text}</td>
+                        <td class="p-2 text-xs overflow-hidden">${item.url}</td>
+                        <td class="p-2 ${statusClass} font-medium">${item.status} ${utmIssues}</td>
+                    </tr>`;
+                });
+                
+                linksHtml += '</tbody></table>';
+                $('#locale-links-results').html(linksHtml);
+                
+                // Display comparison results if they exist
+                if (data.comparison_results) {
+                    let comparisonHtml = '<table class="min-w-full border-collapse">';
+                    comparisonHtml += '<thead class="bg-gray-100"><tr><th class="p-2 text-left">Pattern Type</th><th class="p-2 text-left">Status</th><th class="p-2 text-left">Details</th></tr></thead>';
+                    comparisonHtml += '<tbody>';
+                    
+                    Object.entries(data.comparison_results).forEach(([pattern, result]) => {
+                        const statusClass = result.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                        const details = result.details ? result.details.join('<br>') : 'N/A';
+                        
+                        comparisonHtml += `<tr class="border-t border-gray-200">
+                            <td class="p-2">${pattern}</td>
+                            <td class="p-2 ${statusClass} font-medium">${result.status}</td>
+                            <td class="p-2">${details}</td>
+                        </tr>`;
+                    });
+                    
+                    comparisonHtml += '</tbody></table>';
+                    $('#locale-comparison-results').html(comparisonHtml);
+                    $('#locale-comparison-container').removeClass('hidden');
                 } else {
-                    comparisonSection.style.display = 'none';
+                    $('#locale-comparison-container').addClass('hidden');
                 }
                 
-                // Show results
-                document.getElementById('localized-results').style.display = 'block';
+                // Display parent validation results if they exist
+                if (data.parent_requirements_validation) {
+                    let parentHtml = `
+                        <div class="mb-4">
+                            <h4 class="font-medium mb-2">Metadata against Parent Requirements</h4>
+                            <table class="min-w-full border-collapse">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-2 text-left">Field</th>
+                                        <th class="p-2 text-left">Expected</th>
+                                        <th class="p-2 text-left">Actual</th>
+                                        <th class="p-2 text-left">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    
+                    data.parent_requirements_validation.metadata.forEach(item => {
+                        const statusClass = item.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                        parentHtml += `<tr class="border-t border-gray-200">
+                            <td class="p-2">${item.field}</td>
+                            <td class="p-2">${item.expected}</td>
+                            <td class="p-2">${item.actual}</td>
+                            <td class="p-2 ${statusClass} font-medium">${item.status}</td>
+                        </tr>`;
+                    });
+                    
+                    parentHtml += `</tbody>
+                            </table>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium mb-2">Links against Parent Requirements</h4>
+                            <table class="min-w-full border-collapse">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="p-2 text-left">Link Text</th>
+                                        <th class="p-2 text-left">URL</th>
+                                        <th class="p-2 text-left">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                    
+                    data.parent_requirements_validation.links.forEach(item => {
+                        const statusClass = item.status === 'PASS' ? 'text-green-500' : 'text-red-500';
+                        const utmIssues = item.utm_issues && item.utm_issues.length > 0 
+                            ? `<div class="mt-1 text-sm text-gray-500">${item.utm_issues.join(', ')}</div>` 
+                            : '';
+                        
+                        parentHtml += `<tr class="border-t border-gray-200">
+                            <td class="p-2">${item.link_text}</td>
+                            <td class="p-2 text-xs overflow-hidden">${item.url}</td>
+                            <td class="p-2 ${statusClass} font-medium">${item.status} ${utmIssues}</td>
+                        </tr>`;
+                    });
+                    
+                    parentHtml += `</tbody>
+                            </table>
+                        </div>`;
+                    
+                    $('#parent-validation-results').html(parentHtml);
+                    $('#parent-validation-container').removeClass('hidden');
+                } else {
+                    $('#parent-validation-container').addClass('hidden');
+                }
             }
         });
     </script>
