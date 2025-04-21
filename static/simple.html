@@ -1,57 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email QA Test Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1 {
-            color: #4299e1;
-        }
-        p {
-            margin-bottom: 15px;
-        }
-        .button {
-            display: inline-block;
-            background-color: #4299e1;
-            color: white;
-            padding: 10px 15px;
-            border-radius: 4px;
-            text-decoration: none;
-            margin-top: 10px;
-        }
-    </style>
+    <title>Test Page</title>
 </head>
 <body>
-    <h1>Email QA Test Page</h1>
-    <p>This is a simple test page to verify that the Email QA server is running properly.</p>
-    <p>Server Status: <span id="status">Checking...</span></p>
-    
-    <div>
-        <a href="/" class="button">Back to Main Application</a>
-    </div>
-    
-    <script>
-        // Check if the server is responding
-        fetch('/run-qa', {
-            method: 'POST',
-            body: new FormData()
-        })
-        .then(response => {
-            document.getElementById('status').textContent = 'Active';
-            document.getElementById('status').style.color = 'green';
-        })
-        .catch(error => {
-            document.getElementById('status').textContent = 'Inactive';
-            document.getElementById('status').style.color = 'red';
-        });
-    </script>
+    <h1>Test Page</h1>
+    <p>If you can see this, the server is running correctly.</p>
 </body>
 </html>
