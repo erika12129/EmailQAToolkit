@@ -21,13 +21,23 @@ app.add_middleware(
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/assets", StaticFiles(directory="attached_assets"), name="assets")
 
 @app.get("/")
 async def read_root():
     """Serve the frontend application directly."""
     from fastapi.responses import HTMLResponse
-    with open("static/index.html", "r") as f:
-        html_content = f.read()
+    try:
+        with open("index.html", "r") as f:
+            html_content = f.read()
+    except FileNotFoundError:
+        try:
+            with open("attached_assets/index.html", "r") as f:
+                html_content = f.read()
+        except FileNotFoundError:
+            # Fallback to static/index.html if other files are not found
+            with open("static/index.html", "r") as f:
+                html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
 @app.get("/test")

@@ -1,258 +1,671 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row =>
-                    row.some(cell => cell !== '' && cell !== null && cell !== undefined)
-                );
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Email QA Automation</title>
-    <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/babel-standalone@7/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Email QA Automation Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
 </head>
-<body>
-    <div id="root"></div>
-    <script type="text/babel">
-        const { useState } = React;
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-center text-blue-600">Email QA Automation Tool</h1>
+            <p class="text-center text-gray-600 mt-2">Validate HTML emails against campaign requirements</p>
+        </header>
 
-        function App() {
-            const [emailFile, setEmailFile] = useState(null);
-            const [reqFile, setReqFile] = useState(null);
-            const [results, setResults] = useState(null);
-            const [error, setError] = useState(null);
-            const [loading, setLoading] = useState(false);
+        <!-- Navigation Tabs -->
+        <div class="flex mb-6 border-b border-gray-200">
+            <button id="tab-single" class="px-4 py-2 border-b-2 border-blue-500 text-blue-500 font-medium">
+                Single Email QA
+            </button>
+            <button id="tab-batch" class="px-4 py-2 text-gray-600 font-medium">
+                Batch Processing
+            </button>
+            <button id="tab-localization" class="px-4 py-2 text-gray-600 font-medium">
+                Localization QA
+            </button>
+        </div>
 
-            const handleFileChange = (e, setFile) => {
-                setFile(e.target.files[0]);
-                setError(null);
-            };
+        <!-- Single Email QA Content -->
+        <div id="content-single" class="tab-content active">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Validate a Single Email</h2>
+                <p class="text-gray-600 mb-4">Upload an email HTML file and its requirements to validate.</p>
+                
+                <form id="single-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Email HTML File</label>
+                        <input type="file" name="email" accept=".html" class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 mb-2">Requirements File</label>
+                        <input type="file" name="requirements" accept=".json" class="w-full p-2 border rounded">
+                    </div>
 
-            const handleDrop = (e, setFile) => {
-                e.preventDefault();
-                setFile(e.dataTransfer.files[0]);
-                setError(null);
-            };
+                    <div class="flex items-center">
+                        <input type="checkbox" id="use-form" class="mr-2">
+                        <label for="use-form">Use form instead of JSON file</label>
+                    </div>
 
-            const handleDragOver = (e) => e.preventDefault();
-
-            const runQA = async () => {
-                if (!emailFile || !reqFile) {
-                    setError("Please upload both email HTML and requirements JSON files.");
-                    return;
-                }
-                setLoading(true);
-                setError(null);
-                setResults(null);
-
-                const formData = new FormData();
-                formData.append("email", emailFile);
-                formData.append("requirements", reqFile);
-
-                try {
-                    const response = await fetch("http://localhost:8000/run-qa", {
-                        method: "POST",
-                        body: formData,
-                    });
-                    const data = await response.json();
-                    if (response.ok) {
-                        setResults(data);
-                    } else {
-                        setError(data.detail || "Failed to process QA.");
-                    }
-                } catch (err) {
-                    setError("Error connecting to server: " + err.message);
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            return (
-                <div className="min-h-screen bg-gray-100 p-6">
-                    <div className="max-w-4xl mx-auto bg-white shadow-lg rounded-lg p-8">
-                        <h1 className="text-2xl font-bold mb-6 text-center">Email QA Automation</h1>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Upload Email HTML
-                            </label>
-                            <div
-                                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center"
-                                onDrop={(e) => handleDrop(e, setEmailFile)}
-                                onDragOver={handleDragOver}
-                            >
-                                <input
-                                    type="file"
-                                    accept=".html"
-                                    onChange={(e) => handleFileChange(e, setEmailFile)}
-                                    className="hidden"
-                                    id="email-upload"
-                                />
-                                <label htmlFor="email-upload" className="cursor-pointer text-blue-600 hover:underline">
-                                    {emailFile ? emailFile.name : "Drag or click to upload email HTML"}
-                                </label>
-                            </div>
+                    <div id="form-fields" class="hidden space-y-4">
+                        <div>
+                            <label class="block text-gray-700 mb-2">Sender Email</label>
+                            <input type="email" name="sender" class="w-full p-2 border rounded" placeholder="marketing@company.com">
                         </div>
-
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Upload Requirements JSON
-                            </label>
-                            <div
-                                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center"
-                                onDrop={(e) => handleDrop(e, setReqFile)}
-                                onDragOver={handleDragOver}
-                            >
-                                <input
-                                    type="file"
-                                    accept=".json"
-                                    onChange={(e) => handleFileChange(e, setReqFile)}
-                                    className="hidden"
-                                    id="req-upload"
-                                />
-                                <label htmlFor="req-upload" className="cursor-pointer text-blue-600 hover:underline">
-                                    {reqFile ? reqFile.name : "Drag or click to upload requirements JSON"}
-                                </label>
-                            </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">Subject Line</label>
+                            <input type="text" name="subject" class="w-full p-2 border rounded" placeholder="Special Discount - 25% Off">
                         </div>
-
-                        {error && (
-                            <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
-                                {error}
-                            </div>
-                        )}
-
-                        <button
-                            onClick={runQA}
-                            disabled={loading}
-                            className={`w-full py-2 px-4 rounded-lg text-white font-semibold ${
-                                loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-                            }`}
-                        >
-                            {loading ? "Running QA..." : "Run QA"}
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">Preheader Text</label>
+                            <input type="text" name="preheader" class="w-full p-2 border rounded" placeholder="Limited time offer...">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">UTM Source</label>
+                            <input type="text" name="utm_source" class="w-full p-2 border rounded" placeholder="email">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">UTM Medium</label>
+                            <input type="text" name="utm_medium" class="w-full p-2 border rounded" placeholder="marketing">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">UTM Campaign</label>
+                            <input type="text" name="utm_campaign" class="w-full p-2 border rounded" placeholder="special_offer">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                            Validate Email
                         </button>
-
-                        {results && (
-                            <div className="mt-8">
-                                <h2 className="text-xl font-semibold mb-4">QA Results</h2>
-                                <div className="space-y-6">
-                                    <div>
-                                        <h3 className="text-lg font-medium mb-2">Metadata</h3>
-                                        <table className="w-full border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-200">
-                                                    <th className="border p-2">Field</th>
-                                                    <th className="border p-2">Expected</th>
-                                                    <th className="border p-2">Actual</th>
-                                                    <th className="border p-2">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {results.metadata.map((item, index) => (
-                                                    <tr key={index} className="border">
-                                                        <td className="border p-2">{item.field}</td>
-                                                        <td className="border p-2">{item.expected}</td>
-                                                        <td className="border p-2">
-                                                            {item.actual}
-                                                            {item.details && (
-                                                                <div className="text-xs text-gray-600 mt-1">
-                                                                    <em>{item.details}</em>
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        <td
-                                                            className={`border p-2 ${
-                                                                item.status === "PASS"
-                                                                    ? "text-green-600"
-                                                                    : "text-red-600"
-                                                            }`}
-                                                        >
-                                                            {item.status}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-medium mb-2">Links</h3>
-                                        <table className="w-full border-collapse">
-                                            <thead>
-                                                <tr className="bg-gray-200">
-                                                    <th className="border p-2">Link Text</th>
-                                                    <th className="border p-2">URL</th>
-                                                    <th className="border p-2">Status</th>
-                                                    <th className="border p-2">Issues</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {results.links.map((item, index) => (
-                                                    <tr key={index} className="border">
-                                                        <td className="border p-2">{item.link_text}</td>
-                                                        <td className="border p-2">
-                                                            <a
-                                                                href={item.url}
-                                                                target="_blank"
-                                                                className="text-blue-600 hover:underline"
-                                                            >
-                                                                {item.url}
-                                                            </a>
-                                                        </td>
-                                                        <td
-                                                            className={`border p-2 ${
-                                                                item.status === "PASS"
-                                                                    ? "text-green-600"
-                                                                    : "text-red-600"
-                                                            }`}
-                                                        >
-                                                            {item.status}
-                                                        </td>
-                                                        <td className="border p-2">
-                                                            {item.utm_issues.length > 0
-                                                                ? item.utm_issues.join("; ")
-                                                                : "None"}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        <button type="button" id="load-sample" class="ml-2 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300">
+                            Load Sample
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="results-container" class="mt-8 hidden">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Validation Results</h2>
+                    
+                    <div class="mb-6">
+                        <h3 class="font-medium text-lg mb-2">Metadata Validation</h3>
+                        <div id="metadata-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="font-medium text-lg mb-2">Link Validation</h3>
+                        <div id="links-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
                     </div>
                 </div>
-            );
-        }
+            </div>
+        </div>
 
-        ReactDOM.render(<App />, document.getElementById("root"));
+        <!-- Batch Processing Content -->
+        <div id="content-batch" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Batch Process Multiple Emails</h2>
+                <p class="text-gray-600 mb-4">Upload multiple email HTML files with a single requirements file.</p>
+                
+                <form id="batch-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Email HTML Files (multiple)</label>
+                        <input type="file" name="emails" accept=".html" multiple class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 mb-2">Requirements File</label>
+                        <input type="file" name="requirements" accept=".json" class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                            Run Batch Validation
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="batch-results-container" class="mt-8 hidden">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Batch Validation Results</h2>
+                    <div id="batch-results" class="space-y-4">
+                        <!-- Batch results will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Localization QA Content -->
+        <div id="content-localization" class="tab-content">
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold mb-4">Localization QA</h2>
+                <p class="text-gray-600 mb-4">Compare a localized email with its parent version.</p>
+                
+                <form id="localization-form" class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 mb-2">Localized Email HTML File</label>
+                        <input type="file" name="localized_email" accept=".html" class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 mb-2">Localized Requirements File</label>
+                        <input type="file" name="localized_requirements" accept=".json" class="w-full p-2 border rounded">
+                    </div>
+                    
+                    <div class="flex items-center mb-4">
+                        <input type="checkbox" id="compare-parent" name="compare_to_parent" class="mr-2" checked>
+                        <label for="compare-parent">Compare with parent (en_US) email</label>
+                    </div>
+                    
+                    <div id="parent-fields">
+                        <div>
+                            <label class="block text-gray-700 mb-2">Parent Email HTML File (en_US)</label>
+                            <input type="file" name="parent_email" accept=".html" class="w-full p-2 border rounded">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-gray-700 mb-2">Parent Requirements File</label>
+                            <input type="file" name="parent_requirements" accept=".json" class="w-full p-2 border rounded">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <button type="submit" class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">
+                            Run Localization Check
+                        </button>
+                        <button type="button" id="load-locale-sample" class="ml-2 bg-gray-200 text-gray-800 py-2 px-4 rounded hover:bg-gray-300">
+                            Load Sample
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div id="localization-results-container" class="mt-8 hidden">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-xl font-semibold mb-4">Localization Validation Results</h2>
+                    
+                    <div class="mb-6">
+                        <h3 class="font-medium text-lg mb-2">Metadata Validation</h3>
+                        <div id="locale-metadata-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h3 class="font-medium text-lg mb-2">Link Validation</h3>
+                        <div id="locale-links-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <div id="locale-comparison-container" class="mb-6">
+                        <h3 class="font-medium text-lg mb-2">Localization Pattern Comparison</h3>
+                        <div id="locale-comparison-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                    
+                    <div id="parent-validation-container" class="mb-6 hidden">
+                        <h3 class="font-medium text-lg mb-2">Validation Against Parent Requirements</h3>
+                        <div id="parent-validation-results" class="border rounded overflow-hidden">
+                            <!-- Results will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="mt-12 bg-gray-200 py-4">
+        <div class="container mx-auto px-4 text-center text-gray-600">
+            <p>Email QA Automation Tool - &copy; 2025</p>
+        </div>
+    </footer>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Tab Navigation
+            $('#tab-single, #tab-batch, #tab-localization').click(function() {
+                // Update tab buttons
+                $('#tab-single, #tab-batch, #tab-localization').removeClass('border-b-2 border-blue-500 text-blue-500').addClass('text-gray-600');
+                $(this).addClass('border-b-2 border-blue-500 text-blue-500').removeClass('text-gray-600');
+                
+                // Show appropriate content
+                $('.tab-content').removeClass('active');
+                
+                if (this.id === 'tab-single') {
+                    $('#content-single').addClass('active');
+                } else if (this.id === 'tab-batch') {
+                    $('#content-batch').addClass('active');
+                } else if (this.id === 'tab-localization') {
+                    $('#content-localization').addClass('active');
+                }
+            });
+            
+            // Toggle form fields based on checkbox
+            $('#use-form').change(function() {
+                if ($(this).is(':checked')) {
+                    $('#form-fields').removeClass('hidden');
+                    $('input[name="requirements"]').prop('disabled', true);
+                } else {
+                    $('#form-fields').addClass('hidden');
+                    $('input[name="requirements"]').prop('disabled', false);
+                }
+            });
+            
+            // Toggle parent fields based on checkbox
+            $('#compare-parent').change(function() {
+                if ($(this).is(':checked')) {
+                    $('#parent-fields').removeClass('hidden');
+                } else {
+                    $('#parent-fields').addClass('hidden');
+                }
+            });
+            
+            // Load sample data for single email validation
+            $('#load-sample').click(function() {
+                $.ajax({
+                    url: '/static/sample_email.html',
+                    success: function(emailData) {
+                        const emailFile = new File([emailData], 'sample_email.html', {type: 'text/html'});
+                        const emailDt = new DataTransfer();
+                        emailDt.items.add(emailFile);
+                        document.querySelector('input[name="email"]').files = emailDt.files;
+                    },
+                    error: function() {
+                        alert('Failed to load sample email');
+                    }
+                });
+                
+                $.ajax({
+                    url: '/static/sample_requirements.json',
+                    success: function(reqData) {
+                        const reqFile = new File([reqData], 'sample_requirements.json', {type: 'application/json'});
+                        const reqDt = new DataTransfer();
+                        reqDt.items.add(reqFile);
+                        document.querySelector('input[name="requirements"]').files = reqDt.files;
+                    },
+                    error: function() {
+                        alert('Failed to load sample requirements');
+                    }
+                });
+            });
+            
+            // Load sample data for localization validation
+            $('#load-locale-sample').click(function() {
+                $.ajax({
+                    url: '/static/sample_localized_email.html',
+                    success: function(emailData) {
+                        const emailFile = new File([emailData], 'sample_localized_email.html', {type: 'text/html'});
+                        const emailDt = new DataTransfer();
+                        emailDt.items.add(emailFile);
+                        document.querySelector('input[name="localized_email"]').files = emailDt.files;
+                    }
+                });
+                
+                $.ajax({
+                    url: '/static/sample_localized_requirements.json',
+                    success: function(reqData) {
+                        const reqFile = new File([reqData], 'sample_localized_requirements.json', {type: 'application/json'});
+                        const reqDt = new DataTransfer();
+                        reqDt.items.add(reqFile);
+                        document.querySelector('input[name="localized_requirements"]').files = reqDt.files;
+                    }
+                });
+                
+                $.ajax({
+                    url: '/static/sample_email.html',
+                    success: function(emailData) {
+                        const emailFile = new File([emailData], 'sample_email.html', {type: 'text/html'});
+                        const emailDt = new DataTransfer();
+                        emailDt.items.add(emailFile);
+                        document.querySelector('input[name="parent_email"]').files = emailDt.files;
+                    }
+                });
+                
+                $.ajax({
+                    url: '/static/sample_requirements.json',
+                    success: function(reqData) {
+                        const reqFile = new File([reqData], 'sample_requirements.json', {type: 'application/json'});
+                        const reqDt = new DataTransfer();
+                        reqDt.items.add(reqFile);
+                        document.querySelector('input[name="parent_requirements"]').files = reqDt.files;
+                    }
+                });
+            });
+            
+            // Single Email Form Submission
+            $('#single-form').submit(function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData();
+                const useForm = $('#use-form').is(':checked');
+                
+                if (useForm) {
+                    // Create requirements JSON from form fields
+                    const requirements = {
+                        sender: $('input[name="sender"]').val(),
+                        subject: $('input[name="subject"]').val(),
+                        preheader: $('input[name="preheader"]').val(),
+                        utm_parameters: {
+                            utm_source: $('input[name="utm_source"]').val(),
+                            utm_medium: $('input[name="utm_medium"]').val(),
+                            utm_campaign: $('input[name="utm_campaign"]').val()
+                        }
+                    };
+                    
+                    const reqBlob = new Blob([JSON.stringify(requirements)], {type: 'application/json'});
+                    formData.append('requirements', reqBlob, 'requirements.json');
+                } else {
+                    // Use uploaded requirements file
+                    formData.append('requirements', $('input[name="requirements"]')[0].files[0]);
+                }
+                
+                // Add email file
+                formData.append('email', $('input[name="email"]')[0].files[0]);
+                
+                // Send API request
+                $.ajax({
+                    url: '/run-qa',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        displayResults(response);
+                    },
+                    error: function(xhr) {
+                        alert('Validation failed: ' + xhr.responseText);
+                    }
+                });
+            });
+            
+            // Batch Form Submission
+            $('#batch-form').submit(function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData();
+                const emailFiles = $('input[name="emails"]')[0].files;
+                
+                // Add all email files
+                for (let i = 0; i < emailFiles.length; i++) {
+                    formData.append('emails', emailFiles[i]);
+                }
+                
+                // Add requirements file
+                formData.append('requirements', $('input[name="requirements"]')[0].files[0]);
+                
+                // Send API request
+                $.ajax({
+                    url: '/run-batch-qa',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        displayBatchResults(response);
+                    },
+                    error: function(xhr) {
+                        alert('Batch validation failed: ' + xhr.responseText);
+                    }
+                });
+            });
+            
+            // Localization Form Submission
+            $('#localization-form').submit(function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData();
+                const compareToParent = $('#compare-parent').is(':checked');
+                
+                // Add localized files
+                formData.append('localized_email', $('input[name="localized_email"]')[0].files[0]);
+                formData.append('localized_requirements', $('input[name="localized_requirements"]')[0].files[0]);
+                
+                // Add parent files if comparing
+                if (compareToParent) {
+                    formData.append('parent_email', $('input[name="parent_email"]')[0].files[0]);
+                    formData.append('parent_requirements', $('input[name="parent_requirements"]')[0].files[0]);
+                    formData.append('compare_to_parent', 'true');
+                }
+                
+                // Send API request
+                $.ajax({
+                    url: '/run-localized-qa',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(response) {
+                        displayLocalizationResults(response);
+                    },
+                    error: function(xhr) {
+                        alert('Localization validation failed: ' + xhr.responseText);
+                    }
+                });
+            });
+            
+            // Function to display validation results
+            function displayResults(data) {
+                // Clear previous results
+                $('#metadata-results, #links-results').empty();
+                
+                // Display metadata results
+                let metadataTable = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                
+                data.metadata.forEach(function(item) {
+                    const statusClass = item.status === 'PASS' ? 'text-green-600' : 'text-red-600';
+                    
+                    metadataTable += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">${item.field}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${item.expected}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${item.actual}</td>
+                            <td class="px-6 py-4 whitespace-nowrap font-medium ${statusClass}">${item.status}</td>
+                        </tr>
+                    `;
+                });
+                
+                metadataTable += '</tbody></table>';
+                $('#metadata-results').html(metadataTable);
+                
+                // Display links results
+                let linksTable = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link Text</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final URL</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issues</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                
+                data.links.forEach(function(item) {
+                    const statusClass = item.status === 'PASS' ? 'text-green-600' : 'text-red-600';
+                    const issues = item.utm_issues && item.utm_issues.length > 0 ? item.utm_issues.join('<br>') : 'None';
+                    
+                    linksTable += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">${item.link_text}</td>
+                            <td class="px-6 py-4">${item.url}</td>
+                            <td class="px-6 py-4">${item.final_url || 'N/A'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap font-medium ${statusClass}">${item.status}</td>
+                            <td class="px-6 py-4">${issues}</td>
+                        </tr>
+                    `;
+                });
+                
+                linksTable += '</tbody></table>';
+                $('#links-results').html(linksTable);
+                
+                // Show results container
+                $('#results-container').removeClass('hidden');
+            }
+            
+            // Function to display batch validation results
+            function displayBatchResults(data) {
+                // Clear previous results
+                $('#batch-results').empty();
+                
+                // Process each email result
+                for (const [filename, results] of Object.entries(data)) {
+                    const emailResults = `
+                        <div class="border rounded-lg p-4">
+                            <h3 class="text-lg font-medium mb-2">${filename}</h3>
+                            
+                            <div class="mb-4">
+                                <h4 class="font-medium mb-1">Metadata</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            ${results.metadata.map(item => `
+                                                <tr>
+                                                    <td class="px-4 py-2">${item.field}</td>
+                                                    <td class="px-4 py-2">${item.expected}</td>
+                                                    <td class="px-4 py-2">${item.actual}</td>
+                                                    <td class="px-4 py-2 font-medium ${item.status === 'PASS' ? 'text-green-600' : 'text-red-600'}">${item.status}</td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <h4 class="font-medium mb-1">Links (${results.links.length})</h4>
+                                <div class="text-sm text-gray-600">
+                                    <span class="font-medium">${results.links.filter(l => l.status === 'PASS').length}</span> passed,
+                                    <span class="font-medium">${results.links.filter(l => l.status !== 'PASS').length}</span> failed
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    $('#batch-results').append(emailResults);
+                }
+                
+                // Show results container
+                $('#batch-results-container').removeClass('hidden');
+            }
+            
+            // Function to display localization validation results
+            function displayLocalizationResults(data) {
+                // Clear previous results
+                $('#locale-metadata-results, #locale-links-results, #locale-comparison-results, #parent-validation-results').empty();
+                
+                // Display metadata results
+                let metadataTable = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                
+                data.metadata.forEach(function(item) {
+                    const statusClass = item.status === 'PASS' ? 'text-green-600' : 'text-red-600';
+                    
+                    metadataTable += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">${item.field}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${item.expected}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${item.actual}</td>
+                            <td class="px-6 py-4 whitespace-nowrap font-medium ${statusClass}">${item.status}</td>
+                        </tr>
+                    `;
+                });
+                
+                metadataTable += '</tbody></table>';
+                $('#locale-metadata-results').html(metadataTable);
+                
+                // Display links results
+                let linksTable = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link Text</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Final URL</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issues</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                
+                data.links.forEach(function(item) {
+                    const statusClass = item.status === 'PASS' ? 'text-green-600' : 'text-red-600';
+                    const issues = item.utm_issues && item.utm_issues.length > 0 ? item.utm_issues.join('<br>') : 'None';
+                    
+                    linksTable += `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">${item.link_text}</td>
+                            <td class="px-6 py-4">${item.url}</td>
+                            <td class="px-6 py-4">${item.final_url || 'N/A'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap font-medium ${statusClass}">${item.status}</td>
+                            <td class="px-6 py-4">${issues}</td>
+                        </tr>
+                    `;
+                });
+                
+                linksTable += '</tbody></table>';
+                $('#locale-links-results').html(linksTable);
+                
+                // Display locale comparison results if present
+                if (data.locale_comparison && data.locale_comparison.length > 0) {
+                    let comparisonTable = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Link Text</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Localized URL</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matches Parent</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                    
+                    data.locale_comparison.forEach(function(item) {
+                        const statusClass = item.status === 'PASS' ? 'text-green-600' : 'text-yellow-600';
+                        
+                        comparisonTable += `
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">${item.link_text}</td>
+                                <td class="px-6 py-4">${item.localized_url}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">${item.matches_parent_structure ? 'Yes' : 'No'}</td>
+                                <td class="px-6 py-4 whitespace-nowrap font-medium ${statusClass}">${item.status}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    comparisonTable += '</tbody></table>';
+                    $('#locale-comparison-results').html(comparisonTable);
+                    $('#locale-comparison-container').show();
+                } else {
+                    $('#locale-comparison-container').hide();
+                }
+                
+                // Display parent validation results if present
+                if (data.parent_requirements_validation) {
+                    let parentTable = '<table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Field</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Expected (Parent)</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th></tr></thead><tbody class="bg-white divide-y divide-gray-200">';
+                    
+                    data.parent_requirements_validation.metadata.forEach(function(item) {
+                        const statusClass = item.status === 'PASS' ? 'text-green-600' : 'text-red-600';
+                        
+                        parentTable += `
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap">${item.field}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">${item.expected}</td>
+                                <td class="px-6 py-4 whitespace-nowrap">${item.actual}</td>
+                                <td class="px-6 py-4 whitespace-nowrap font-medium ${statusClass}">${item.status}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    parentTable += '</tbody></table>';
+                    $('#parent-validation-results').html(parentTable);
+                    $('#parent-validation-container').removeClass('hidden');
+                } else {
+                    $('#parent-validation-container').addClass('hidden');
+                }
+                
+                // Show results container
+                $('#localization-results-container').removeClass('hidden');
+            }
+        });
     </script>
 </body>
 </html>
