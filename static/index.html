@@ -68,10 +68,11 @@
             background-color: #edf2f7;
         }
         /* Set column widths for link results table */
-        #links-results th:nth-child(1) { width: 15%; } /* Link Text */
-        #links-results th:nth-child(2) { width: 45%; } /* URL - give more space for long URLs */
-        #links-results th:nth-child(3) { width: 15%; } /* Status */
-        #links-results th:nth-child(4) { width: 25%; } /* Issues */
+        #links-results th:nth-child(1) { width: 10%; } /* Link Text */
+        #links-results th:nth-child(2) { width: 30%; } /* URL - give space for long URLs */
+        #links-results th:nth-child(3) { width: 25%; } /* Redirected To - for localized domains */
+        #links-results th:nth-child(4) { width: 10%; } /* Status */
+        #links-results th:nth-child(5) { width: 25%; } /* Issues */
         .pass {
             color: #38a169;
         }
@@ -285,10 +286,37 @@
                 
                 <!-- JSON Upload (hidden by default) -->
                 <div id="json-upload-container" class="hidden">
-                    <div class="file-input-container">
-                        <label>Upload Requirements JSON:</label>
-                        <input type="file" accept=".json" id="req-file" />
-                        <div id="req-file-name" class="file-name"></div>
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <button type="button" id="toggle-json-input" style="font-size: 12px; padding: 4px 8px; background-color: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">
+                            Switch to JSON Editor
+                        </button>
+                    </div>
+                    
+                    <div id="json-file-container">
+                        <div class="file-input-container">
+                            <label>Upload Requirements JSON:</label>
+                            <input type="file" accept=".json" id="req-file" />
+                            <div id="req-file-name" class="file-name"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="json-editor-container" class="hidden">
+                        <div style="margin-bottom: 10px;">
+                            <label for="json-textarea">Edit Requirements JSON:</label>
+                            <div style="display: flex; justify-content: flex-end; margin: 5px 0;">
+                                <button type="button" id="validate-json" style="font-size: 12px; padding: 4px 8px; background-color: #4299e1; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                    Validate JSON
+                                </button>
+                            </div>
+                            <textarea id="json-textarea" rows="15" style="width: 100%; font-family: monospace; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px;"></textarea>
+                            <div id="json-validation-message" style="margin-top: 5px; font-size: 14px;"></div>
+                        </div>
+                        
+                        <div style="margin-bottom: 10px;">
+                            <button type="button" id="load-sample-json" style="font-size: 12px; padding: 4px 8px; background-color: #48bb78; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                Load Sample JSON
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -322,8 +350,9 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Link Text</th>
+                        <th>Link Source</th>
                         <th>URL</th>
+                        <th>Redirected To</th>
                         <th>Status</th>
                         <th>Issues</th>
                     </tr>
@@ -362,6 +391,15 @@
         const requirementsForm = document.getElementById('requirements-form');
         const jsonUploadContainer = document.getElementById('json-upload-container');
         const toggleButton = document.getElementById('toggle-advanced');
+        
+        // JSON editor elements
+        const jsonFileContainer = document.getElementById('json-file-container');
+        const jsonEditorContainer = document.getElementById('json-editor-container');
+        const toggleJsonInputButton = document.getElementById('toggle-json-input');
+        const jsonTextarea = document.getElementById('json-textarea');
+        const validateJsonButton = document.getElementById('validate-json');
+        const jsonValidationMessage = document.getElementById('json-validation-message');
+        const loadSampleJsonButton = document.getElementById('load-sample-json');
         
         // Email type radio buttons
         const promotionalRadio = document.getElementById('promotional');
@@ -452,6 +490,93 @@
             hideElement(errorMessage);
         });
         
+        // Toggle between JSON file upload and JSON textarea
+        let useJsonTextarea = false;
+        toggleJsonInputButton.addEventListener('click', function() {
+            useJsonTextarea = !useJsonTextarea;
+            
+            if (useJsonTextarea) {
+                hideElement(jsonFileContainer);
+                showElement(jsonEditorContainer);
+                toggleJsonInputButton.textContent = 'Switch to File Upload';
+            } else {
+                showElement(jsonFileContainer);
+                hideElement(jsonEditorContainer);
+                toggleJsonInputButton.textContent = 'Switch to JSON Editor';
+            }
+        });
+        
+        // JSON validation function
+        function validateJson(jsonString) {
+            try {
+                const result = JSON.parse(jsonString);
+                
+                // Check for required fields
+                const missing = [];
+                if (!result.sender) missing.push('sender');
+                if (!result.subject) missing.push('subject');
+                if (!result.preheader) missing.push('preheader');
+                
+                if (missing.length > 0) {
+                    return {
+                        valid: false,
+                        message: `Missing required fields: ${missing.join(', ')}`
+                    };
+                }
+                
+                return {
+                    valid: true,
+                    message: 'JSON is valid!',
+                    json: result
+                };
+            } catch (e) {
+                // Format the error message to be more helpful
+                let message = e.message;
+                
+                // Check for common JSON syntax errors
+                if (message.includes('Unexpected token')) {
+                    message += '. Check for missing or misplaced quotation marks, commas, or braces.';
+                } else if (message.includes('Unexpected end of JSON input')) {
+                    message += '. You might be missing a closing brace or bracket.';
+                }
+                
+                return {
+                    valid: false,
+                    message: message
+                };
+            }
+        }
+        
+        // Validate JSON button click handler
+        validateJsonButton.addEventListener('click', function() {
+            const result = validateJson(jsonTextarea.value);
+            
+            jsonValidationMessage.textContent = result.message;
+            jsonValidationMessage.style.color = result.valid ? '#48bb78' : '#e53e3e';
+            
+            if (result.valid) {
+                // Format the JSON for better readability
+                jsonTextarea.value = JSON.stringify(result.json, null, 2);
+            }
+        });
+        
+        // Load sample JSON
+        loadSampleJsonButton.addEventListener('click', function() {
+            // Fetch the sample requirements JSON
+            fetch('/attached_assets/sample_requirements.json')
+                .then(response => response.json())
+                .then(data => {
+                    // Format and display in the textarea
+                    jsonTextarea.value = JSON.stringify(data, null, 2);
+                    jsonValidationMessage.textContent = 'Sample JSON loaded!';
+                    jsonValidationMessage.style.color = '#48bb78';
+                })
+                .catch(error => {
+                    jsonValidationMessage.textContent = 'Failed to load sample JSON.';
+                    jsonValidationMessage.style.color = '#e53e3e';
+                });
+        });
+        
         // Form submission
         form.addEventListener('submit', function(event) {
             event.preventDefault();
@@ -475,17 +600,59 @@
             formData.append('email', emailFileInput.files[0]);
             
             if (useJsonUpload) {
-                // Validate requirements JSON file input
-                if (!reqFileInput.files.length) {
-                    errorMessage.textContent = 'Please upload a requirements JSON file.';
-                    showElement(errorMessage);
-                    submitButton.disabled = false;
-                    submitButton.textContent = 'Run QA';
-                    hideElement(loadingMessage);
-                    return;
-                }
+                let jsonContent;
                 
-                formData.append('requirements', reqFileInput.files[0]);
+                // Check if we're using the JSON editor or file upload
+                if (!useJsonTextarea) {
+                    // Check if JSON file upload is provided
+                    if (!reqFileInput.files.length) {
+                        errorMessage.textContent = 'Please upload a requirements JSON file.';
+                        showElement(errorMessage);
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Run QA';
+                        hideElement(loadingMessage);
+                        return;
+                    }
+                    
+                    formData.append('requirements', reqFileInput.files[0]);
+                } else {
+                    // Check if JSON text is provided and valid
+                    if (!jsonTextarea.value.trim()) {
+                        errorMessage.textContent = 'Please enter JSON requirements in the editor.';
+                        showElement(errorMessage);
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Run QA';
+                        hideElement(loadingMessage);
+                        return;
+                    }
+                    
+                    try {
+                        // Validate JSON structure
+                        jsonContent = JSON.parse(jsonTextarea.value);
+                        
+                        // Basic requirements validation
+                        if (!jsonContent.sender || !jsonContent.subject || !jsonContent.preheader) {
+                            errorMessage.textContent = 'JSON requirements must include sender, subject, and preheader fields.';
+                            showElement(errorMessage);
+                            submitButton.disabled = false;
+                            submitButton.textContent = 'Run QA';
+                            hideElement(loadingMessage);
+                            return;
+                        }
+                        
+                        // Convert to JSON file
+                        const requirementsBlob = new Blob([jsonTextarea.value], { type: 'application/json' });
+                        const requirementsFile = new File([requirementsBlob], 'editor_requirements.json', { type: 'application/json' });
+                        formData.append('requirements', requirementsFile);
+                    } catch (e) {
+                        errorMessage.textContent = 'Invalid JSON: ' + e.message;
+                        showElement(errorMessage);
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Run QA';
+                        hideElement(loadingMessage);
+                        return;
+                    }
+                }
             } else {
                 // Validate form fields
                 if (!senderEmailInput.value || !subjectInput.value || !preheaderInput.value) {
@@ -628,13 +795,44 @@
             data.links.forEach(item => {
                 const row = document.createElement('tr');
                 
-                const textCell = document.createElement('td');
-                textCell.textContent = item.link_text;
-                row.appendChild(textCell);
+                // Link Source Cell
+                const sourceCell = document.createElement('td');
                 
+                // Check if this is an image link
+                if (item.is_image_link && item.image_src) {
+                    // Create a container for the thumbnail and text
+                    const container = document.createElement('div');
+                    container.style.display = 'flex';
+                    container.style.alignItems = 'center';
+                    container.style.gap = '8px';
+                    
+                    // Create thumbnail
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = item.image_src;
+                    thumbnail.alt = item.image_alt || 'Image';
+                    thumbnail.style.maxWidth = '40px';
+                    thumbnail.style.maxHeight = '40px';
+                    thumbnail.style.border = '1px solid #e2e8f0';
+                    thumbnail.style.borderRadius = '2px';
+                    container.appendChild(thumbnail);
+                    
+                    // Add the link text or image alt
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = item.image_alt || item.link_text || '[Image Link]';
+                    container.appendChild(textSpan);
+                    
+                    sourceCell.appendChild(container);
+                } else {
+                    // Just show the link text for regular links
+                    sourceCell.textContent = item.link_text || '[No text]';
+                }
+                
+                row.appendChild(sourceCell);
+                
+                // Original URL Cell
                 const urlCell = document.createElement('td');
                 urlCell.style.wordBreak = 'break-word'; // Allow URLs to wrap
-                urlCell.style.maxWidth = '300px'; // Set a max width to encourage wrapping
+                urlCell.style.maxWidth = '250px'; // Set a max width to encourage wrapping
                 
                 const link = document.createElement('a');
                 link.href = item.url;
@@ -644,6 +842,37 @@
                 urlCell.appendChild(link);
                 row.appendChild(urlCell);
                 
+                // Redirected URL Cell (new)
+                const redirectedCell = document.createElement('td');
+                redirectedCell.style.wordBreak = 'break-word'; // Allow URLs to wrap
+                redirectedCell.style.maxWidth = '250px'; // Set a max width to encourage wrapping
+                
+                if (item.redirected_to) {
+                    const redirectedLink = document.createElement('a');
+                    redirectedLink.href = item.redirected_to;
+                    redirectedLink.target = '_blank';
+                    redirectedLink.rel = 'noopener noreferrer';
+                    redirectedLink.textContent = item.redirected_to;
+                    redirectedCell.appendChild(redirectedLink);
+                    
+                    // Add a visual indicator for localtest.me domains that were redirected
+                    if (item.url.includes('localtest.me')) {
+                        const localeIndicator = document.createElement('div');
+                        localeIndicator.style.fontSize = '12px';
+                        localeIndicator.style.marginTop = '4px';
+                        localeIndicator.style.color = '#2b6cb0';
+                        
+                        // Determine locale from URL
+                        const locale = item.url.includes('.mx.') || item.url.includes('.mx/') ? 'es-MX' : 'en';
+                        localeIndicator.textContent = `Locale detected: ${locale}`;
+                        redirectedCell.appendChild(localeIndicator);
+                    }
+                } else {
+                    redirectedCell.textContent = 'N/A';
+                }
+                row.appendChild(redirectedCell);
+                
+                // Status Cell
                 const statusCell = document.createElement('td');
                 
                 // Include the HTTP status code if available
@@ -656,6 +885,7 @@
                 statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
                 row.appendChild(statusCell);
                 
+                // Issues Cell
                 const issuesCell = document.createElement('td');
                 if (item.utm_issues && item.utm_issues.length > 0) {
                     const issuesList = document.createElement('ul');

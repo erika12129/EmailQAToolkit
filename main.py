@@ -21,6 +21,9 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Mount attached assets
+app.mount("/attached_assets", StaticFiles(directory="attached_assets"), name="attached_assets")
+
 @app.get("/")
 async def read_root():
     """Serve the frontend application directly."""

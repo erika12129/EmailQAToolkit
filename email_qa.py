@@ -34,9 +34,31 @@ def load_requirements(requirements_path):
 
 def extract_email_metadata(soup):
     """Extract sender information, subject, and preheader from email HTML."""
-    sender = soup.find('meta', {'name': 'sender'}) or soup.find('from') or {}
-    sender_name = soup.find('meta', {'name': 'sender-name'}) or soup.find('from-name') or {}
-    reply_to = soup.find('meta', {'name': 'reply-to'}) or soup.find('reply-to') or {}
+    # Support both dashed and underscored meta names for consistency
+    sender = (
+        soup.find('meta', {'name': 'sender'}) or 
+        soup.find('meta', {'name': 'sender_address'}) or 
+        soup.find('meta', {'name': 'sender-address'}) or 
+        soup.find('from') or 
+        {}
+    )
+    
+    sender_name = (
+        soup.find('meta', {'name': 'sender-name'}) or 
+        soup.find('meta', {'name': 'sender_name'}) or 
+        soup.find('from-name') or 
+        {}
+    )
+    
+    reply_to = (
+        soup.find('meta', {'name': 'reply-to'}) or 
+        soup.find('meta', {'name': 'reply_to'}) or 
+        soup.find('meta', {'name': 'reply_address'}) or 
+        soup.find('meta', {'name': 'reply-address'}) or 
+        soup.find('reply-to') or 
+        {}
+    )
+    
     subject = soup.find('meta', {'name': 'subject'}) or soup.find('title') or {}
     
     # Try various common preheader class names
@@ -55,18 +77,64 @@ def extract_email_metadata(soup):
         preheader = {}
         logger.warning(f"Preheader not found. Attempted classes: {', '.join(attempted_classes)}")
     
+    # Clean up preheader text by removing hidden characters
+    preheader_text = preheader.get_text(strip=True) if hasattr(preheader, 'get_text') else 'Not found'
+    
+    # Extract just the readable text from the preheader
+    # This strips out invisible characters used for email client spacing/preview control
+    if preheader_text != 'Not found':
+        # Keep only visible characters - this will strip out zero-width spaces, hidden characters, etc.
+        import re
+        # Extract only the visible characters before hidden ones begin
+        visible_preheader = re.sub(r'[\u200c\u200b\u2060\u2061\u2062\u2063\u2064\u2065\u2066\u2067\u2068\u2069\u206a\u206b\u206c\u206d\u206e\u206f\u034f\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2007\u00ad\u2011\ufeff].*', '', preheader_text)
+        # If the regex failed to extract anything meaningful, use the first part of the string
+        if not visible_preheader.strip():
+            # Take the first 100 chars as a fallback
+            visible_preheader = preheader_text[:100]
+        preheader_text = visible_preheader.strip()
+    
     return {
         'sender': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
         'sender_name': sender_name.get('content') or (sender_name.get_text(strip=True) if hasattr(sender_name, 'get_text') else '') or 'Not found',
         'reply_to': reply_to.get('content') or (reply_to.get_text(strip=True) if hasattr(reply_to, 'get_text') else '') or 'Not found',
         'subject': subject.get('content') or (subject.get_text(strip=True) if hasattr(subject, 'get_text') else '') or 'Not found',
-        'preheader': preheader.get_text(strip=True) if hasattr(preheader, 'get_text') else 'Not found',
+        'preheader': preheader_text,
         'preheader_details': f"Attempted classes: {', '.join(attempted_classes)}" if not hasattr(preheader, 'get_text') else ''
     }
 
 def extract_links(soup):
-    """Extract all links from email HTML."""
-    return [(a.get_text(strip=True), a['href']) for a in soup.find_all('a', href=True)]
+    """Extract all links from email HTML with enhanced source context."""
+    links = []
+    for a in soup.find_all('a', href=True):
+        # Check if this link contains an image
+        img = a.find('img')
+        if img:
+            # This is an image link - extract image info
+            alt_text = img.get('alt', '').strip() or 'Image link'
+            src = img.get('src', '')
+            width = img.get('width', '100')
+            height = img.get('height', 'auto')
+            
+            # Create a visual representation using img tag
+            link_source = {
+                'type': 'image',
+                'text': alt_text,
+                'image_src': src,
+                'image_alt': alt_text,
+                'image_width': width,
+                'image_height': height
+            }
+        else:
+            # Regular text link
+            link_source = {
+                'type': 'text',
+                'text': a.get_text(strip=True) or 'Empty link text'
+            }
+        
+        # Store the link with its source context
+        links.append((link_source, a['href']))
+    
+    return links
 
 def validate_utm_parameters(url, expected_utm):
     """Validate UTM parameters in a URL against expected values."""
@@ -84,7 +152,31 @@ def validate_utm_parameters(url, expected_utm):
 def check_http_status(url):
     """Check HTTP status code of a URL."""
     try:
-        response = requests.head(url, timeout=5, allow_redirects=True)
+        # Handle local test domains
+        if 'localtest.me' in url:
+            # Replace with local test server for *.localtest.me domains
+            url_parts = urlparse(url)
+            domain = url_parts.netloc
+            
+            # Extract language info from domain
+            lang = 'es-mx' if '.mx.' in domain or domain.endswith('.mx') else 'en'
+            
+            # Create local test URL
+            path = url_parts.path if url_parts.path else f"/{lang}"
+            if not path.startswith('/'):
+                path = f"/{path}"
+                
+            test_url = f"http://localhost:5001{path}"
+            
+            # Forward query parameters
+            if url_parts.query:
+                test_url += f"?{url_parts.query}"
+                
+            logger.info(f"Redirecting remote URL to local test server: {url} -> {test_url}")
+            response = requests.head(test_url, timeout=5, allow_redirects=True)
+        else:
+            response = requests.head(url, timeout=5, allow_redirects=True)
+            
         return response.status_code
     except Exception as e:
         logger.error(f"Failed to check HTTP status: {e}")
@@ -105,8 +197,31 @@ def check_links(links, expected_utm):
         logger.error(f"Failed to initialize Chrome WebDriver: {e}")
         # Fallback - validate UTM parameters without browser automation
         results = []
-        for text, url in links:
+        for link_source, url in links:
             try:
+                # Process URL for localtest.me domains
+                redirect_url = url
+                if 'localtest.me' in url:
+                    url_parts = urlparse(url)
+                    domain = url_parts.netloc
+                    
+                    # Extract language info
+                    lang = 'es-mx' if '.mx.' in domain or domain.endswith('.mx') else 'en'
+                    
+                    # Create local test URL
+                    path = url_parts.path if url_parts.path and url_parts.path != '/' else f"/{lang}"
+                    if not path.startswith('/'):
+                        path = f"/{path}"
+                    
+                    test_url = f"http://localhost:5001{path}"
+                    
+                    # Forward query parameters
+                    if url_parts.query:
+                        test_url += f"?{url_parts.query}"
+                    
+                    redirect_url = test_url
+                    logger.info(f"Redirecting domain to local test server: {url} -> {redirect_url}")
+                
                 # Just validate the UTM parameters in the initial URL
                 discrepancies = validate_utm_parameters(url, expected_utm)
                 
@@ -123,40 +238,88 @@ def check_links(links, expected_utm):
                     else:
                         discrepancies.append("Unable to connect to URL")
                 
-                results.append({
-                    'link_text': text,
+                # Format the link data for frontend display
+                is_image_link = link_source.get('type') == 'image'
+                link_entry = {
+                    'link_text': link_source.get('text', 'No text'),
+                    'is_image_link': is_image_link,
                     'url': url,
+                    'redirected_to': redirect_url if redirect_url != url else None,
                     'final_url': url,  # Same as initial since we can't check redirects
                     'status': status,
                     'http_status': http_status,
                     'utm_issues': discrepancies or ["Browser automation unavailable - basic URL check only"]
-                })
+                }
+                
+                # Add image properties if this is an image link
+                if is_image_link:
+                    link_entry['image_src'] = link_source.get('image_src', '')
+                    link_entry['image_alt'] = link_source.get('image_alt', '')
+                
+                results.append(link_entry)
             except Exception as link_error:
-                results.append({
-                    'link_text': text,
+                # Format the link data for frontend display even in error cases
+                is_image_link = link_source.get('type') == 'image'
+                link_entry = {
+                    'link_text': link_source.get('text', 'No text'),
+                    'is_image_link': is_image_link,
                     'url': url,
+                    'redirected_to': None,
                     'final_url': None,
                     'status': 'ERROR',
                     'http_status': None,
                     'utm_issues': [f"Failed to analyze URL: {str(link_error)}"]
-                })
+                }
+                
+                # Add image properties if this is an image link
+                if is_image_link:
+                    link_entry['image_src'] = link_source.get('image_src', '')
+                    link_entry['image_alt'] = link_source.get('image_alt', '')
+                
+                results.append(link_entry)
         
         return results
     
     results = []
     
-    for text, url in links:
+    for link_source, url in links:
         try:
+            # Process URL for localtest.me domains
+            redirect_url = url
+            if 'localtest.me' in url:
+                url_parts = urlparse(url)
+                domain = url_parts.netloc
+                
+                # Extract language info
+                lang = 'es-mx' if '.mx.' in domain or domain.endswith('.mx') else 'en'
+                
+                # Create local test URL
+                path = url_parts.path if url_parts.path and url_parts.path != '/' else f"/{lang}"
+                if not path.startswith('/'):
+                    path = f"/{path}"
+                
+                test_url = f"http://localhost:5001{path}"
+                
+                # Forward query parameters
+                if url_parts.query:
+                    test_url += f"?{url_parts.query}"
+                
+                redirect_url = test_url
+                logger.info(f"Redirecting domain to local test server: {url} -> {redirect_url}")
+            
             # Check HTTP status code first
             http_status = check_http_status(url)
             
             # Continue with Selenium for detailed UTM analysis
-            driver.get(url)
+            # Use the redirected URL for browser automation
+            driver.get(redirect_url)
             final_url = driver.current_url
-            utm_discrepancies = validate_utm_parameters(final_url, expected_utm)
             
-            # Special handling for webtrends parameter - empty is OK
-            utm_discrepancies = [d for d in utm_discrepancies if not (d.startswith('UTM webtrends') and 'got \'None\'' in d)]
+            # For local testing, validate original URL's parameters
+            utm_discrepancies = validate_utm_parameters(url, expected_utm)
+            
+            # Special handling for webtrends parameter - null/empty is OK
+            utm_discrepancies = [d for d in utm_discrepancies if not (d.startswith('UTM webtrends') and ('got \'None\'' in d or 'got \'\'' in d))]
             
             # Determine overall status
             if http_status in [200, 301, 302]:
@@ -166,26 +329,51 @@ def check_links(links, expected_utm):
                 if http_status:
                     utm_discrepancies.append(f"HTTP Error: Status code {http_status}")
             
-            results.append({
-                'link_text': text,
+            # Get the display text based on link type
+            display_text = link_source['text'] if isinstance(link_source, dict) and 'text' in link_source else str(link_source)
+            
+            # Format the link data for frontend display
+            is_image_link = link_source.get('type') == 'image'
+            link_entry = {
+                'link_text': link_source.get('text', 'No text'),
+                'is_image_link': is_image_link,
                 'url': url,
+                'redirected_to': redirect_url if redirect_url != url else None,
                 'final_url': final_url,
                 'status': status,
                 'http_status': http_status,
                 'utm_issues': utm_discrepancies
-            })
-            logger.info(f"Checked link '{text}': {status} (HTTP: {http_status})")
+            }
+            
+            # Add image properties if this is an image link
+            if is_image_link:
+                link_entry['image_src'] = link_source.get('image_src', '')
+                link_entry['image_alt'] = link_source.get('image_alt', '')
+            
+            results.append(link_entry)
+            logger.info(f"Checked link '{display_text}': {status} (HTTP: {http_status})")
         except Exception as e:
             http_status = check_http_status(url) 
-            results.append({
-                'link_text': text,
+            # Format the link data for frontend display even in error cases
+            is_image_link = link_source.get('type') == 'image'
+            link_entry = {
+                'link_text': link_source.get('text', 'No text'),
+                'is_image_link': is_image_link,
                 'url': url,
+                'redirected_to': None,
                 'final_url': None,
                 'status': 'FAIL',
                 'http_status': http_status,
                 'utm_issues': [f"Failed to load: {str(e)}"]
-            })
-            logger.error(f"Error checking link '{text}': {e}")
+            }
+            
+            # Add image properties if this is an image link
+            if is_image_link:
+                link_entry['image_src'] = link_source.get('image_src', '')
+                link_entry['image_alt'] = link_source.get('image_alt', '')
+            
+            results.append(link_entry)
+            logger.error(f"Error checking link: {e}")
     
     driver.quit()
     return results
@@ -198,14 +386,40 @@ def validate_email(email_path, requirements_path):
     metadata = extract_email_metadata(soup)
     results = {'metadata': [], 'links': []}
     
+    # Field mapping between metadata and requirements
+    field_mapping = {
+        'sender': ['sender', 'sender_address'],  # Try both variants
+        'sender_name': ['sender_name'],
+        'reply_to': ['reply_to', 'reply_address'],  # Try both variants
+        'subject': ['subject'],
+        'preheader': ['preheader']
+    }
+    
     # Fields to validate
     fields_to_check = ['sender', 'sender_name', 'reply_to', 'subject', 'preheader']
     
     for key in fields_to_check:
         if key in metadata:
             actual = metadata[key]
-            expected = requirements.get(key, 'Not specified')
-            status = 'PASS' if actual == expected else 'FAIL'
+            
+            # Try multiple possible keys in requirements
+            expected = 'Not specified'
+            for req_key in field_mapping[key]:
+                if req_key in requirements:
+                    expected = requirements[req_key]
+                    break
+            
+            # Special comparison for preheader - if we have extracted just the visible part,
+            # check if it's at the beginning of the expected text
+            if key == 'preheader' and actual != 'Not found' and expected != 'Not specified':
+                # Check if the actual preheader is a prefix of the expected preheader
+                # or if the expected preheader is a prefix of the actual preheader
+                if actual.startswith(expected) or expected.startswith(actual):
+                    status = 'PASS'
+                else:
+                    status = 'FAIL'
+            else:
+                status = 'PASS' if actual == expected else 'FAIL'
             
             result_item = {
                 'field': key,

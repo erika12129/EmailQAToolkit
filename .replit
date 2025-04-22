@@ -2,7 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["geckodriver", "libxcrypt"]
+packages = ["geckodriver", "libxcrypt", "jq"]
 
 [workflows]
 runButton = "Project"
@@ -14,10 +14,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Email QA Server"
+args = "Email QA System"
 
 [[workflows.workflow]]
-name = "Email QA Server"
+name = "Email QA System"
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -28,7 +28,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python main.py & python test_website.py"
+args = "python run_servers.py"
 waitForPort = 5000
 
 [deployment]
@@ -41,6 +41,10 @@ externalPort = 3000
 [[ports]]
 localPort = 5000
 externalPort = 5000
+
+[[ports]]
+localPort = 5001
+externalPort = 3001
 
 [[ports]]
 localPort = 8000

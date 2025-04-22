@@ -150,18 +150,35 @@ def index():
     
     return html, 200
 
-@app.route('/<lang>/', methods=['GET'])
-@app.route('/<lang>', methods=['GET'])
-def localized_page(lang):
-    """Serve localized page based on language code."""
-    if lang not in LOCALIZED_CONTENT:
-        return jsonify({'error': f'Language "{lang}" not supported. Try "en" or "es-mx".'}), 404
+@app.route('/<path:path>', methods=['GET', 'HEAD'])
+def catch_all(path):
+    """Catch all route to handle any paths."""
+    # Extract lang code from path
+    lang = None
+    # Log the path for debugging
+    print(f"Received request for path: {path}")
+    logger.info(f"Received request for path: {path}")
+    
+    if path.startswith('es/') or path.startswith('es-mx/'):
+        lang = 'es-mx'
+    elif path.startswith('en/'):
+        lang = 'en'
+    else:
+        # Check if path itself is a language code
+        if path in ['es', 'es-mx']:
+            lang = 'es-mx'
+        elif path == 'en':
+            lang = 'en'
+    
+    # Default to English if no language detected
+    if not lang:
+        lang = 'en'
     
     # Get domain info from host header
     host = request.headers.get('Host', 'localhost:5001')
     
     # Get localized content
-    content = LOCALIZED_CONTENT[lang]
+    content = LOCALIZED_CONTENT.get(lang, LOCALIZED_CONTENT['en'])
     title = content['title']
     message = content['message']
     
@@ -169,7 +186,7 @@ def localized_page(lang):
     utm_params = get_utm_params()
     
     # Log request for debugging
-    logger.info(f"Request for /{lang} on {host} with UTM: {utm_params}")
+    logger.info(f"Request for /{path} on {host} with UTM: {utm_params} (detected lang: {lang})")
     
     # Render HTML template
     html = render_template_string(
