@@ -331,15 +331,6 @@
         <div id="results-container" class="results-container hidden">
             <h2>QA Results</h2>
             
-            <div style="margin-bottom: 20px;">
-                <button id="open-preview-button" class="button" style="width: auto; padding: 8px 16px; background-color: #48bb78;">
-                    Open Interactive Preview
-                </button>
-                <span style="margin-left: 10px; font-size: 13px; color: #718096;">
-                    View email with visual validation overlays
-                </span>
-            </div>
-            
             <h3>Metadata</h3>
             <table>
                 <thead>
@@ -936,20 +927,6 @@
             
             // Show results
             showElement(resultsContainer);
-            
-            // Initialize the preview button
-            initializePreviewButton();
-        }
-        
-        // Initialize preview button functionality
-        function initializePreviewButton() {
-            const previewButton = document.getElementById('open-preview-button');
-            if (previewButton) {
-                previewButton.addEventListener('click', function() {
-                    // Open the interactive preview in a new tab
-                    window.open('/preview', '_blank');
-                });
-            }
         }
     </script>
 </body>
