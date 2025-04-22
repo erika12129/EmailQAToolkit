@@ -56,14 +56,22 @@
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
+            table-layout: fixed; /* Enable fixed table layout for better width control */
         }
         th, td {
             padding: 8px;
             border: 1px solid #e2e8f0;
+            word-break: break-word; /* Allow words to break */
+            overflow-wrap: break-word; /* Modern browsers */
         }
         th {
             background-color: #edf2f7;
         }
+        /* Set column widths for link results table */
+        #links-results th:nth-child(1) { width: 15%; } /* Link Text */
+        #links-results th:nth-child(2) { width: 45%; } /* URL - give more space for long URLs */
+        #links-results th:nth-child(3) { width: 15%; } /* Status */
+        #links-results th:nth-child(4) { width: 25%; } /* Issues */
         .pass {
             color: #38a169;
         }
@@ -212,6 +220,20 @@
                         </div>
                     </div>
                     
+                    <!-- Locale Section -->
+                    <div class="form-section">
+                        <h4 class="section-title">Locale</h4>
+                        <div class="form-group">
+                            <label for="country">Country:</label>
+                            <input type="text" id="country" class="text-input" placeholder="United States">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="language">Language:</label>
+                            <input type="text" id="language" class="text-input" placeholder="English">
+                        </div>
+                    </div>
+                    
                     <!-- Email Content Section -->
                     <div class="form-section">
                         <h4 class="section-title">Email Content</h4>
@@ -223,16 +245,6 @@
                         <div class="form-group">
                             <label for="preheader">Preheader Text:</label>
                             <input type="text" id="preheader" class="text-input" placeholder="Limited time offer: 25% discount on all products!">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="country">Country:</label>
-                            <input type="text" id="country" class="text-input" placeholder="United States">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="language">Language:</label>
-                            <input type="text" id="language" class="text-input" placeholder="English">
                         </div>
                     </div>
                     
@@ -621,11 +633,14 @@
                 row.appendChild(textCell);
                 
                 const urlCell = document.createElement('td');
+                urlCell.style.wordBreak = 'break-word'; // Allow URLs to wrap
+                urlCell.style.maxWidth = '300px'; // Set a max width to encourage wrapping
+                
                 const link = document.createElement('a');
                 link.href = item.url;
                 link.target = '_blank';
                 link.rel = 'noopener noreferrer';
-                link.textContent = item.url.length > 50 ? item.url.substring(0, 50) + '...' : item.url;
+                link.textContent = item.url; // Display the full URL
                 urlCell.appendChild(link);
                 row.appendChild(urlCell);
                 
