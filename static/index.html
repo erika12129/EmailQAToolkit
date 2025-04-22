@@ -513,7 +513,7 @@
                 
                 // Check for required fields
                 const missing = [];
-                if (!result.sender) missing.push('sender');
+                if (!result.sender_address) missing.push('sender_address');
                 if (!result.subject) missing.push('subject');
                 if (!result.preheader) missing.push('preheader');
                 
@@ -631,8 +631,8 @@
                         jsonContent = JSON.parse(jsonTextarea.value);
                         
                         // Basic requirements validation
-                        if (!jsonContent.sender || !jsonContent.subject || !jsonContent.preheader) {
-                            errorMessage.textContent = 'JSON requirements must include sender, subject, and preheader fields.';
+                        if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
+                            errorMessage.textContent = 'JSON requirements must include sender_address, subject, and preheader fields.';
                             showElement(errorMessage);
                             submitButton.disabled = false;
                             submitButton.textContent = 'Run QA';
@@ -667,8 +667,8 @@
                 // Create requirements JSON from form fields
                 const requirementsObj = {
                     sender_name: senderNameInput.value,
-                    sender: senderEmailInput.value,
-                    reply_to: replyEmailInput.value,
+                    sender_address: senderEmailInput.value,
+                    reply_address: replyEmailInput.value,
                     subject: subjectInput.value,
                     preheader: preheaderInput.value,
                     country: countryInput.value,
@@ -728,9 +728,11 @@
             
             // Map field names for display
             const fieldNameMap = {
-                'sender': 'sender_address',
+                'sender': 'sender_address', 
+                'sender_address': 'sender_address',
                 'sender_name': 'sender_name',
-                'reply_to': 'reply_address'
+                'reply_to': 'reply_address',
+                'reply_address': 'reply_address'
             };
             
             // Get expected metadata values from original form inputs
@@ -748,9 +750,18 @@
                 });
             }
             
-            if (!hasField('reply_to') && replyEmailInput.value) {
+            if (!hasField('sender') && !hasField('sender_address') && senderEmailInput.value) {
                 allMetadata.push({
-                    field: 'reply_to',
+                    field: 'sender_address',
+                    expected: senderEmailInput.value,
+                    actual: 'Not found',
+                    status: 'FAIL'
+                });
+            }
+            
+            if (!hasField('reply_to') && !hasField('reply_address') && replyEmailInput.value) {
+                allMetadata.push({
+                    field: 'reply_address',
                     expected: replyEmailInput.value,
                     actual: 'Not found',
                     status: 'FAIL'
