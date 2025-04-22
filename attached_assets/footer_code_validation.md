@@ -22,11 +22,12 @@ The validation system supports various formats of campaign codes:
 
 ## How to Use
 
-In your requirements JSON file, specify the expected footer campaign code using the `footer_campaign_code` field:
+In your requirements JSON file, the system will use the `campaign_code` and `country` fields to validate the footer:
 
 ```json
 {
-  "footer_campaign_code": "ABC2505 - US",
+  "campaign_code": "ABC2505",
+  "country": "US",
   // other validation requirements...
 }
 ```

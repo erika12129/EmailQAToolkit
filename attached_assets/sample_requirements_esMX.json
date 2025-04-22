@@ -7,7 +7,7 @@
     "country": "MX", 
     "language": "es", 
     "domain": "http://www.somedomain.com.mx.localtest.me",
-    "footer_campaign_code": "XYZ2505 - MX",
+    "campaign_code": "XYZ2505",
     "utm_parameters": {
         "utm_source": "abc", 
         "utm_campaign": "456_XYZ2505", 

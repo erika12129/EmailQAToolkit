@@ -7,7 +7,7 @@
     "country": "US", 
     "language": "en", 
     "domain": "http://www.somedomain.com.localtest.me",
-    "footer_campaign_code": "ABC2505 - US",
+    "campaign_code": "ABC2505",
     "utm_parameters": {
         "utm_source": "abc", 
         "utm_campaign": "0_ABC2505", 

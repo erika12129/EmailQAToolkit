@@ -7,7 +7,7 @@
     "country": "US", 
     "language": "en", 
     "domain": "http://www.company.com.localtest.me",
-    "footer_campaign_code": "PROMO2505 - US",
+    "campaign_code": "PROMO2505",
     "utm_parameters": {
         "utm_source": "newsletter", 
         "utm_campaign": "123_PROMO2505", 

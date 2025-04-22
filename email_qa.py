@@ -116,10 +116,21 @@ def extract_email_metadata(soup):
         # Consider the last 2 tables as potential footers
         footer_elements.extend(tables[-2:])
     
-    # Pattern to match campaign code followed by country code
-    # Using a flexible pattern to catch various formats of campaign code and country code
+    # Pattern to match campaign code followed by country code in the footer
+    # Using a more precise pattern to avoid picking up company name text
+    # Looks for formats like "ABC2505 - US" or "ABC2505-US"
     import re
-    campaign_pattern = re.compile(r'([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})', re.IGNORECASE)
+    # Look for campaign code pattern that's either:
+    # 1. After "Campaign", "Code", or "Reference" keywords
+    # 2. Between common delimiters like | or •
+    # 3. At the end of text block (likely footer)
+    campaign_pattern = re.compile(r'(?:campaign|code|reference|ref)\s*:?\s*([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})|[|•]\s*([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})\s*[|•]|\b([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})$', re.IGNORECASE)
+    
+    # Use a specific pattern for places where campaign codes are most likely to appear
+    # This prevents false matches from company names or other content
+    footer_campaign_code = "Not found"
+    footer_campaign_code_value = None
+    footer_country_code_value = None
     
     # Search for the pattern in footer elements
     for elem in footer_elements:
@@ -127,19 +138,38 @@ def extract_email_metadata(soup):
             text = elem.get_text()
             match = campaign_pattern.search(text)
             if match:
-                campaign_code = match.group(1).upper()  # Campaign code like ABC2505
-                country_code = match.group(2).upper()   # Country code like US
-                footer_campaign_code = f"{campaign_code} - {country_code}"
-                break
+                # The pattern can match in different group positions based on which part of the regex matched
+                # Extract the first non-None group that matches the campaign code
+                groups = match.groups()
+                for i in range(0, len(groups), 2):
+                    if groups[i]:
+                        footer_campaign_code_value = groups[i].upper()  # Campaign code like ABC2505
+                        footer_country_code_value = groups[i+1].upper() if groups[i+1] else ""  # Country code like US
+                        footer_campaign_code = f"{footer_campaign_code_value} - {footer_country_code_value}"
+                        break
+                if footer_campaign_code_value:  # If we found a match, break the loop
+                    break
     
-    # If not found in footers, try to find it anywhere in the document
+    # Only if not found in footer elements, try to find in specific sections with more context
     if footer_campaign_code == "Not found":
-        all_text = soup.get_text()
-        match = campaign_pattern.search(all_text)
-        if match:
-            campaign_code = match.group(1).upper()
-            country_code = match.group(2).upper()
-            footer_campaign_code = f"{campaign_code} - {country_code}"
+        # Look only in specific elements that might have the campaign code
+        potential_elements = soup.find_all(['p', 'div', 'span', 'td'], 
+                                          text=re.compile(r'(campaign|code|reference|ref|copyright)', re.IGNORECASE))
+        
+        for elem in potential_elements:
+            text = elem.get_text()
+            match = campaign_pattern.search(text)
+            if match:
+                # Extract the first non-None group that matches the campaign code
+                groups = match.groups()
+                for i in range(0, len(groups), 2):
+                    if groups[i]:
+                        footer_campaign_code_value = groups[i].upper()  # Campaign code like ABC2505
+                        footer_country_code_value = groups[i+1].upper() if groups[i+1] else ""  # Country code like US
+                        footer_campaign_code = f"{footer_campaign_code_value} - {footer_country_code_value}"
+                        break
+                if footer_campaign_code_value:  # If we found a match, break the loop
+                    break
             
     return {
         'sender': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
@@ -456,11 +486,17 @@ def validate_email(email_path, requirements_path):
         'reply_to': ['reply_to', 'reply_address'],  # Try both variants
         'subject': ['subject'],
         'preheader': ['preheader'],
-        'footer_campaign_code': ['footer_campaign_code', 'campaign_code']  # Handle both variants
+        'footer_campaign_code': ['footer_campaign_code']  # Will be handled specially
     }
     
     # Fields to validate
-    fields_to_check = ['sender', 'sender_name', 'reply_to', 'subject', 'preheader', 'footer_campaign_code']
+    fields_to_check = ['sender', 'sender_name', 'reply_to', 'subject', 'preheader']
+    
+    # Special handling for footer campaign code validation using campaign_code and country
+    if 'campaign_code' in requirements and 'country' in requirements:
+        fields_to_check.append('footer_campaign_code')
+        # Generate the expected footer campaign code in the format "CODE - COUNTRY"
+        requirements['footer_campaign_code'] = f"{requirements['campaign_code']} - {requirements['country']}"
     
     for key in fields_to_check:
         if key in metadata:
