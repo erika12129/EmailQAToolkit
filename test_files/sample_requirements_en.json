@@ -1,0 +1,16 @@
+{
+    "sender_address": "reply@somedomain.com.localtest.me", 
+    "sender_name": "Marketing Team",
+    "reply_address": "reply@somedomain.com.localtest.me", 
+    "subject": "Automate your QA", 
+    "preheader": "Get your time back", 
+    "country": "US", 
+    "language": "en", 
+    "domain": "http://www.somedomain.com.localtest.me", 
+    "utm_parameters": {
+        "utm_source": "abc", 
+        "utm_campaign": "0_ABC2505", 
+        "utm_medium": "email", 
+        "webtrends": null
+    }
+}
