@@ -2,7 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["geckodriver", "libxcrypt", "jq"]
+packages = ["geckodriver", "jq", "libxcrypt"]
 
 [workflows]
 runButton = "Project"
@@ -33,6 +33,7 @@ waitForPort = 5000
 
 [deployment]
 run = ["sh", "-c", "python main.py"]
+deploymentTarget = "cloudrun"
 
 [[ports]]
 localPort = 3000
