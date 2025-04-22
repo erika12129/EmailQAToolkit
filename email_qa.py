@@ -178,7 +178,8 @@ def extract_email_metadata(soup):
         'subject': subject.get('content') or (subject.get_text(strip=True) if hasattr(subject, 'get_text') else '') or 'Not found',
         'preheader': preheader_text,
         'preheader_details': f"Attempted classes: {', '.join(attempted_classes)}" if not hasattr(preheader, 'get_text') else '',
-        'footer_campaign_code': footer_campaign_code
+        'footer_campaign_code': footer_campaign_code,
+        'campaign_code_match': footer_campaign_code  # Keep both for backward compatibility
     }
 
 def extract_links(soup):
@@ -486,7 +487,8 @@ def validate_email(email_path, requirements_path):
         'reply_to': ['reply_to', 'reply_address'],  # Try both variants
         'subject': ['subject'],
         'preheader': ['preheader'],
-        'footer_campaign_code': ['footer_campaign_code']  # Will be handled specially
+        'footer_campaign_code': ['footer_campaign_code'],  # Will be handled specially
+        'campaign_code_match': ['campaign_code_match']  # New field that displays in metadata table
     }
     
     # Fields to validate
@@ -495,8 +497,10 @@ def validate_email(email_path, requirements_path):
     # Special handling for footer campaign code validation using campaign_code and country
     if 'campaign_code' in requirements and 'country' in requirements:
         fields_to_check.append('footer_campaign_code')
+        fields_to_check.append('campaign_code_match')
         # Generate the expected footer campaign code in the format "CODE - COUNTRY"
         requirements['footer_campaign_code'] = f"{requirements['campaign_code']} - {requirements['country']}"
+        requirements['campaign_code_match'] = f"{requirements['campaign_code']} - {requirements['country']}"
     
     for key in fields_to_check:
         if key in metadata:
@@ -518,8 +522,8 @@ def validate_email(email_path, requirements_path):
                     status = 'PASS'
                 else:
                     status = 'FAIL'
-            # Special handling for footer campaign code
-            elif key == 'footer_campaign_code' and actual != 'Not found' and expected != 'Not specified':
+            # Special handling for footer campaign code and campaign_code_match
+            elif (key == 'footer_campaign_code' or key == 'campaign_code_match') and actual != 'Not found' and expected != 'Not specified':
                 # Extract campaign code from the format "CODE - COUNTRY" or "CODE-COUNTRY"
                 actual_match = re.search(r'([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})', actual, re.IGNORECASE)
                 expected_match = re.search(r'([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})', expected, re.IGNORECASE)
@@ -544,12 +548,21 @@ def validate_email(email_path, requirements_path):
             else:
                 status = 'PASS' if actual == expected else 'FAIL'
             
-            result_item = {
-                'field': key,
-                'expected': expected,
-                'actual': actual,
-                'status': status
-            }
+            # Create the result item - customize field name for campaign_code_match
+            if key == 'campaign_code_match':
+                result_item = {
+                    'field': 'Campaign Code - Country',  # More user-friendly name
+                    'expected': expected,
+                    'actual': actual,
+                    'status': status
+                }
+            else:
+                result_item = {
+                    'field': key,
+                    'expected': expected,
+                    'actual': actual,
+                    'status': status
+                }
             
             # Add additional details for preheader if available
             if key == 'preheader' and status == 'FAIL' and metadata.get('preheader_details'):
