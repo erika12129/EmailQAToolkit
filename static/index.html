@@ -562,19 +562,103 @@
         
         // Load sample JSON
         loadSampleJsonButton.addEventListener('click', function() {
-            // Fetch the sample requirements JSON
-            fetch('/attached_assets/sample_requirements.json')
-                .then(response => response.json())
-                .then(data => {
-                    // Format and display in the textarea
-                    jsonTextarea.value = JSON.stringify(data, null, 2);
-                    jsonValidationMessage.textContent = 'Sample JSON loaded!';
-                    jsonValidationMessage.style.color = '#48bb78';
-                })
-                .catch(error => {
-                    jsonValidationMessage.textContent = 'Failed to load sample JSON.';
-                    jsonValidationMessage.style.color = '#e53e3e';
+            // Add dropdown menu for sample selection
+            if (!this.nextElementSibling || !this.nextElementSibling.classList.contains('sample-selector')) {
+                const sampleSelector = document.createElement('div');
+                sampleSelector.classList.add('sample-selector');
+                sampleSelector.style.position = 'absolute';
+                sampleSelector.style.zIndex = '100';
+                sampleSelector.style.backgroundColor = 'white';
+                sampleSelector.style.border = '1px solid #e2e8f0';
+                sampleSelector.style.borderRadius = '4px';
+                sampleSelector.style.padding = '8px';
+                sampleSelector.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+                sampleSelector.style.marginTop = '5px';
+                
+                // Add sample options
+                const samples = [
+                    { name: 'Standard Requirements', path: '/attached_assets/sample_requirements.json' },
+                    { name: 'UTM Campaign Example', path: '/attached_assets/utm_campaign_sample.json' }
+                ];
+                
+                samples.forEach(sample => {
+                    const option = document.createElement('div');
+                    option.textContent = sample.name;
+                    option.style.padding = '8px';
+                    option.style.cursor = 'pointer';
+                    option.style.borderRadius = '4px';
+                    option.addEventListener('mouseover', () => {
+                        option.style.backgroundColor = '#f0f5ff';
+                    });
+                    option.addEventListener('mouseout', () => {
+                        option.style.backgroundColor = 'transparent';
+                    });
+                    option.addEventListener('click', () => {
+                        // Load the selected sample
+                        fetch(sample.path)
+                            .then(response => response.json())
+                            .then(data => {
+                                // Format and display in the textarea
+                                jsonTextarea.value = JSON.stringify(data, null, 2);
+                                jsonValidationMessage.textContent = `${sample.name} loaded! `;
+                                
+                                // Add note for UTM campaign example
+                                if (sample.name === 'UTM Campaign Example') {
+                                    const noteLink = document.createElement('a');
+                                    noteLink.href = '/attached_assets/utm_validation_guide.md';
+                                    noteLink.target = '_blank';
+                                    noteLink.textContent = 'View UTM Campaign validation guide';
+                                    noteLink.style.color = '#4299e1';
+                                    noteLink.style.textDecoration = 'underline';
+                                    jsonValidationMessage.appendChild(noteLink);
+                                }
+                                
+                                jsonValidationMessage.style.color = '#48bb78';
+                                
+                                // Hide the selector
+                                sampleSelector.remove();
+                            })
+                            .catch(error => {
+                                jsonValidationMessage.textContent = `Failed to load ${sample.name}.`;
+                                jsonValidationMessage.style.color = '#e53e3e';
+                                sampleSelector.remove();
+                            });
+                    });
+                    sampleSelector.appendChild(option);
                 });
+                
+                // Add close option
+                const closeOption = document.createElement('div');
+                closeOption.textContent = 'Cancel';
+                closeOption.style.padding = '8px';
+                closeOption.style.cursor = 'pointer';
+                closeOption.style.borderTop = '1px solid #e2e8f0';
+                closeOption.style.marginTop = '5px';
+                closeOption.style.borderRadius = '4px';
+                closeOption.addEventListener('mouseover', () => {
+                    closeOption.style.backgroundColor = '#f0f5ff';
+                });
+                closeOption.addEventListener('mouseout', () => {
+                    closeOption.style.backgroundColor = 'transparent';
+                });
+                closeOption.addEventListener('click', () => {
+                    sampleSelector.remove();
+                });
+                sampleSelector.appendChild(closeOption);
+                
+                this.after(sampleSelector);
+                
+                // Close the selector if clicked outside
+                document.addEventListener('click', function clickOutside(e) {
+                    if (!sampleSelector.contains(e.target) && e.target !== loadSampleJsonButton) {
+                        sampleSelector.remove();
+                        document.removeEventListener('click', clickOutside);
+                    }
+                });
+            } else {
+                // Toggle visibility if selector already exists
+                this.nextElementSibling.remove();
+            }
         });
         
         // Form submission

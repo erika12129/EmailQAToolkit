@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UTM Campaign Test Email</title>
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="format-detection" content="email=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+</head>
+<body>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td>
+                            <!-- Email Header -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td align="center" style="padding: 20px 0;">
+                                        <img src="https://via.placeholder.com/150x50" alt="Company Logo" width="150" height="50">
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Email Body -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <h1 style="color: #333333; font-size: 24px; margin-bottom: 20px;">UTM Campaign Test</h1>
+                                        <p style="color: #666666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                                            This is a test email to verify that our UTM campaign validation works correctly with the new dynamic prefix handling.
+                                        </p>
+                                        
+                                        <p style="color: #666666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                                            Below are links with different UTM campaign formats:
+                                        </p>
+                                        
+                                        <ul style="color: #666666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                                            <li style="margin-bottom: 10px;">
+                                                <a href="http://somedomain.com.localtest.me?utm_medium=email&utm_source=marketing&utm_campaign=ABC2505" style="color: #0066cc;">
+                                                    Simple campaign code (ABC2505)
+                                                </a>
+                                            </li>
+                                            <li style="margin-bottom: 10px;">
+                                                <a href="http://somedomain.com.localtest.me?utm_medium=email&utm_source=marketing&utm_campaign=0_ABC2505" style="color: #0066cc;">
+                                                    With test prefix (0_ABC2505)
+                                                </a>
+                                            </li>
+                                            <li style="margin-bottom: 10px;">
+                                                <a href="http://somedomain.com.localtest.me?utm_medium=email&utm_source=marketing&utm_campaign=123_ABC2505" style="color: #0066cc;">
+                                                    With numeric prefix (123_ABC2505)
+                                                </a>
+                                            </li>
+                                            <li style="margin-bottom: 10px;">
+                                                <a href="http://somedomain.com.localtest.me?utm_medium=email&utm_source=marketing&utm_campaign=live_ABC2505" style="color: #0066cc;">
+                                                    With text prefix (live_ABC2505)
+                                                </a>
+                                            </li>
+                                            <li style="margin-bottom: 10px;">
+                                                <a href="http://somedomain.com.localtest.me?utm_medium=email&utm_source=marketing&utm_campaign=0_XYZ789" style="color: #0066cc;">
+                                                    Different campaign code (0_XYZ789) - should fail
+                                                </a>
+                                            </li>
+                                        </ul>
+                                        
+                                        <!-- Image with Link -->
+                                        <p style="text-align: center; margin: 30px 0;">
+                                            <a href="http://somedomain.com.localtest.me?utm_medium=email&utm_source=marketing&utm_campaign=0_ABC2505&utm_content=banner">
+                                                <img src="https://via.placeholder.com/500x200" alt="Banner Image" width="500" height="200" style="display: block; max-width: 100%;">
+                                            </a>
+                                        </p>
+                                        
+                                        <p style="color: #666666; font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+                                            <a href="http://somedomain.com.localtest.me?utm_medium=email&utm_source=marketing&utm_campaign=0_ABC2505&utm_content=cta" style="background-color: #0066cc; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                                                Learn More
+                                            </a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Email Footer -->
+                            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f5f5f5;">
+                                <tr>
+                                    <td style="padding: 20px; text-align: center;">
+                                        <p style="color: #999999; font-size: 14px; margin-bottom: 10px;">
+                                            © 2025 Company Name. All rights reserved.
+                                        </p>
+                                        <p style="color: #999999; font-size: 14px; margin-bottom: 10px;">
+                                            Our address: 123 Street Name, City, Country
+                                        </p>
+                                        <p style="color: #999999; font-size: 14px;">
+                                            <a href="http://somedomain.com.localtest.me/unsubscribe?utm_campaign=0_ABC2505" style="color: #999999; text-decoration: underline;">Unsubscribe</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

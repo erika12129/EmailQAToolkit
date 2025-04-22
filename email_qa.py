@@ -144,7 +144,21 @@ def validate_utm_parameters(url, expected_utm):
     
     for key, expected_value in expected_utm.items():
         actual_value = params.get(key, [None])[0]
-        if actual_value != expected_value:
+        
+        # Special handling for utm_campaign
+        if key == 'utm_campaign' and actual_value and expected_value:
+            # For utm_campaign, we only validate the part after the prefix and underscore
+            # Format: {prefix}_{campaign_code} where prefix can vary but campaign_code must match
+            
+            # Extract campaign code from actual value if it contains underscore
+            actual_campaign_code = actual_value.split('_', 1)[1] if '_' in actual_value else actual_value
+            
+            # Extract campaign code from expected value if it contains underscore
+            expected_campaign_code = expected_value.split('_', 1)[1] if '_' in expected_value else expected_value
+            
+            if actual_campaign_code != expected_campaign_code:
+                discrepancies.append(f"UTM {key}: Expected code '{expected_campaign_code}' in '{expected_value}', got '{actual_campaign_code}' in '{actual_value}'")
+        elif actual_value != expected_value:
             discrepancies.append(f"UTM {key}: Expected '{expected_value}', got '{actual_value}'")
     
     return discrepancies

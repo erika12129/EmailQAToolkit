@@ -1,0 +1,17 @@
+{
+    "sender_address": "marketing@somedomain.com.localtest.me", 
+    "sender_name": "Marketing Team",
+    "reply_address": "reply@somedomain.com.localtest.me", 
+    "subject": "UTM Campaign Example", 
+    "preheader": "Showing campaign code validation", 
+    "country": "US", 
+    "language": "en", 
+    "domain": "http://www.somedomain.com.localtest.me", 
+    "utm_parameters": {
+        "utm_source": "marketing", 
+        "utm_campaign": "ABC2505", 
+        "utm_medium": "email", 
+        "utm_content": "email-utm-example",
+        "webtrends": null
+    }
+}

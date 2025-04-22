@@ -40,6 +40,69 @@ async def test_page():
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
+@app.get("/attached_assets/{file_path:path}")
+async def serve_asset(file_path: str):
+    """Serve attached assets with proper content type."""
+    from fastapi.responses import HTMLResponse, PlainTextResponse, FileResponse
+    
+    full_path = os.path.join("attached_assets", file_path)
+    
+    if not os.path.exists(full_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    # Special handling for markdown files
+    if file_path.endswith(".md"):
+        with open(full_path, "r") as f:
+            md_content = f.read()
+        
+        # Create a simple HTML wrapper for the markdown content
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>UTM Campaign Validation Guide</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }
+                pre {
+                    background-color: #f5f5f5;
+                    padding: 10px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                }
+                code {
+                    background-color: #f5f5f5;
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                }
+                h1, h2, h3 {
+                    color: #2c5282;
+                }
+                a {
+                    color: #3182ce;
+                }
+                .markdown-content {
+                    white-space: pre-wrap;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="markdown-content">""" + md_content + """</div>
+        </body>
+        </html>
+        """
+        
+        return HTMLResponse(content=html_content, status_code=200)
+    
+    # For all other files, use FileResponse
+    return FileResponse(full_path)
+
 @app.post("/run-qa")
 async def run_qa(email: UploadFile = File(...), requirements: UploadFile = File(...)):
     """
