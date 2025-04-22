@@ -1,17 +1,22 @@
 {
-    "sender_address": "marketing@somedomain.com.localtest.me", 
-    "sender_name": "Marketing Team",
-    "reply_address": "reply@somedomain.com.localtest.me", 
-    "subject": "UTM Campaign Example", 
-    "preheader": "Showing campaign code validation", 
+    "sender_address": "marketing@company.com.localtest.me", 
+    "sender_name": "Marketing Department",
+    "reply_address": "no-reply@company.com.localtest.me",  
+    "subject": "Special Offer - 25% Off This Weekend", 
+    "preheader": "Limited time promotional offer", 
     "country": "US", 
     "language": "en", 
-    "domain": "http://www.somedomain.com.localtest.me", 
+    "domain": "http://www.company.com.localtest.me",
+    "footer_campaign_code": "PROMO2505 - US",
     "utm_parameters": {
-        "utm_source": "marketing", 
-        "utm_campaign": "ABC2505", 
-        "utm_medium": "email", 
-        "utm_content": "email-utm-example",
-        "webtrends": null
+        "utm_source": "newsletter", 
+        "utm_campaign": "123_PROMO2505", 
+        "utm_medium": "email",
+        "utm_content": "promotional"
+    },
+    "additional_parameters": {
+        "email_type": "promotional",
+        "department": "marketing",
+        "audience": "existing_customers"
     }
 }

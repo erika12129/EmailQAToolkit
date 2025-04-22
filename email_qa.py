@@ -93,13 +93,62 @@ def extract_email_metadata(soup):
             visible_preheader = preheader_text[:100]
         preheader_text = visible_preheader.strip()
     
+    # Find footer campaign code in the format "ABC2505 - US"
+    footer_campaign_code = "Not found"
+    
+    # Look for footer elements
+    footer_elements = []
+    
+    # Look for footer tag
+    footer = soup.find('footer')
+    if footer:
+        footer_elements.append(footer)
+    
+    # Look for elements with footer-related classes or IDs
+    footer_classes = soup.find_all(class_=lambda c: c and 'footer' in str(c).lower())
+    footer_ids = soup.find_all(id=lambda i: i and 'footer' in str(i).lower())
+    footer_elements.extend(footer_classes)
+    footer_elements.extend(footer_ids)
+    
+    # Look for tables at the bottom that might be footers
+    tables = soup.find_all('table')
+    if tables:
+        # Consider the last 2 tables as potential footers
+        footer_elements.extend(tables[-2:])
+    
+    # Pattern to match campaign code followed by country code
+    # Using a flexible pattern to catch various formats of campaign code and country code
+    import re
+    campaign_pattern = re.compile(r'([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})', re.IGNORECASE)
+    
+    # Search for the pattern in footer elements
+    for elem in footer_elements:
+        if elem:
+            text = elem.get_text()
+            match = campaign_pattern.search(text)
+            if match:
+                campaign_code = match.group(1).upper()  # Campaign code like ABC2505
+                country_code = match.group(2).upper()   # Country code like US
+                footer_campaign_code = f"{campaign_code} - {country_code}"
+                break
+    
+    # If not found in footers, try to find it anywhere in the document
+    if footer_campaign_code == "Not found":
+        all_text = soup.get_text()
+        match = campaign_pattern.search(all_text)
+        if match:
+            campaign_code = match.group(1).upper()
+            country_code = match.group(2).upper()
+            footer_campaign_code = f"{campaign_code} - {country_code}"
+            
     return {
         'sender': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
         'sender_name': sender_name.get('content') or (sender_name.get_text(strip=True) if hasattr(sender_name, 'get_text') else '') or 'Not found',
         'reply_to': reply_to.get('content') or (reply_to.get_text(strip=True) if hasattr(reply_to, 'get_text') else '') or 'Not found',
         'subject': subject.get('content') or (subject.get_text(strip=True) if hasattr(subject, 'get_text') else '') or 'Not found',
         'preheader': preheader_text,
-        'preheader_details': f"Attempted classes: {', '.join(attempted_classes)}" if not hasattr(preheader, 'get_text') else ''
+        'preheader_details': f"Attempted classes: {', '.join(attempted_classes)}" if not hasattr(preheader, 'get_text') else '',
+        'footer_campaign_code': footer_campaign_code
     }
 
 def extract_links(soup):
@@ -406,11 +455,12 @@ def validate_email(email_path, requirements_path):
         'sender_name': ['sender_name'],
         'reply_to': ['reply_to', 'reply_address'],  # Try both variants
         'subject': ['subject'],
-        'preheader': ['preheader']
+        'preheader': ['preheader'],
+        'footer_campaign_code': ['footer_campaign_code', 'campaign_code']  # Handle both variants
     }
     
     # Fields to validate
-    fields_to_check = ['sender', 'sender_name', 'reply_to', 'subject', 'preheader']
+    fields_to_check = ['sender', 'sender_name', 'reply_to', 'subject', 'preheader', 'footer_campaign_code']
     
     for key in fields_to_check:
         if key in metadata:
@@ -430,6 +480,29 @@ def validate_email(email_path, requirements_path):
                 # or if the expected preheader is a prefix of the actual preheader
                 if actual.startswith(expected) or expected.startswith(actual):
                     status = 'PASS'
+                else:
+                    status = 'FAIL'
+            # Special handling for footer campaign code
+            elif key == 'footer_campaign_code' and actual != 'Not found' and expected != 'Not specified':
+                # Extract campaign code from the format "CODE - COUNTRY" or "CODE-COUNTRY"
+                actual_match = re.search(r'([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})', actual, re.IGNORECASE)
+                expected_match = re.search(r'([A-Z0-9]{2,10})\s*[-]\s*([A-Z]{2})', expected, re.IGNORECASE)
+                
+                if actual_match and expected_match:
+                    # Get campaign code and country code
+                    actual_code = actual_match.group(1).upper()
+                    actual_country = actual_match.group(2).upper()
+                    expected_code = expected_match.group(1).upper()
+                    expected_country = expected_match.group(2).upper()
+                    
+                    # For campaign code, ignore any numeric prefix (e.g. "123_ABC2505" matches "ABC2505")
+                    if '_' in actual_code:
+                        actual_code = actual_code.split('_', 1)[1]
+                    if '_' in expected_code:
+                        expected_code = expected_code.split('_', 1)[1]
+                    
+                    # Check if both the campaign code and country code match
+                    status = 'PASS' if actual_code == expected_code and actual_country == expected_country else 'FAIL'
                 else:
                     status = 'FAIL'
             else:

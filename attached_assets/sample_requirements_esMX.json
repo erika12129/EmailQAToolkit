@@ -1,16 +1,17 @@
 {
     "sender_address": "reply@somedomain.com.mx.localtest.me", 
     "sender_name": "Equipo de Marketing",
-    "reply_address": "reply@somedomain.com..mx.localtest.me",  
+    "reply_address": "reply@somedomain.com.mx.localtest.me",  
     "subject": "Venta de Primavera 2025", 
     "preheader": "¡Ofertas exclusivas te esperan!", 
     "country": "MX", 
     "language": "es", 
-    "domain": "http://www.somedomain.com.mx.localtest.me", 
+    "domain": "http://www.somedomain.com.mx.localtest.me",
+    "footer_campaign_code": "XYZ2505 - MX",
     "utm_parameters": {
         "utm_source": "abc", 
-        "utm_campaign": "0_ABC2505", 
+        "utm_campaign": "456_XYZ2505", 
         "utm_medium": "email",
         "webtrends": null
-        }
+    }
 }

@@ -1,64 +1,64 @@
-# UTM Campaign Code Validation Guide
+# UTM Campaign Parameter Validation Guide
 
-## Special UTM Campaign Handling
+## Overview
 
-The Email QA system now includes special validation logic for the `utm_campaign` parameter. This is because marketing campaigns often include variable prefixes in the campaign parameter that indicate whether an email is a test send or a live send.
+The UTM campaign parameter validation feature allows you to verify that all links in your marketing emails have the correct UTM parameters, particularly focusing on the `utm_campaign` parameter. This helps ensure consistent tracking across all links in your emails.
 
-### Format of UTM Campaign Values
+## Supported UTM Campaign Formats
 
-UTM campaign values often follow this format:
-```
-{variable_prefix}_{campaign_code}
-```
+The validation system supports various formats of campaign codes in UTM parameters:
 
-Where:
-- `variable_prefix`: A number or code that varies between test/live sends (e.g., "0_", "1_", "123_")
-- `campaign_code`: The actual campaign identifier that remains consistent (e.g., "ABC2505")
+1. **Standard Format**: `utm_campaign=CODE`
+   - Example: `utm_campaign=ABC2505`
 
-### How to Specify Requirements
+2. **Prefixed Format**: `utm_campaign=PREFIX_CODE`
+   - Example: `utm_campaign=123_ABC2505` or `utm_campaign=0_ABC2505`
+   - The validation will ignore any prefix before an underscore
 
-When specifying your requirements in JSON, you have two options:
+## How UTM Campaign Validation Works
 
-#### Option 1: Use the Full Pattern with Prefix
+When validating UTM campaign parameters, the system:
 
-```json
-{
-  "utm_parameters": {
-    "utm_campaign": "0_ABC2505"
-  }
-}
-```
+1. Extracts all links from the email HTML
+2. Processes each link to identify UTM parameters
+3. For the `utm_campaign` parameter, applies special handling:
+   - If the value contains an underscore, it extracts the part after the underscore
+   - Compares this extracted value with the expected campaign code (also processed the same way)
+4. Reports any discrepancies in the validation results
 
-The validation will intelligently extract the campaign code after the underscore ("ABC2505") and only validate that portion.
+## Setting Up UTM Validation Requirements
 
-#### Option 2: Use Only the Campaign Code
+In your requirements JSON file, specify the expected UTM parameters:
 
 ```json
 {
   "utm_parameters": {
-    "utm_campaign": "ABC2505"
+    "utm_source": "abc",
+    "utm_campaign": "123_ABC2505",
+    "utm_medium": "email"
   }
 }
 ```
 
-In this case, the validation will still work correctly with email links that contain prefixes (like "0_ABC2505").
+## Handling Variable Prefixes
 
-### Examples of Valid Matches
+The system is designed to be flexible with campaign tracking that uses variable prefixes:
 
-With a requirement of `utm_campaign": "ABC2505"`, all of the following link values would pass validation:
+- If the expected `utm_campaign` value is `123_ABC2505` and a link has `456_ABC2505`, it will still PASS
+- This is because the system extracts `ABC2505` from both values and compares only that portion
+- The prefix (before underscore) can vary without failing validation
 
-- `utm_campaign=ABC2505`
-- `utm_campaign=0_ABC2505`
-- `utm_campaign=123_ABC2505`
+## Integration with Footer Campaign Code Validation
 
-### Examples of Invalid Matches
+For comprehensive email validation, combine UTM campaign validation with footer campaign code validation:
 
-With a requirement of `utm_campaign": "ABC2505"`, these would fail validation:
+1. Use the same core campaign code in both your footer and UTM parameters
+2. The validation system will extract and compare the core values across both locations
+3. This ensures consistency throughout the email
 
-- `utm_campaign=DIFFERENT2505`
-- `utm_campaign=0_XYZ2505`
-- `utm_campaign=ABC2506` (different campaign code)
+## Best Practices
 
-## Practical Application
-
-This feature is particularly useful when testing emails that may be sent in different environments (test vs. production) but should maintain the same core campaign identifier regardless of the environment prefix.
+1. Use a consistent format for UTM campaign parameters across all links
+2. When tracking multiple parameters in the campaign code, separate them with underscores (e.g., `123_ABC2505_email`)
+3. Match your utm_campaign parameter with the campaign code that appears in the email footer
+4. Include UTM parameters on all links, including social media and footer links
