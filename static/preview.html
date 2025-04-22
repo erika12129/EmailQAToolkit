@@ -157,6 +157,14 @@
             border-left: 3px solid #e53e3e;
         }
         
+        .result-item.highlighted {
+            box-shadow: 0 0 0 2px #4299e1;
+            border-left-width: 5px;
+            transform: translateX(2px);
+            background-color: rgba(66, 153, 225, 0.15) !important;
+            transition: all 0.2s ease;
+        }
+        
         .issue-details {
             font-size: 12px;
             margin-top: 5px;
@@ -168,7 +176,8 @@
             position: absolute;
             border: 2px solid transparent;
             border-radius: 2px;
-            pointer-events: none;
+            pointer-events: auto;
+            cursor: pointer;
             transition: background-color 0.2s ease;
             z-index: 1000;
         }
@@ -181,6 +190,12 @@
         .validation-overlay.fail {
             border-color: #e53e3e;
             background-color: rgba(229, 62, 62, 0.1);
+        }
+        
+        .validation-overlay.highlighted {
+            border-width: 3px;
+            box-shadow: 0 0 8px rgba(66, 153, 225, 0.6);
+            background-color: rgba(66, 153, 225, 0.2);
         }
         
         .validation-tooltip {
@@ -610,23 +625,86 @@
             return overlay;
         }
         
+        // Create a darkened background overlay
+        let darkOverlay = null;
+        
+        function createDarkOverlay() {
+            if (!darkOverlay) {
+                darkOverlay = document.createElement('div');
+                darkOverlay.style.position = 'fixed';
+                darkOverlay.style.top = '0';
+                darkOverlay.style.left = '0';
+                darkOverlay.style.width = '100%';
+                darkOverlay.style.height = '100%';
+                darkOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+                darkOverlay.style.zIndex = '1001';
+                darkOverlay.style.display = 'none';
+                darkOverlay.style.opacity = '0';
+                darkOverlay.style.transition = 'opacity 0.3s ease';
+                
+                // Add click handler to clear highlight when clicking the dark overlay
+                darkOverlay.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    highlightElement(null);
+                });
+                
+                document.body.appendChild(darkOverlay);
+            }
+            return darkOverlay;
+        }
+        
         // Highlight a specific element in the preview
         function highlightElement(url) {
-            // Remove any existing highlight
+            // Create the dark overlay if it doesn't exist
+            if (!darkOverlay) {
+                createDarkOverlay();
+            }
+            
+            // Remove any existing highlight in the preview
             overlays.forEach(overlay => {
                 overlay.style.zIndex = 1000;
-                overlay.style.boxShadow = 'none';
+                overlay.classList.remove('highlighted');
             });
+            
+            // Remove highlight from any previously selected sidebar items
+            const allSidebarItems = document.querySelectorAll('.result-item');
+            allSidebarItems.forEach(item => {
+                item.classList.remove('highlighted');
+            });
+            
+            // If url is null, we're just clearing the highlights
+            if (!url) {
+                // Hide the dark overlay
+                darkOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    darkOverlay.style.display = 'none';
+                }, 300);
+                return;
+            }
             
             // Find the overlay with the matching URL
             const overlay = overlays.find(o => o.dataset.url === url);
             if (overlay) {
+                // Show the dark overlay
+                darkOverlay.style.display = 'block';
+                setTimeout(() => {
+                    darkOverlay.style.opacity = '1';
+                }, 10);
+                
                 // Highlight the overlay
                 overlay.style.zIndex = 1002;
-                overlay.style.boxShadow = '0 0 0 2000px rgba(0, 0, 0, 0.3)';
+                overlay.classList.add('highlighted');
                 
                 // Scroll the element into view
                 overlay.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Highlight the corresponding item in the sidebar
+                const sidebarItem = document.querySelector(`.result-item[data-url="${url}"]`);
+                if (sidebarItem) {
+                    sidebarItem.classList.add('highlighted');
+                    // Scroll the sidebar item into view
+                    sidebarItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }
         }
         
@@ -669,6 +747,32 @@
                         subtree: true, 
                         attributes: true 
                     });
+                }
+            });
+            
+            // Add click event on document to clear highlight when clicking outside 
+            document.addEventListener('click', function(e) {
+                // If the click is on the background (not on the preview, sidebar, or any interface element)
+                // or if explicitly clicking on the preview container's background (but not on an overlay)
+                const isClickOnToolbar = e.target.closest('.toolbar') !== null;
+                const isClickOnSidebar = e.target.closest('.sidebar') !== null;
+                const isClickOnOverlay = e.target.closest('.validation-overlay') !== null;
+                const isClickOnIframe = e.target === emailPreview;
+                const isClickOnPreviewContainer = e.target.closest('.preview-container') !== null;
+                
+                // Clear highlight if clicking on empty space in preview container or outside main UI areas
+                if ((!isClickOnToolbar && !isClickOnSidebar && !isClickOnOverlay && !isClickOnIframe) ||
+                    (isClickOnPreviewContainer && !isClickOnOverlay && !isClickOnIframe)) {
+                    // Clear all highlighting
+                    highlightElement(null);
+                    console.log("Clearing highlight from document click");
+                }
+            });
+            
+            // Add escape key handler to clear highlights
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    highlightElement(null);
                 }
             });
         }
