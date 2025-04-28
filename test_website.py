@@ -59,6 +59,29 @@ HTML_TEMPLATE = """
             margin-right: 10px;
             color: #0066cc;
         }
+        .product-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .product-table th, .product-table td {
+            border: 1px solid #ddd; 
+            padding: 8px;
+            text-align: left;
+        }
+        .product-table th {
+            background-color: #f2f2f2;
+        }
+        .productListContainer {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        .product-section {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -70,6 +93,34 @@ HTML_TEMPLATE = """
     
     <h1>{{ title }}</h1>
     <p>{{ message }}</p>
+    
+    {% if 'products' in request.path %}
+    <div class="product-section">
+        <h2>{{ 'Lista de Productos' if lang == 'es-mx' else 'Product List' }}</h2>
+        <div class="productListContainer">
+            <table class="product-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'Nombre' if lang == 'es-mx' else 'Name' }}</th>
+                        <th>{{ 'Precio' if lang == 'es-mx' else 'Price' }}</th>
+                        <th>{{ 'Descripción' if lang == 'es-mx' else 'Description' }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if lang == 'es-mx' %}
+                        <tr><td>Producto 1</td><td>199 MXN</td><td>Descripción del producto 1</td></tr>
+                        <tr><td>Producto 2</td><td>299 MXN</td><td>Descripción del producto 2</td></tr>
+                        <tr><td>Producto 3</td><td>399 MXN</td><td>Descripción del producto 3</td></tr>
+                    {% else %}
+                        <tr><td>Product 1</td><td>$9.99</td><td>Description for product 1</td></tr>
+                        <tr><td>Product 2</td><td>$19.99</td><td>Description for product 2</td></tr>
+                        <tr><td>Product 3</td><td>$29.99</td><td>Description for product 3</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
     
     <div class="utm-info">
         <h3>UTM Parameters</h3>
@@ -86,6 +137,7 @@ HTML_TEMPLATE = """
         <h3>Test Links</h3>
         <a href="/en?utm_source=test&utm_medium=email&utm_campaign=test_campaign">English</a>
         <a href="/es-mx?utm_source=test&utm_medium=email&utm_campaign=test_campaign">Spanish (Mexico)</a>
+        <a href="/products?utm_source=test&utm_medium=email&utm_campaign=test_campaign">Products Page</a>
     </div>
 </body>
 </html>

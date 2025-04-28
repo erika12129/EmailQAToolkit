@@ -463,7 +463,10 @@ def check_links(links, expected_utm):
                     'final_url': url,  # Same as initial since we can't check redirects
                     'status': status,
                     'http_status': http_status,
-                    'utm_issues': discrepancies or ["Browser automation unavailable - basic URL check only"]
+                    'utm_issues': discrepancies or ["Browser automation unavailable - basic URL check only"],
+                    'has_product_table': False,
+                    'product_table_class': None,
+                    'product_table_error': "Browser automation unavailable - cannot check for product table classes"
                 }
                 
                 # Add image properties if this is an image link
@@ -483,7 +486,10 @@ def check_links(links, expected_utm):
                     'final_url': None,
                     'status': 'ERROR',
                     'http_status': None,
-                    'utm_issues': [f"Failed to analyze URL: {str(link_error)}"]
+                    'utm_issues': [f"Failed to analyze URL: {str(link_error)}"],
+                    'has_product_table': False,
+                    'product_table_class': None,
+                    'product_table_error': "Error during URL analysis"
                 }
                 
                 # Add image properties if this is an image link
@@ -529,10 +535,34 @@ def check_links(links, expected_utm):
             # Check HTTP status code first
             http_status = check_http_status(url)
             
-            # Continue with Selenium for detailed UTM analysis
+            # Continue with Selenium for detailed UTM analysis and page content checks
             # Use the redirected URL for browser automation
             driver.get(redirect_url)
             final_url = driver.current_url
+            
+            # Check for product table class presence
+            product_table_found = False
+            product_table_class = None
+            try:
+                # Get page source and check for product-table* or *productListContainer
+                page_source = driver.page_source
+                
+                # Check for product-table* classes using regex
+                product_table_classes = re.findall(r'class=["\'](.*?product-table\w*?)["\']', page_source)
+                if product_table_classes:
+                    product_table_found = True
+                    product_table_class = product_table_classes[0]
+                    logger.info(f"Found product-table class: {product_table_class}")
+                
+                # Check for *productListContainer classes if still not found
+                if not product_table_found:
+                    list_container_classes = re.findall(r'class=["\'](.*?\w*?productListContainer\w*?)["\']', page_source)
+                    if list_container_classes:
+                        product_table_found = True
+                        product_table_class = list_container_classes[0]
+                        logger.info(f"Found productListContainer class: {product_table_class}")
+            except Exception as e:
+                logger.error(f"Error checking for product table classes: {e}")
             
             # For local testing, validate original URL's parameters
             utm_discrepancies = validate_utm_parameters(url, expected_utm)
@@ -561,7 +591,9 @@ def check_links(links, expected_utm):
                 'final_url': final_url,
                 'status': status,
                 'http_status': http_status,
-                'utm_issues': utm_discrepancies
+                'utm_issues': utm_discrepancies,
+                'has_product_table': product_table_found,
+                'product_table_class': product_table_class if product_table_found else None
             }
             
             # Add image properties if this is an image link
@@ -583,7 +615,9 @@ def check_links(links, expected_utm):
                 'final_url': None,
                 'status': 'FAIL',
                 'http_status': http_status,
-                'utm_issues': [f"Failed to load: {str(e)}"]
+                'utm_issues': [f"Failed to load: {str(e)}"],
+                'has_product_table': False,
+                'product_table_class': None
             }
             
             # Add image properties if this is an image link
