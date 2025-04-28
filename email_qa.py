@@ -392,6 +392,66 @@ def check_http_status(url):
     except Exception as e:
         logger.error(f"Failed to check HTTP status: {e}")
         return None
+        
+def check_for_product_tables(url):
+    """Check if a URL's HTML contains product table classes using requests instead of Selenium."""
+    try:
+        # Handle local test domains and the mock website
+        if 'localtest.me' in url or 'partly-products-showcase.lovable.app' in url:
+            # Replace with local test server for test domains
+            url_parts = urlparse(url)
+            domain = url_parts.netloc
+            
+            # Extract language info from domain or path
+            # Check specifically for /es-mx in the path for the showcase site
+            if '/es-mx' in url_parts.path or '.mx.' in domain or domain.endswith('.mx'):
+                lang = 'es-mx'
+            else:
+                lang = 'en'
+            
+            # Create local test URL
+            path = url_parts.path if url_parts.path else f"/{lang}"
+            if not path.startswith('/'):
+                path = f"/{path}"
+                
+            test_url = f"http://localhost:5001{path}"
+            
+            # Forward query parameters
+            if url_parts.query:
+                test_url += f"?{url_parts.query}"
+                
+            logger.info(f"Redirecting test domain to local test server for product table check: {url} -> {test_url}")
+            url = test_url
+            
+        # Get the HTML content
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            page_content = response.text
+            
+            # Check for product-table* classes using regex
+            product_table_classes = re.findall(r'class=["\'](.*?product-table\w*?)["\']', page_content)
+            if product_table_classes:
+                product_table_found = True
+                product_table_class = product_table_classes[0]
+                logger.info(f"Found product-table class: {product_table_class}")
+                return True, product_table_class
+            
+            # Check for *productListContainer classes if still not found
+            list_container_classes = re.findall(r'class=["\'](.*?\w*?productListContainer\w*?)["\']', page_content)
+            if list_container_classes:
+                product_table_found = True
+                product_table_class = list_container_classes[0]
+                logger.info(f"Found productListContainer class: {product_table_class}")
+                return True, product_table_class
+            
+            logger.info(f"No product table classes found on {url}")
+            return False, None
+        else:
+            logger.error(f"Failed to get content from {url}, status code: {response.status_code}")
+            return False, None
+    except Exception as e:
+        logger.error(f"Error checking for product tables: {e}")
+        return False, None
 
 def check_links(links, expected_utm):
     """Check if links load correctly and have correct UTM parameters."""
@@ -453,6 +513,16 @@ def check_links(links, expected_utm):
                     else:
                         discrepancies.append("Unable to connect to URL")
                 
+                # Use our fallback method to check for product tables
+                has_product_table, product_table_class = False, None
+                
+                # Only check for product tables if the URL is likely a product page
+                if 'products' in url.lower() and http_status in [200, 301, 302]:
+                    try:
+                        has_product_table, product_table_class = check_for_product_tables(redirect_url)
+                    except Exception as product_check_error:
+                        logger.error(f"Error while checking for product tables: {product_check_error}")
+                
                 # Format the link data for frontend display
                 is_image_link = link_source.get('type') == 'image'
                 link_entry = {
@@ -464,9 +534,8 @@ def check_links(links, expected_utm):
                     'status': status,
                     'http_status': http_status,
                     'utm_issues': discrepancies or ["Browser automation unavailable - basic URL check only"],
-                    'has_product_table': False,
-                    'product_table_class': None,
-                    'product_table_error': "Browser automation unavailable - cannot check for product table classes"
+                    'has_product_table': has_product_table,
+                    'product_table_class': product_table_class
                 }
                 
                 # Add image properties if this is an image link
