@@ -4,6 +4,7 @@ import tempfile
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse, HTMLResponse, PlainTextResponse, FileResponse
 from pydantic import BaseModel
 from email_qa import validate_email
 
@@ -27,7 +28,6 @@ app.mount("/attached_assets", StaticFiles(directory="attached_assets"), name="at
 @app.get("/")
 async def read_root():
     """Serve the frontend application directly."""
-    from fastapi.responses import HTMLResponse
     with open("static/index.html", "r") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
@@ -35,7 +35,6 @@ async def read_root():
 @app.get("/test")
 async def test_page():
     """Serve a simple test page directly."""
-    from fastapi.responses import HTMLResponse
     with open("static/simple.html", "r") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
@@ -43,7 +42,6 @@ async def test_page():
 @app.get("/attached_assets/{file_path:path}")
 async def serve_asset(file_path: str):
     """Serve attached assets with proper content type."""
-    from fastapi.responses import HTMLResponse, PlainTextResponse, FileResponse
     
     full_path = os.path.join("attached_assets", file_path)
     
@@ -103,7 +101,7 @@ async def serve_asset(file_path: str):
     # For all other files, use FileResponse
     return FileResponse(full_path)
 
-@app.post("/run-qa")
+@app.post("/run-qa", response_class=JSONResponse)
 async def run_qa(email: UploadFile = File(...), requirements: UploadFile = File(...)):
     """
     Run QA validation on the uploaded email HTML against the provided requirements JSON.
@@ -131,10 +129,19 @@ async def run_qa(email: UploadFile = File(...), requirements: UploadFile = File(
         
         # Run validation
         results = validate_email(email_path, req_path)
-        return results
+        # Explicitly return as JSON with appropriate headers
+        return JSONResponse(
+            content=results,
+            media_type="application/json"
+        )
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"QA validation failed: {str(e)}")
+        error_detail = f"QA validation failed: {str(e)}"
+        return JSONResponse(
+            status_code=500,
+            content={"detail": error_detail},
+            media_type="application/json"
+        )
     
     finally:
         # Clean up temporary files

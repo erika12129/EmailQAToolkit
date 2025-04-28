@@ -11,14 +11,14 @@ logger = logging.getLogger(__name__)
 # Simulated localized content
 LOCALIZED_CONTENT = {
     'en': {
-        'title': 'Welcome to SomeDomain',
+        'title': 'Welcome to Products Showcase',
         'message': 'This is the English version of our site.',
-        'domain': 'somedomain.com'
+        'domain': 'partly-products-showcase.lovable.app'
     },
     'es-mx': {
-        'title': 'Bienvenido a SomeDomain',
+        'title': 'Bienvenido a Products Showcase',
         'message': 'Esta es la versión en español para México.',
-        'domain': 'somedomain.com.mx'
+        'domain': 'partly-products-showcase.lovable.app/es-mx'
     }
 }
 
@@ -97,7 +97,7 @@ def extract_domain_info(host):
     
     # Handle default test domains
     if not host or host == 'localhost:5001':
-        return {'lang': 'en', 'domain': 'somedomain.com'}
+        return {'lang': 'en', 'domain': 'partly-products-showcase.lovable.app'}
     
     # Extract domain from host, removing port if present
     domain = host.split(':')[0]
