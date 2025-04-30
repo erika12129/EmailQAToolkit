@@ -252,5 +252,181 @@ def catch_all(path):
     
     return html, 200
 
+@app.route('/product-list-container', methods=['GET', 'HEAD'])
+def product_list_container():
+    """Test page that only has productListContainer class (no product-table class)."""
+    lang = request.args.get('lang', 'en')
+    utm_params = get_utm_params()
+    host = request.headers.get('Host', 'localhost:5001')
+    
+    logger.info(f"Request for /product-list-container on {host} with UTM: {utm_params} (detected lang: {lang})")
+    
+    html = """<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product List Container Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .productListContainer {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .product-item {
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .utm-info {
+            background-color: #e0f7fa;
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Product List Container Test Page</h1>
+    <p><strong>This page only has productListContainer class (no product-table)</strong></p>
+    
+    <div class="productListContainer">
+        <h3>{{ 'Nuestros Productos' if lang == 'es-mx' else 'Our Products' }}</h3>
+        
+        {% if lang == 'es-mx' %}
+            <div class="product-item">
+                <h4>Producto Premium</h4>
+                <p>Precio: 499 MXN</p>
+                <p>Descripción: Nuestro producto premium con características exclusivas.</p>
+            </div>
+            <div class="product-item">
+                <h4>Producto Estándar</h4>
+                <p>Precio: 299 MXN</p>
+                <p>Descripción: La opción estándar con excelente relación calidad-precio.</p>
+            </div>
+        {% else %}
+            <div class="product-item">
+                <h4>Premium Product</h4>
+                <p>Price: $49.99</p>
+                <p>Description: Our premium product with exclusive features.</p>
+            </div>
+            <div class="product-item">
+                <h4>Standard Product</h4>
+                <p>Price: $29.99</p>
+                <p>Description: The standard option with great value for money.</p>
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="utm-info">
+        <h3>UTM Parameters</h3>
+        <ul>
+            {% for key, value in utm_params.items() %}
+                {% if value %}
+                    <li><strong>{{ key }}</strong>: {{ value }}</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <p><a href="/products?{{ request.query_string.decode() }}">View regular products page with both classes</a></p>
+</body>
+</html>"""
+    
+    return render_template_string(
+        html,
+        lang=lang,
+        utm_params=utm_params
+    ), 200
+
+@app.route('/product-table-only', methods=['GET', 'HEAD'])
+def product_table_only():
+    """Test page that only has product-table class (no productListContainer)."""
+    lang = request.args.get('lang', 'en')
+    utm_params = get_utm_params()
+    host = request.headers.get('Host', 'localhost:5001')
+    
+    logger.info(f"Request for /product-table-only on {host} with UTM: {utm_params} (detected lang: {lang})")
+    
+    html = """<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Table Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .product-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .product-table th, .product-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        .utm-info {
+            background-color: #e0f7fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Product Table Test Page</h1>
+    <p><strong>This page only has product-table class (no productListContainer)</strong></p>
+    
+    <table class="product-table">
+        <thead>
+            <tr>
+                <th>{{ 'Nombre' if lang == 'es-mx' else 'Name' }}</th>
+                <th>{{ 'Precio' if lang == 'es-mx' else 'Price' }}</th>
+                <th>{{ 'Descripción' if lang == 'es-mx' else 'Description' }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if lang == 'es-mx' %}
+                <tr><td>Producto 1</td><td>199 MXN</td><td>Descripción del producto 1</td></tr>
+                <tr><td>Producto 2</td><td>299 MXN</td><td>Descripción del producto 2</td></tr>
+            {% else %}
+                <tr><td>Product 1</td><td>$9.99</td><td>Description for product 1</td></tr>
+                <tr><td>Product 2</td><td>$19.99</td><td>Description for product 2</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+    
+    <div class="utm-info">
+        <h3>UTM Parameters</h3>
+        <ul>
+            {% for key, value in utm_params.items() %}
+                {% if value %}
+                    <li><strong>{{ key }}</strong>: {{ value }}</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </div>
+    
+    <p><a href="/product-list-container?{{ request.query_string.decode() }}">View productListContainer page</a></p>
+    <p><a href="/products?{{ request.query_string.decode() }}">View regular products page with both classes</a></p>
+</body>
+</html>"""
+    
+    return render_template_string(
+        html,
+        lang=lang,
+        utm_params=utm_params
+    ), 200
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001)

@@ -468,7 +468,7 @@ def check_for_product_tables(url, is_test_env=True):
                 return True, product_table_class, None
             
             # Check for *productListContainer classes if still not found
-            list_container_classes = re.findall(r'class=["\'](.*?\w*?productListContainer\w*?)["\']', page_content)
+            list_container_classes = re.findall(r'class=["\'](\w*productListContainer\w*)["\']', page_content)
             if list_container_classes:
                 product_table_found = True
                 product_table_class = list_container_classes[0]
@@ -700,7 +700,7 @@ def check_links(links, expected_utm):
                 
                 # Check for *productListContainer classes if still not found
                 if not product_table_found:
-                    list_container_classes = re.findall(r'class=["\'](.*?\w*?productListContainer\w*?)["\']', page_source)
+                    list_container_classes = re.findall(r'class=["\'](\w*productListContainer\w*)["\']', page_source)
                     if list_container_classes:
                         product_table_found = True
                         product_table_class = list_container_classes[0]
