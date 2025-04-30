@@ -163,6 +163,7 @@ function App() {
                                                 <th className="border p-2">Link Text</th>
                                                 <th className="border p-2">URL</th>
                                                 <th className="border p-2">Status</th>
+                                                <th className="border p-2">Product Table</th>
                                                 <th className="border p-2">Issues</th>
                                             </tr>
                                         </thead>
@@ -190,6 +191,27 @@ function App() {
                                                         }`}
                                                     >
                                                         {item.status}
+                                                    </td>
+                                                    <td className="border p-2">
+                                                        {item.has_product_table !== undefined ? (
+                                                            <div>
+                                                                <span className={`font-semibold ${item.has_product_table ? 'text-green-600' : 'text-gray-600'}`}>
+                                                                    {item.has_product_table ? 'Yes' : 'No'}
+                                                                </span>
+                                                                {item.product_table_class && (
+                                                                    <div className="text-xs text-gray-600 mt-1">
+                                                                        Class: {item.product_table_class}
+                                                                    </div>
+                                                                )}
+                                                                {item.product_table_error && (
+                                                                    <div className="text-xs text-red-500 mt-1">
+                                                                        {item.product_table_error}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-gray-500">Not checked</span>
+                                                        )}
                                                     </td>
                                                     <td className="border p-2">
                                                         {item.utm_issues.length > 0
