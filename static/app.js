@@ -163,13 +163,13 @@ function App() {
                                                 <th className="border p-2">Link Text</th>
                                                 <th className="border p-2">URL</th>
                                                 <th className="border p-2">Status</th>
-                                                <th className="border p-2">Product Table</th>
+                                                <th className="border p-2">Product Table Detection</th>
                                                 <th className="border p-2">Issues</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {results.links.map((item, index) => (
-                                                <tr key={index} className="border">
+                                                <tr key={index} className={`border ${item.has_product_table ? 'bg-green-50' : ''}`}>
                                                     <td className="border p-2">{item.link_text}</td>
                                                     <td className="border p-2">
                                                         <a
@@ -198,14 +198,14 @@ function App() {
                                                                 <span className={`font-semibold ${item.has_product_table ? 'text-green-600' : 'text-gray-600'}`}>
                                                                     {item.has_product_table ? 'Yes' : 'No'}
                                                                 </span>
-                                                                {item.product_table_class && (
+                                                                {item.has_product_table && item.product_table_class && (
                                                                     <div className="text-xs text-gray-600 mt-1">
                                                                         Class: {item.product_table_class}
                                                                     </div>
                                                                 )}
                                                                 {item.product_table_error && (
                                                                     <div className="text-xs text-red-500 mt-1">
-                                                                        {item.product_table_error}
+                                                                        Error: {item.product_table_error}
                                                                     </div>
                                                                 )}
                                                             </div>

@@ -354,6 +354,7 @@
                         <th>URL</th>
                         <th>Redirected To</th>
                         <th>Status</th>
+                        <th>Product Table Detection</th>
                         <th>Issues</th>
                     </tr>
                 </thead>
@@ -1005,6 +1006,52 @@
                 
                 statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
                 row.appendChild(statusCell);
+                
+                // Product Table Detection Cell
+                const productTableCell = document.createElement('td');
+                if (item.has_product_table !== undefined) {
+                    // Create a container for the product table info
+                    const container = document.createElement('div');
+                    
+                    // Show Yes/No with appropriate styling
+                    const statusSpan = document.createElement('span');
+                    statusSpan.style.fontWeight = 'bold';
+                    
+                    if (item.has_product_table) {
+                        statusSpan.textContent = 'Yes';
+                        statusSpan.style.color = '#38a169'; // Green
+                        row.style.backgroundColor = '#f0fff4'; // Light green background for rows with product tables
+                    } else {
+                        statusSpan.textContent = 'No';
+                        statusSpan.style.color = '#4a5568'; // Gray
+                    }
+                    container.appendChild(statusSpan);
+                    
+                    // Show the class name if a product table was found
+                    if (item.has_product_table && item.product_table_class) {
+                        const classDiv = document.createElement('div');
+                        classDiv.style.fontSize = '12px';
+                        classDiv.style.marginTop = '4px';
+                        classDiv.textContent = `Class: ${item.product_table_class}`;
+                        container.appendChild(classDiv);
+                    }
+                    
+                    // Show any errors that occurred during product table detection
+                    if (item.product_table_error) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.style.fontSize = '12px';
+                        errorDiv.style.marginTop = '4px';
+                        errorDiv.style.color = '#e53e3e'; // Red
+                        errorDiv.textContent = `Error: ${item.product_table_error}`;
+                        container.appendChild(errorDiv);
+                    }
+                    
+                    productTableCell.appendChild(container);
+                } else {
+                    productTableCell.textContent = 'Not checked';
+                    productTableCell.style.color = '#718096'; // Gray
+                }
+                row.appendChild(productTableCell);
                 
                 // Issues Cell
                 const issuesCell = document.createElement('td');
