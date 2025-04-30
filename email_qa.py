@@ -460,7 +460,7 @@ def check_for_product_tables(url, is_test_env=True):
             page_content = response.text
             
             # Check for product-table* classes using regex
-            product_table_classes = re.findall(r'class=["\'](.*?product-table\w*?)["\']', page_content)
+            product_table_classes = re.findall(r'class=["\']([^"\']*?product-table[^"\']*?)["\']', page_content)
             if product_table_classes:
                 product_table_found = True
                 product_table_class = product_table_classes[0]
@@ -468,7 +468,7 @@ def check_for_product_tables(url, is_test_env=True):
                 return True, product_table_class, None
             
             # Check for *productListContainer classes if still not found
-            list_container_classes = re.findall(r'class=["\'](\w*productListContainer\w*)["\']', page_content)
+            list_container_classes = re.findall(r'class=["\']([^"\']*?productListContainer[^"\']*?)["\']', page_content)
             if list_container_classes:
                 product_table_found = True
                 product_table_class = list_container_classes[0]
@@ -692,7 +692,7 @@ def check_links(links, expected_utm):
                 page_source = driver.page_source
                 
                 # Check for product-table* classes using regex
-                product_table_classes = re.findall(r'class=["\'](.*?product-table\w*?)["\']', page_source)
+                product_table_classes = re.findall(r'class=["\']([^"\']*?product-table[^"\']*?)["\']', page_source)
                 if product_table_classes:
                     product_table_found = True
                     product_table_class = product_table_classes[0]
@@ -700,7 +700,7 @@ def check_links(links, expected_utm):
                 
                 # Check for *productListContainer classes if still not found
                 if not product_table_found:
-                    list_container_classes = re.findall(r'class=["\'](\w*productListContainer\w*)["\']', page_source)
+                    list_container_classes = re.findall(r'class=["\']([^"\']*?productListContainer[^"\']*?)["\']', page_source)
                     if list_container_classes:
                         product_table_found = True
                         product_table_class = list_container_classes[0]

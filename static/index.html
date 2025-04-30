@@ -1032,17 +1032,21 @@
                     if (item.has_product_table) {
                         console.log("Product table found for URL: " + item.url);
                         console.log("  Class: " + (item.product_table_class || "None"));
+                        
+                        // Add more detailed debugging of the response
+                        console.log("  Raw item.product_table_class value:", JSON.stringify(item.product_table_class));
+                        console.log("  Type of item.product_table_class:", typeof item.product_table_class);
+                        if (item.product_table_class) {
+                            console.log("  Length of class name:", item.product_table_class.length);
+                            console.log("  Character codes:", 
+                                Array.from(item.product_table_class).map(c => c.charCodeAt(0)));
+                        }
                     }
                     
+                    // We no longer display the specific class name in the UI
+                    // Just log it to the console for debugging purposes
                     if (item.has_product_table && item.product_table_class) {
-                        const classDiv = document.createElement('div');
-                        classDiv.style.fontSize = '12px';
-                        classDiv.style.marginTop = '4px';
-                        // Make sure the class name is clearly visible
-                        classDiv.textContent = `Class: ${item.product_table_class}`;
-                        classDiv.style.fontWeight = 'bold';
-                        classDiv.style.color = '#2b6cb0'; // Blue color to make it stand out
-                        container.appendChild(classDiv);
+                        console.log(`Found product table with class: ${item.product_table_class}`);
                     }
                     
                     // Show any errors that occurred during product table detection
