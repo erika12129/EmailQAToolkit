@@ -393,17 +393,30 @@ def check_http_status(url):
         logger.error(f"Failed to check HTTP status: {e}")
         return None
         
-def check_for_product_tables(url):
-    """Check if a URL's HTML contains product table classes using requests instead of Selenium."""
+def check_for_product_tables(url, is_test_env=True):
+    """
+    Check if a URL's HTML contains product table classes using requests.
+    Handles both original URLs and test environment redirects.
+    
+    Args:
+        url: The URL to check for product tables
+        is_test_env: Flag indicating if we're in a test environment (enables localhost redirects)
+    
+    Returns:
+        tuple: (has_product_table, product_table_class, error_message)
+    """
+    original_url = url
+    test_url = None
+    error_message = None
+    
     try:
-        # Handle local test domains and the mock website
-        if 'localtest.me' in url or 'partly-products-showcase.lovable.app' in url:
-            # Replace with local test server for test domains
+        # Only apply test domain redirects if we're in test mode
+        if is_test_env and ('localtest.me' in url or 'partly-products-showcase.lovable.app' in url):
+            # Keep track of original URL for reporting
             url_parts = urlparse(url)
             domain = url_parts.netloc
             
             # Extract language info from domain or path
-            # Check specifically for /es-mx in the path for the showcase site
             if '/es-mx' in url_parts.path or '.mx.' in domain or domain.endswith('.mx'):
                 lang = 'es-mx'
             else:
@@ -421,10 +434,28 @@ def check_for_product_tables(url):
                 test_url += f"?{url_parts.query}"
                 
             logger.info(f"Redirecting test domain to local test server for product table check: {url} -> {test_url}")
-            url = test_url
             
+            # Try the test URL, but we'll fall back to original if it fails
+            try:
+                test_response = requests.get(test_url, timeout=5)
+                if test_response.status_code == 200:
+                    url = test_url
+                else:
+                    logger.warning(f"Test URL returned status code {test_response.status_code}, falling back to original URL")
+            except Exception as test_e:
+                logger.warning(f"Failed to connect to test URL: {test_e}, falling back to original URL")
+        
         # Get the HTML content
-        response = requests.get(url, timeout=5)
+        logger.info(f"Checking URL for product tables: {url}")
+        response = requests.get(url, timeout=5, allow_redirects=True)
+        
+        # Check if we were redirected
+        if response.history:
+            redirect_chain = " -> ".join([r.url for r in response.history] + [response.url])
+            logger.info(f"URL redirected: {url} -> {response.url}")
+            # Update the URL to the final destination after redirects
+            url = response.url
+        
         if response.status_code == 200:
             page_content = response.text
             
@@ -434,7 +465,7 @@ def check_for_product_tables(url):
                 product_table_found = True
                 product_table_class = product_table_classes[0]
                 logger.info(f"Found product-table class: {product_table_class}")
-                return True, product_table_class
+                return True, product_table_class, None
             
             # Check for *productListContainer classes if still not found
             list_container_classes = re.findall(r'class=["\'](.*?\w*?productListContainer\w*?)["\']', page_content)
@@ -442,16 +473,30 @@ def check_for_product_tables(url):
                 product_table_found = True
                 product_table_class = list_container_classes[0]
                 logger.info(f"Found productListContainer class: {product_table_class}")
-                return True, product_table_class
+                return True, product_table_class, None
             
             logger.info(f"No product table classes found on {url}")
-            return False, None
+            return False, None, None
         else:
-            logger.error(f"Failed to get content from {url}, status code: {response.status_code}")
-            return False, None
+            error_message = f"Failed to get content from URL, status code: {response.status_code}"
+            logger.error(error_message)
+            return False, None, error_message
+    except requests.exceptions.Timeout:
+        error_message = f"Connection to {url} timed out"
+        logger.error(error_message)
+        return False, None, error_message
+    except requests.exceptions.SSLError as ssl_err:
+        error_message = f"SSL error when connecting to {url}: {str(ssl_err)}"
+        logger.error(error_message)
+        return False, None, error_message
+    except requests.exceptions.ConnectionError:
+        error_message = f"Failed to connect to {url}"
+        logger.error(error_message)
+        return False, None, error_message
     except Exception as e:
-        logger.error(f"Error checking for product tables: {e}")
-        return False, None
+        error_message = f"Error checking for product tables: {str(e)}"
+        logger.error(error_message)
+        return False, None, error_message
 
 def check_links(links, expected_utm):
     """Check if links load correctly and have correct UTM parameters."""
@@ -513,15 +558,42 @@ def check_links(links, expected_utm):
                     else:
                         discrepancies.append("Unable to connect to URL")
                 
-                # Use our fallback method to check for product tables
-                has_product_table, product_table_class = False, None
+                # Check for product tables on ALL URLs regardless of path
+                has_product_table, product_table_class, product_table_error = False, None, None
                 
-                # Only check for product tables if the URL is likely a product page
-                if 'products' in url.lower() and http_status in [200, 301, 302]:
+                if http_status in [200, 301, 302]:
                     try:
-                        has_product_table, product_table_class = check_for_product_tables(redirect_url)
+                        # Check both original and redirected URLs for product tables
+                        original_has_table, original_table_class, original_error = check_for_product_tables(url)
+                        
+                        # If we have a redirect URL that's different, check that too
+                        if redirect_url != url:
+                            redirect_has_table, redirect_table_class, redirect_error = check_for_product_tables(redirect_url)
+                            
+                            # Use results from either URL - prefer the one with tables if found
+                            if original_has_table:
+                                has_product_table, product_table_class = original_has_table, original_table_class
+                            elif redirect_has_table:
+                                has_product_table, product_table_class = redirect_has_table, redirect_table_class
+                            
+                            # Report any errors
+                            if original_error and redirect_error:
+                                product_table_error = f"Errors: Original URL: {original_error}, Redirected URL: {redirect_error}"
+                            elif original_error:
+                                product_table_error = f"Error on original URL: {original_error}"
+                            elif redirect_error:
+                                product_table_error = f"Error on redirected URL: {redirect_error}"
+                        else:
+                            # If no redirect, just use the original URL results
+                            has_product_table, product_table_class = original_has_table, original_table_class
+                            product_table_error = original_error
+                            
+                        logger.info(f"Product table check for {url}: found={has_product_table}, class={product_table_class}")
                     except Exception as product_check_error:
-                        logger.error(f"Error while checking for product tables: {product_check_error}")
+                        product_table_error = f"Error checking product tables: {str(product_check_error)}"
+                        logger.error(product_table_error)
+                else:
+                    product_table_error = f"URL returned HTTP status {http_status}, product table check skipped"
                 
                 # Format the link data for frontend display
                 is_image_link = link_source.get('type') == 'image'
@@ -530,12 +602,13 @@ def check_links(links, expected_utm):
                     'is_image_link': is_image_link,
                     'url': url,
                     'redirected_to': redirect_url if redirect_url != url else None,
-                    'final_url': url,  # Same as initial since we can't check redirects
+                    'final_url': url,  # Same as initial since we can't check full redirects
                     'status': status,
                     'http_status': http_status,
-                    'utm_issues': discrepancies or ["Browser automation unavailable - basic URL check only"],
+                    'utm_issues': discrepancies or [],
                     'has_product_table': has_product_table,
-                    'product_table_class': product_table_class
+                    'product_table_class': product_table_class,
+                    'product_table_error': product_table_error
                 }
                 
                 # Add image properties if this is an image link
@@ -609,11 +682,13 @@ def check_links(links, expected_utm):
             driver.get(redirect_url)
             final_url = driver.current_url
             
-            # Check for product table class presence
+            # Check for product table class presence on ALL pages (regardless of path)
             product_table_found = False
             product_table_class = None
+            product_table_error = None
+            
             try:
-                # Get page source and check for product-table* or *productListContainer
+                # Use Selenium-based approach first (gets page after any client-side rendering)
                 page_source = driver.page_source
                 
                 # Check for product-table* classes using regex
@@ -621,7 +696,7 @@ def check_links(links, expected_utm):
                 if product_table_classes:
                     product_table_found = True
                     product_table_class = product_table_classes[0]
-                    logger.info(f"Found product-table class: {product_table_class}")
+                    logger.info(f"Found product-table class via browser: {product_table_class}")
                 
                 # Check for *productListContainer classes if still not found
                 if not product_table_found:
@@ -629,9 +704,29 @@ def check_links(links, expected_utm):
                     if list_container_classes:
                         product_table_found = True
                         product_table_class = list_container_classes[0]
-                        logger.info(f"Found productListContainer class: {product_table_class}")
+                        logger.info(f"Found productListContainer class via browser: {product_table_class}")
+                        
+                if not product_table_found:
+                    logger.info(f"No product table classes found via browser automation")
             except Exception as e:
+                product_table_error = f"Browser automation error: {str(e)}"
                 logger.error(f"Error checking for product table classes: {e}")
+                
+                # If browser automation fails, use our fallback method
+                try:
+                    # Check both original and redirected URLs for product tables
+                    has_table, table_class, table_error = check_for_product_tables(url)
+                    
+                    # If we found a table through the fallback, use those results
+                    if has_table:
+                        product_table_found = has_table
+                        product_table_class = table_class
+                        logger.info(f"Found product table class via fallback: {table_class}")
+                    elif table_error:
+                        product_table_error = f"Fallback error: {table_error}"
+                except Exception as fallback_error:
+                    product_table_error = f"Both browser and fallback checks failed: {str(fallback_error)}"
+                    logger.error(f"Fallback product table check also failed: {fallback_error}")
             
             # For local testing, validate original URL's parameters
             utm_discrepancies = validate_utm_parameters(url, expected_utm)
@@ -662,7 +757,8 @@ def check_links(links, expected_utm):
                 'http_status': http_status,
                 'utm_issues': utm_discrepancies,
                 'has_product_table': product_table_found,
-                'product_table_class': product_table_class if product_table_found else None
+                'product_table_class': product_table_class if product_table_found else None,
+                'product_table_error': product_table_error
             }
             
             # Add image properties if this is an image link
@@ -674,6 +770,17 @@ def check_links(links, expected_utm):
             logger.info(f"Checked link '{display_text}': {status} (HTTP: {http_status})")
         except Exception as e:
             http_status = check_http_status(url) 
+            # Try to check product table anyway if HTTP status is ok
+            has_product_table, product_table_class, product_table_error = False, None, None
+            if http_status in [200, 301, 302]:
+                try:
+                    has_product_table, product_table_class, product_table_error = check_for_product_tables(url)
+                    if has_product_table:
+                        logger.info(f"Fallback product table check found table class: {product_table_class}")
+                except Exception as fallback_error:
+                    product_table_error = f"Error during fallback product table check: {str(fallback_error)}"
+                    logger.error(product_table_error)
+            
             # Format the link data for frontend display even in error cases
             is_image_link = link_source.get('type') == 'image'
             link_entry = {
@@ -685,8 +792,9 @@ def check_links(links, expected_utm):
                 'status': 'FAIL',
                 'http_status': http_status,
                 'utm_issues': [f"Failed to load: {str(e)}"],
-                'has_product_table': False,
-                'product_table_class': None
+                'has_product_table': has_product_table,
+                'product_table_class': product_table_class,
+                'product_table_error': product_table_error or "Browser automation failed, used fallback check"
             }
             
             # Add image properties if this is an image link
