@@ -450,7 +450,8 @@ def check_for_product_tables(url, is_test_env=None):
         # Make a direct request to the URL
         logger.info(f"{log_prefix} Making direct request...")
         try:
-            response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+            # Use a shorter timeout to prevent hanging
+            response = requests.get(url, headers=headers, timeout=5, allow_redirects=True)
             
             if response.history:
                 redirect_chain = " -> ".join([r.url for r in response.history] + [response.url])
@@ -522,29 +523,25 @@ def check_for_product_tables(url, is_test_env=None):
                 error_msg = f"Failed to get content from URL, status code: {response.status_code}"
                 logger.error(f"{log_prefix} Error: {error_msg}")
                 return False, None, error_msg
+        except requests.exceptions.Timeout:
+            error_message = f"Connection to {url} timed out"
+            logger.error(f"{log_prefix} {error_message}")
+            return False, None, error_message
+        except requests.exceptions.SSLError as ssl_err:
+            error_message = f"SSL error when connecting to {url}: {str(ssl_err)}"
+            logger.error(f"{log_prefix} {error_message}")
+            return False, None, error_message
+        except requests.exceptions.ConnectionError:
+            error_message = f"Failed to connect to {url}"
+            logger.error(f"{log_prefix} {error_message}")
+            return False, None, error_message
         except Exception as e:
-            error_msg = f"Exception requesting URL: {str(e)}"
-            logger.error(f"{log_prefix} Error: {error_msg}")
-            return False, None, error_msg
-    except Exception as outer_e:
-        error_msg = f"Outer exception: {str(outer_e)}"
-        logger.error(f"{log_prefix} Error: {error_msg}")
-        return False, None, error_msg
-    except requests.exceptions.Timeout:
-        error_message = f"Connection to {url} timed out"
-        logger.error(error_message)
-        return False, None, error_message
-    except requests.exceptions.SSLError as ssl_err:
-        error_message = f"SSL error when connecting to {url}: {str(ssl_err)}"
-        logger.error(error_message)
-        return False, None, error_message
-    except requests.exceptions.ConnectionError:
-        error_message = f"Failed to connect to {url}"
-        logger.error(error_message)
-        return False, None, error_message
+            error_message = f"Exception requesting URL: {str(e)}"
+            logger.error(f"{log_prefix} Error: {error_message}")
+            return False, None, error_message
     except Exception as e:
         error_message = f"Error checking for product tables: {str(e)}"
-        logger.error(error_message)
+        logger.error(f"{log_prefix} {error_message}")
         return False, None, error_message
 
 def check_links(links, expected_utm):
