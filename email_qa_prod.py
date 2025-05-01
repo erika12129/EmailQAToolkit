@@ -266,17 +266,34 @@ def validate_utm_parameters(url, expected_utm):
 def check_http_status(url):
     """Check HTTP status code of a URL."""
     try:
+        # Use a very short timeout (3 seconds) and browser-like headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        }
+        
         # For checking status, don't actually download the full response
-        response = requests.head(url, timeout=config.request_timeout, allow_redirects=True)
+        response = requests.head(url, timeout=3, allow_redirects=True, headers=headers)
+        
+        # If HEAD request fails, try GET with stream=True
+        if response.status_code >= 400:
+            response = requests.get(url, timeout=3, allow_redirects=True, headers=headers, stream=True)
+            # Close connection to avoid resource leak
+            response.close()
+            
         return response.status_code
     except requests.exceptions.Timeout:
+        logger.warning(f"Connection to {url} timed out")
         return "Timeout"
     except requests.exceptions.SSLError:
+        logger.warning(f"SSL error connecting to {url}")
         return "SSL Error"
     except requests.exceptions.ConnectionError:
+        logger.warning(f"Connection error for {url}")
         return "Connection Error"
     except Exception as e:
-        return f"Error: {str(e)}"
+        logger.warning(f"Error checking {url}: {str(e)}")
+        return f"Error: {str(e)[:50]}"
         
 def fetch_web_content(url, use_trafilatura=True):
     """
@@ -298,8 +315,8 @@ def fetch_web_content(url, use_trafilatura=True):
     try:
         logger.info(f"Fetching web content from URL: {url}")
         
-        # First, try with requests
-        response = requests.get(url, headers=headers, timeout=config.request_timeout, allow_redirects=True)
+        # First, try with requests - use a much shorter timeout (3 seconds)
+        response = requests.get(url, headers=headers, timeout=3, allow_redirects=True)
         
         # Check if we were redirected
         if response.history:
@@ -423,7 +440,7 @@ def check_for_product_tables(url, is_test_env=None):
                 
                 # Try the test URL, but we'll fall back to original if it fails
                 try:
-                    test_response = requests.get(test_url, timeout=config.request_timeout)
+                    test_response = requests.get(test_url, timeout=3)
                     if test_response.status_code == 200:
                         url = test_url
                         logger.info(f"{log_prefix} Successfully redirected to test URL")

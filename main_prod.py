@@ -159,7 +159,7 @@ async def serve_asset(file_path: str):
 async def run_qa(
     email: UploadFile = File(...), 
     requirements: UploadFile = File(...),
-    force_production: Optional[bool] = Query(False, description="Force production mode for this request")
+    force_production: Optional[bool] = Query(True, description="Force production mode for this request")
 ):
     """
     Run QA validation on the uploaded email HTML against the provided requirements JSON.
@@ -167,7 +167,7 @@ async def run_qa(
     Args:
         email: HTML file of the email to validate
         requirements: JSON file containing validation requirements
-        force_production: If True, disables test redirects for this request only
+        force_production: If True, disables test redirects for this request only, default is True
     
     Returns:
         dict: Validation results
