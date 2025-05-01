@@ -82,10 +82,10 @@ class Config:
     def enable_test_redirects(self) -> bool:
         """Check if test redirects are enabled."""
         if self.is_production:
-            # In production, check the explicit setting
-            return self.config_data.get("global_settings", {}).get("enable_redirect_to_test", False)
-        # In development, always enable redirects
-        return True
+            # In production, always disable redirects unless explicitly enabled
+            return False
+        # In development, check the setting but default to True
+        return self.config_data.get("global_settings", {}).get("enable_redirect_to_test", True)
     
     @property
     def domain_list(self) -> Dict[str, Any]:
