@@ -1,0 +1,63 @@
+{
+  "version": "1.0.0",
+  "domains": {
+    "primary": {
+      "example.com": {
+        "product_table_check": true,
+        "expected_classes": ["product-table", "productListContainer"],
+        "localized_versions": {
+          "es": "example.es",
+          "fr": "example.fr",
+          "de": "example.de"
+        },
+        "allowed_utm_parameters": {
+          "utm_source": ["email", "newsletter"],
+          "utm_medium": ["marketing", "promotional"],
+          "utm_campaign": ["*"],
+          "utm_content": ["*"]
+        }
+      },
+      "partly-products-showcase.lovable.app": {
+        "product_table_check": true,
+        "expected_classes": ["product-table", "productListContainer"],
+        "localized_versions": {},
+        "allowed_utm_parameters": {
+          "utm_source": ["*"],
+          "utm_medium": ["*"],
+          "utm_campaign": ["*"]
+        }
+      }
+    },
+    "test": {
+      "localhost:5001": {
+        "product_table_check": true,
+        "expected_classes": ["product-table", "productListContainer"],
+        "is_test_domain": true
+      }
+    }
+  },
+  "localization_rules": {
+    "es": {
+      "expected_parameters": {
+        "lang": "es"
+      }
+    },
+    "es-MX": {
+      "expected_parameters": {
+        "lang": "es-MX",
+        "region": "mx"
+      }
+    },
+    "fr": {
+      "expected_parameters": {
+        "lang": "fr"
+      }
+    }
+  },
+  "global_settings": {
+    "enable_redirect_to_test": true,
+    "default_language": "en",
+    "max_retries": 3,
+    "request_timeout": 10
+  }
+}

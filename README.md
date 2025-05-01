@@ -46,10 +46,76 @@ The application consists of:
    ```
    pip install -r requirements.txt
    ```
-3. Run the application:
+3. Run the application in development mode:
    ```
    python run_servers.py
    ```
+   
+### Production Deployment
+
+The application supports both development and production environments:
+
+1. **Development Mode**: Uses localhost redirects for testing, providing a complete testing environment on a single machine.
+   ```
+   python run_servers_prod.py
+   ```
+
+2. **Production Mode**: Disables localhost redirects and connects directly to actual domains.
+   ```
+   python run_servers_prod.py --production
+   ```
+
+3. **Environment Variables**:
+   - `EMAIL_QA_ENV`: Set to `production` to run in production mode
+   
+4. **Domain Configuration**:
+   The application uses a `domain_config.json` file to determine how domains are handled:
+   - Primary domains: Real domains that should be accessed directly in production
+   - Test domains: Domains that should be redirected to the test server
+   - Localized versions: Language-specific variants of primary domains
+   
+   Example domain configuration:
+   ```json
+   {
+     "version": "1.0.0",
+     "domains": {
+       "primary": {
+         "example.com": {
+           "product_table_check": true,
+           "expected_classes": ["product-table", "productListContainer"],
+           "localized_versions": {
+             "es": "example.es",
+             "fr": "example.fr"
+           },
+           "allowed_utm_parameters": {
+             "utm_source": ["email", "newsletter"],
+             "utm_medium": ["marketing", "promotional"],
+             "utm_campaign": ["*"],
+             "utm_content": ["*"]
+           }
+         }
+       },
+       "test": {
+         "localhost:5001": {
+           "product_table_check": true,
+           "expected_classes": ["product-table", "productListContainer"],
+           "is_test_domain": true
+         }
+       }
+     },
+     "global_settings": {
+       "enable_redirect_to_test": true,
+       "default_language": "en",
+       "max_retries": 3,
+       "request_timeout": 10
+     }
+   }
+   ```
+   
+5. **API Endpoint Options**:
+   - `/run-qa?force_production=true`: Run a single validation in production mode
+   - `/reload-config`: Reload the domain configuration without restarting
+   - `/config`: View current configuration
 
 ## Usage Guide
 
@@ -101,7 +167,7 @@ The `attached_assets` directory contains sample files for testing:
 
 ## Key Components
 
-### Email QA Module (`email_qa.py`)
+### Email QA Module (`email_qa.py` and `email_qa_prod.py`)
 
 Core functionality for email validation:
 - HTML parsing with BeautifulSoup
@@ -110,13 +176,33 @@ Core functionality for email validation:
 - Metadata verification
 - Product table detection (both with direct HTTP requests and Selenium)
 
-### Web Server (`main.py`)
+The `email_qa_prod.py` version adds:
+- Environment-aware processing
+- Domain-specific validation rules
+- Production-ready error handling
+- Configurable domain redirects
+
+### Web Server (`main.py` and `main_prod.py`)
 
 FastAPI application that:
 - Provides the web interface
 - Handles file uploads
 - Processes validation requests
 - Returns detailed validation reports
+
+The `main_prod.py` version adds:
+- Environment indicator in the UI
+- Additional API endpoints for configuration
+- Production/development toggle
+- Enhanced error handling
+
+### Configuration System (`config.py` and `domain_config.json`)
+
+Configuration management for the application:
+- Environment detection (production vs development)
+- Domain-specific processing rules
+- Localization support
+- Configurable timeouts and retries
 
 ### Test Website (`test_website.py`)
 
@@ -125,12 +211,17 @@ Flask application that simulates destination websites:
 - Simulates different language domains
 - Provides test pages with product tables
 
-### Workflow Runner (`run_servers.py`)
+### Workflow Runner (`run_servers.py` and `run_servers_prod.py`)
 
 Manages the startup and shutdown of both servers:
-- Starts FastAPI on port 5000
+- Starts FastAPI on port 8000 (production) or 5000 (development)
 - Starts Flask test server on port 5001
 - Handles graceful shutdown
+
+The `run_servers_prod.py` version adds:
+- Command-line arguments for production mode
+- Environment variable configuration
+- Improved process management
 
 ## Product Table Detection
 
@@ -145,6 +236,35 @@ The system checks destination pages for product display tables using two detecti
    - Check for dynamically loaded product tables
    - Verify proper rendering of product displays
 
+## Migration to Production System
+
+To migrate the existing development system to the production-ready system:
+
+1. **File Preparation**:
+   - Keep the original files (`email_qa.py`, `main.py`, `run_servers.py`) for backward compatibility
+   - Add the new production-ready files (`email_qa_prod.py`, `main_prod.py`, `run_servers_prod.py`, `config.py`, `domain_config.json`)
+
+2. **Configuration Setup**:
+   - Review and modify `domain_config.json` to include your actual production domains
+   - Add any custom localization rules for your specific domains
+   - Configure allowed UTM parameters for your marketing campaigns
+
+3. **Testing the Production Setup**:
+   ```
+   # Test in development mode first
+   python run_servers_prod.py
+   
+   # Then test in production mode
+   python run_servers_prod.py --production
+   ```
+
+4. **Full Migration** (optional):
+   - Once fully tested, you can replace the original files with the production versions:
+     - `email_qa.py` → `email_qa_prod.py`
+     - `main.py` → `main_prod.py`
+     - `run_servers.py` → `run_servers_prod.py`
+   - Update imports in any dependent files
+
 ## Troubleshooting
 
 ### Common Issues
@@ -153,6 +273,7 @@ The system checks destination pages for product display tables using two detecti
 - **File Upload Errors**: Check file formats (HTML for emails, JSON for requirements)
 - **Link Validation Failures**: Verify URL accessibility
 - **Product Table Detection Issues**: Check console logs for detailed class information
+- **Production Mode Failures**: Check domain configuration in `domain_config.json`
 
 ## Development and Extension
 
