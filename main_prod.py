@@ -159,7 +159,7 @@ async def serve_asset(file_path: str):
 async def run_qa(
     email: UploadFile = File(...), 
     requirements: UploadFile = File(...),
-    force_production: Optional[bool] = Query(True, description="Force production mode for this request")
+    force_production: Optional[bool] = Query(False, description="Force production mode for this request")
 ):
     """
     Run QA validation on the uploaded email HTML against the provided requirements JSON.
@@ -167,7 +167,7 @@ async def run_qa(
     Args:
         email: HTML file of the email to validate
         requirements: JSON file containing validation requirements
-        force_production: If True, disables test redirects for this request only, default is True
+        force_production: If True, disables test redirects for this request only
     
     Returns:
         dict: Validation results
@@ -175,51 +175,13 @@ async def run_qa(
     # Create temporary directory
     temp_dir = tempfile.mkdtemp()
     
-    # If force_production is true, temporarily modify the environment
-    original_environment = None
+    # If force_production is true, temporarily disable test redirects
+    original_redirect_setting = None
     
-    # Default to production mode unless explicitly disabled
     if force_production:
-        logger.info("[PRODUCTION_MODE] Forcing production mode for this request")
-        
-        # CRITICAL PATCH: Ensure all production mode flags are set properly
-        # Multiple layers of redundancy to guarantee no redirects to localhost
-        
-        # 1. Set environment through primary config mechanism
-        original_environment = config.environment
-        config.environment = "production"
-        
-        # 2. Force environment variables (persists across imports)
-        os.environ["EMAIL_QA_ENV"] = "production"
-        
-        # 3. Set override flag directly
-        config._is_production_override = True
-        
-        # 4. Add explicit global variable that other modules can check
-        import builtins
-        builtins.FORCE_PRODUCTION_MODE = True
-        
-        # Log all settings
-        logger.info(f"[PRODUCTION_MODE] Production mode flags:")
-        logger.info(f"[PRODUCTION_MODE]   - environment: {config.environment}")
-        logger.info(f"[PRODUCTION_MODE]   - is_production: {config.is_production}")
-        logger.info(f"[PRODUCTION_MODE]   - enable_test_redirects: {config.enable_test_redirects}")
-        logger.info(f"[PRODUCTION_MODE]   - _is_production_override: {config._is_production_override}")
-        logger.info(f"[PRODUCTION_MODE]   - FORCE_PRODUCTION_MODE: {getattr(builtins, 'FORCE_PRODUCTION_MODE', False)}")
-        
-        # Triple check and verify production mode is active
-        if not config.is_production:
-            logger.error("[PRODUCTION_MODE] CRITICAL ERROR: Production mode setting failed!")
-            logger.error("[PRODUCTION_MODE] This should never happen - check code for bugs")
-            # Apply additional failsafe - monkey patch the methods that do redirection
-            try:
-                import email_qa_prod
-                # Directly override the redirection function with a no-op version
-                orig_should_redirect = email_qa_prod.should_redirect_to_test_server
-                email_qa_prod.should_redirect_to_test_server = lambda url: (False, None, None)
-                logger.info("[PRODUCTION_MODE] Applied emergency monkey patch to should_redirect_to_test_server")
-            except Exception as patch_e:
-                logger.error(f"[PRODUCTION_MODE] Failed to apply emergency patch: {patch_e}")
+        logger.info("Forcing production mode for this request")
+        original_redirect_setting = config.config_data["global_settings"]["enable_redirect_to_test"]
+        config.config_data["global_settings"]["enable_redirect_to_test"] = False
     
     try:
         # Save uploaded files
@@ -255,14 +217,9 @@ async def run_qa(
         )
     
     finally:
-        # Restore original environment if modified
-        if force_production and original_environment is not None:
-            config.environment = original_environment
-            
-            logger.info(f"Restored original environment settings:")
-            logger.info(f"  - environment: {config.environment}")
-            logger.info(f"  - is_production: {config.is_production}")
-            logger.info(f"  - enable_test_redirects: {config.enable_test_redirects}")
+        # Restore original redirect setting if modified
+        if force_production and original_redirect_setting is not None:
+            config.config_data["global_settings"]["enable_redirect_to_test"] = original_redirect_setting
         
         # Clean up temporary files
         shutil.rmtree(temp_dir)

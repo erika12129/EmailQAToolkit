@@ -29,9 +29,6 @@ class Config:
         self.config_data = {}
         self.load_config()
         
-        # Add an override flag that can be set directly
-        self._is_production_override = False
-        
         # Determine environment (development or production)
         self.environment = os.environ.get("EMAIL_QA_ENV", "development").lower()
         logger.info(f"Running in {self.environment} environment")
@@ -74,8 +71,7 @@ class Config:
     @property
     def is_production(self) -> bool:
         """Check if running in production environment."""
-        # Check both the environment setting and the override flag
-        return self.environment == "production" or self._is_production_override
+        return self.environment == "production"
     
     @property
     def is_development(self) -> bool:
@@ -86,10 +82,10 @@ class Config:
     def enable_test_redirects(self) -> bool:
         """Check if test redirects are enabled."""
         if self.is_production:
-            # In production, always disable redirects unless explicitly enabled
-            return False
-        # In development, check the setting but default to True
-        return self.config_data.get("global_settings", {}).get("enable_redirect_to_test", True)
+            # In production, check the explicit setting
+            return self.config_data.get("global_settings", {}).get("enable_redirect_to_test", False)
+        # In development, always enable redirects
+        return True
     
     @property
     def domain_list(self) -> Dict[str, Any]:

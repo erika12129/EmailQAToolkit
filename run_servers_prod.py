@@ -105,11 +105,10 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Run Email QA Automation servers')
     parser.add_argument(
-        '--development', 
+        '--production', 
         action='store_true',
-        help='Run in development mode (enables test redirects)'
+        help='Run in production mode (disables test redirects)'
     )
     
     args = parser.parse_args()
-    # Run in production mode by default
-    run_servers(production_mode=not args.development)
+    run_servers(production_mode=args.production)

@@ -323,17 +323,6 @@
             
             <div id="error-message" class="error hidden"></div>
             
-            <!-- Production Mode Option -->
-            <div class="p-4 mt-3 bg-gray-50 rounded-lg border border-gray-100" style="margin-bottom: 15px; padding: 10px; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;">
-                <label style="display: flex; align-items: center; font-size: 14px; font-weight: 500; color: #4b5563;">
-                    <input type="checkbox" id="production-mode" style="margin-right: 8px;" checked>
-                    Production Mode (disable localhost redirects)
-                </label>
-                <p style="margin-top: 4px; font-size: 12px; color: #6b7280;">
-                    Enabled by default. This prevents redirects to localhost and validates links directly against production domains.
-                </p>
-            </div>
-            
             <button type="submit" class="button" id="submit-button">Run QA</button>
         </form>
         
@@ -786,12 +775,6 @@
                 const requirementsFile = new File([requirementsBlob], 'generated_requirements.json', { type: 'application/json' });
                 
                 formData.append('requirements', requirementsFile);
-            }
-            
-            // Add production mode parameter if checked
-            const productionModeCheckbox = document.getElementById('production-mode');
-            if (productionModeCheckbox && productionModeCheckbox.checked) {
-                formData.append('force_production', 'true');
             }
             
             // Submit the form
