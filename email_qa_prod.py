@@ -518,8 +518,18 @@ def validate_email(email_path, requirements_path):
     link_results = check_links(links, requirements.get('utm_parameters', {}))
     
     # Prepare results
+    # Convert metadata to list of items for frontend compatibility
+    metadata_items = []
+    for key, value in metadata.items():
+        metadata_items.append({
+            'key': key,
+            'value': value,
+            'expected': expected_metadata.get(key, '')
+        })
+    
     results = {
-        'metadata': metadata,
+        'metadata': metadata_items,  # Use the items array for frontend compatibility
+        'raw_metadata': metadata,    # Keep the original dictionary as well
         'metadata_issues': metadata_issues,
         'links': link_results,
         'environment': 'production' if config.is_production else 'development'
