@@ -176,14 +176,9 @@ def extract_email_metadata(soup):
         'reply_address': reply_to.get('content') or (reply_to.get_text(strip=True) if hasattr(reply_to, 'get_text') else '') or 'Not found',
         'subject': subject.get('content') or (subject.get_text(strip=True) if hasattr(subject, 'get_text') else '') or 'Not found',
         'preheader': preheader_text,
-        'footer_campaign_code': footer_campaign_code,
+        'campaign_code': footer_campaign_code,
         'country_code': footer_country_code
     }
-    
-    # Always include campaign_code_match with the same value as footer_campaign_code
-    if footer_campaign_code != 'Not found':
-        metadata_dict['campaign_code_match'] = footer_campaign_code
-        logger.info(f"Validated campaign_code_match: PASS")
     
     return metadata_dict
 
@@ -659,8 +654,16 @@ def validate_email(email_path, requirements_path):
         actual = value
         expected = expected_metadata.get(key, '')
         
-        # Determine status (PASS/FAIL)
-        status = "PASS" if (not expected or actual == expected or actual == 'Not found') else "FAIL"
+        # For proper testing, "Not found" always fails validation
+        if actual == 'Not found':
+            status = "FAIL"
+        else:
+            # Only exact matches pass
+            status = "PASS" if actual == expected else "FAIL"
+            
+        # If expected is empty but we have a value, consider it a PASS
+        if not expected and actual != 'Not found':
+            status = "PASS"
         
         metadata_items.append({
             'field': key,
@@ -670,7 +673,7 @@ def validate_email(email_path, requirements_path):
         })
     
     # Ensure the form fields are always included in the right order
-    key_order = ['sender_address', 'sender_name', 'reply_address', 'subject', 'preheader', 'footer_campaign_code', 'country_code']
+    key_order = ['sender_address', 'sender_name', 'reply_address', 'subject', 'preheader', 'campaign_code', 'country_code']
     ordered_metadata = []
     
     # First add the keys in our preferred order
