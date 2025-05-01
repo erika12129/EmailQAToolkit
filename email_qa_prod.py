@@ -458,7 +458,8 @@ def check_links(links, expected_utm):
                             
                             # Handle HTTP status display (status_code can be a number or string)
                             http_status = status_code
-                            status = "OK" if http_status == 200 else "FAIL"
+                            # Use PASS instead of OK to match what the UI expects
+                            status = "PASS" if http_status == 200 else "FAIL"
                             
                             link_result = {
                                 'link_text': link_text,
@@ -492,7 +493,8 @@ def check_links(links, expected_utm):
                     
                     # Handle HTTP status display (status_code can be a number or string)
                     http_status = status_code
-                    status = "OK" if http_status == 200 else "FAIL"
+                    # Use PASS instead of OK to match what the UI expects
+                    status = "PASS" if http_status == 200 else "FAIL"
                     
                     link_result = {
                         'link_text': link_text,
@@ -588,10 +590,17 @@ def validate_email(email_path, requirements_path):
     # Convert metadata to list of items for frontend compatibility
     metadata_items = []
     for key, value in metadata.items():
+        actual = value
+        expected = expected_metadata.get(key, '')
+        
+        # Determine status (PASS/FAIL)
+        status = "PASS" if (not expected or actual == expected or actual == 'Not found') else "FAIL"
+        
         metadata_items.append({
-            'key': key,
-            'value': value,
-            'expected': expected_metadata.get(key, '')
+            'field': key,
+            'expected': expected,
+            'actual': actual,
+            'status': status
         })
     
     results = {
