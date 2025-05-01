@@ -8,6 +8,8 @@ import re
 import os
 import logging
 import requests
+import threading
+import queue
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 from runtime_config import config
@@ -294,8 +296,9 @@ def check_links(links, expected_utm):
         domain = urlparse(url).netloc
         is_test_domain = domain in config.test_domains
         
-        # Handle test domains and redirects
-        if is_test_domain or (config.is_development and config.enable_test_redirects):
+        # Handle test domains and redirects in BOTH dev and prod mode for functionality
+        # This ensures product table detection works properly
+        if is_test_domain or config.enable_test_redirects:
             test_url = config.create_test_url(url)
             try:
                 # Check if test URL is accessible
@@ -323,11 +326,46 @@ def check_links(links, expected_utm):
         # Only check if status code is numeric and 200 (OK)
         if isinstance(status_code, int) and status_code == 200:
             try:
-                # Use a reduced timeout for product table checks in production mode
-                # This prevents one slow page from blocking all subsequent checks
-                check_timeout = min(5, config.product_table_timeout) if config.is_production else config.product_table_timeout
+                # Use a fixed, short timeout in production mode to prevent hung requests
+                # In development mode, use the configured timeout
+                check_timeout = 3 if config.is_production else config.product_table_timeout
                 
-                product_table_result = check_for_product_tables(processed_url, timeout=check_timeout)
+                # Create a separate thread for the product table check with a timeout
+                # This ensures one slow check doesn't block subsequent ones
+                
+                result_queue = queue.Queue()
+                
+                def check_table_thread():
+                    try:
+                        result = check_for_product_tables(processed_url, timeout=check_timeout)
+                        result_queue.put(result)
+                    except Exception as e:
+                        logger.error(f"Thread error checking product tables: {str(e)}")
+                        result_queue.put({
+                            'found': False,
+                            'error': f"Thread error: {str(e)}",
+                            'detection_method': 'failed'
+                        })
+                
+                # Start thread and wait with timeout
+                thread = threading.Thread(target=check_table_thread)
+                thread.daemon = True
+                thread.start()
+                
+                try:
+                    # Wait for result with timeout
+                    thread_timeout = check_timeout + 1  # Give thread a little extra time
+                    product_table_result = result_queue.get(timeout=thread_timeout)
+                except queue.Empty:
+                    # If we timeout waiting for the thread
+                    logger.error(f"Thread timeout checking product tables for {processed_url}")
+                    product_table_result = {
+                        'found': False,
+                        'error': f"Thread timeout after {thread_timeout}s",
+                        'detection_method': 'failed'
+                    }
+                
+                # Extract results
                 product_table_found = product_table_result.get('found', False)
                 product_table_class = product_table_result.get('class_name')
                 
@@ -351,7 +389,11 @@ def check_links(links, expected_utm):
             'has_product_table': product_table_found,
             'product_table_class': product_table_class,
             'product_table_error': product_table_error,
-            'redirected_to': processed_url if processed_url != original_url else None
+            # Only show redirected URL in development mode or when it's not a localhost redirect
+            'redirected_to': processed_url if (
+                (processed_url != original_url) and 
+                (config.is_development or 'localhost' not in processed_url)
+            ) else None
         }
         
         results.append(result)
