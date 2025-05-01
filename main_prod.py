@@ -178,30 +178,48 @@ async def run_qa(
     # If force_production is true, temporarily modify the environment
     original_environment = None
     
+    # Default to production mode unless explicitly disabled
     if force_production:
         logger.info("[PRODUCTION_MODE] Forcing production mode for this request")
-        # To enable production mode, we need to set the environment
-        # This should disable all test redirects
+        
+        # CRITICAL PATCH: Ensure all production mode flags are set properly
+        # Multiple layers of redundancy to guarantee no redirects to localhost
+        
+        # 1. Set environment through primary config mechanism
         original_environment = config.environment
         config.environment = "production"
         
-        # CRITICAL FIX: Triple-check and explicitly set production mode flags
-        # This adds redundancy to ensure production mode is properly detected
-        
-        # Force environment variables if needed (os.environ persists across imports)
+        # 2. Force environment variables (persists across imports)
         os.environ["EMAIL_QA_ENV"] = "production"
         
-        # Log the changes
-        logger.info(f"[PRODUCTION_MODE] Temporarily switched to production mode:")
+        # 3. Set override flag directly
+        config._is_production_override = True
+        
+        # 4. Add explicit global variable that other modules can check
+        import builtins
+        builtins.FORCE_PRODUCTION_MODE = True
+        
+        # Log all settings
+        logger.info(f"[PRODUCTION_MODE] Production mode flags:")
         logger.info(f"[PRODUCTION_MODE]   - environment: {config.environment}")
         logger.info(f"[PRODUCTION_MODE]   - is_production: {config.is_production}")
         logger.info(f"[PRODUCTION_MODE]   - enable_test_redirects: {config.enable_test_redirects}")
+        logger.info(f"[PRODUCTION_MODE]   - _is_production_override: {config._is_production_override}")
+        logger.info(f"[PRODUCTION_MODE]   - FORCE_PRODUCTION_MODE: {getattr(builtins, 'FORCE_PRODUCTION_MODE', False)}")
         
-        # Verify production mode is active
+        # Triple check and verify production mode is active
         if not config.is_production:
-            logger.warning("[PRODUCTION_MODE] Production mode setting failed! Forcing direct property access.")
-            # Force direct property access as a last resort
-            config._is_production_override = True
+            logger.error("[PRODUCTION_MODE] CRITICAL ERROR: Production mode setting failed!")
+            logger.error("[PRODUCTION_MODE] This should never happen - check code for bugs")
+            # Apply additional failsafe - monkey patch the methods that do redirection
+            try:
+                import email_qa_prod
+                # Directly override the redirection function with a no-op version
+                orig_should_redirect = email_qa_prod.should_redirect_to_test_server
+                email_qa_prod.should_redirect_to_test_server = lambda url: (False, None, None)
+                logger.info("[PRODUCTION_MODE] Applied emergency monkey patch to should_redirect_to_test_server")
+            except Exception as patch_e:
+                logger.error(f"[PRODUCTION_MODE] Failed to apply emergency patch: {patch_e}")
     
     try:
         # Save uploaded files
