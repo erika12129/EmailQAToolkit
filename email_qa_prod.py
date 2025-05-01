@@ -634,7 +634,24 @@ def validate_email(email_path, requirements_path):
     metadata = extract_email_metadata(soup)
     
     # Compare with expected values
-    expected_metadata = requirements.get('metadata', {})
+    # Handle both formats: root-level metadata fields or nested under 'metadata' key
+    if 'metadata' in requirements:
+        expected_metadata = requirements['metadata']
+    else:
+        # Filter out non-metadata fields - only keep the ones we expect in metadata
+        expected_metadata = {}
+        metadata_fields = ['sender_address', 'sender_name', 'reply_address', 'subject', 
+                           'preheader', 'campaign_code', 'country_code', 'country']
+        
+        # Copy over the metadata fields from requirements
+        for field in metadata_fields:
+            if field in requirements:
+                if field == 'country' and 'country_code' not in requirements:
+                    # Map 'country' to 'country_code' if needed
+                    expected_metadata['country_code'] = requirements[field]
+                else:
+                    expected_metadata[field] = requirements[field]
+    
     metadata_issues = []
     
     for key, expected_value in expected_metadata.items():
