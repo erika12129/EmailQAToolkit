@@ -1020,7 +1020,11 @@
                 redirectedCell.style.wordBreak = 'break-word'; // Allow URLs to wrap
                 redirectedCell.style.maxWidth = '250px'; // Set a max width to encourage wrapping
                 
-                if (item.redirected_to) {
+                // Get the current application mode from the data
+                const appMode = data.mode || 'production';  // Default to production if not specified
+                
+                // Only show redirected URLs in development mode, or if not localhost/internal
+                if (item.redirected_to && (appMode === 'development' || !item.redirected_to.includes('localhost'))) {
                     const redirectedLink = document.createElement('a');
                     redirectedLink.href = item.redirected_to;
                     redirectedLink.target = '_blank';

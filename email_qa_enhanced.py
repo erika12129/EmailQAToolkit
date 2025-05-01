@@ -389,10 +389,10 @@ def check_links(links, expected_utm):
             'has_product_table': product_table_found,
             'product_table_class': product_table_class,
             'product_table_error': product_table_error,
-            # Only show redirected URL in development mode or when it's not a localhost redirect
+            # Override logic - only show redirects in development mode, hide them completely in production mode
+            # This ensures product tables are correctly detected but not shown in the UI
             'redirected_to': processed_url if (
-                (processed_url != original_url) and 
-                (config.is_development or 'localhost' not in processed_url)
+                (processed_url != original_url) and config.is_development
             ) else None
         }
         
