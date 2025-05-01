@@ -8,6 +8,7 @@ import re
 import os
 import logging
 import requests
+import trafilatura
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -276,6 +277,69 @@ def check_http_status(url):
         return "Connection Error"
     except Exception as e:
         return f"Error: {str(e)}"
+        
+def fetch_web_content(url, use_trafilatura=True):
+    """
+    Enhanced function to fetch web content using multiple methods.
+    
+    Args:
+        url: The URL to fetch content from
+        use_trafilatura: If True, also attempt to use trafilatura for enhanced extraction
+        
+    Returns:
+        tuple: (status_code, html_content, extracted_content, error_message)
+    """
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5'
+    }
+    
+    try:
+        logger.info(f"Fetching web content from URL: {url}")
+        
+        # First, try with requests
+        response = requests.get(url, headers=headers, timeout=config.request_timeout, allow_redirects=True)
+        
+        # Check if we were redirected
+        if response.history:
+            redirect_chain = " -> ".join([r.url for r in response.history] + [response.url])
+            logger.info(f"URL redirected: {url} -> {response.url}")
+            # Update the URL to the final destination after redirects
+            url = response.url
+        
+        if response.status_code == 200:
+            html_content = response.text
+            extracted_text = None
+            
+            if use_trafilatura:
+                try:
+                    # Try using trafilatura for enhanced extraction
+                    extracted_text = trafilatura.extract(html_content)
+                    logger.info(f"Successfully extracted text with trafilatura, length: {len(extracted_text or '')}")
+                except Exception as trafilatura_error:
+                    logger.warning(f"Trafilatura extraction failed: {trafilatura_error}")
+            
+            return response.status_code, html_content, extracted_text, None
+        else:
+            return response.status_code, None, None, f"HTTP Status: {response.status_code}"
+            
+    except requests.exceptions.Timeout:
+        error_message = f"Connection to {url} timed out"
+        logger.error(error_message)
+        return "Timeout", None, None, error_message
+    except requests.exceptions.SSLError as ssl_err:
+        error_message = f"SSL error when connecting to {url}: {str(ssl_err)}"
+        logger.error(error_message)
+        return "SSL Error", None, None, error_message
+    except requests.exceptions.ConnectionError:
+        error_message = f"Failed to connect to {url}"
+        logger.error(error_message)
+        return "Connection Error", None, None, error_message
+    except Exception as e:
+        error_message = f"Error fetching web content: {str(e)}"
+        logger.error(error_message)
+        return f"Error: {str(e)}", None, None, error_message
 
 def should_redirect_to_test_server(url):
     """
@@ -381,64 +445,66 @@ def check_for_product_tables(url, is_test_env=None):
         # Get the expected class names for this domain or use defaults
         expected_classes = config.get_expected_classes(domain)
         
-        # Get the HTML content
+        # Get the HTML content using our enhanced fetching function
         logger.info(f"Checking URL for product tables: {url}")
         try:
             logger.info(f"DETAILED CHECK: Checking {url} - Expected classes: {expected_classes}")
             
-            # Add user agent to look like a real browser
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5'
-            }
+            # Try multiple approaches to get content
+            status_code, html_content, extracted_content, fetch_error = fetch_web_content(url, use_trafilatura=True)
+            logger.info(f"DETAILED CHECK: Fetch results - Status: {status_code}, Content length: {len(html_content or '')} chars")
             
-            response = requests.get(url, timeout=config.request_timeout, allow_redirects=True, headers=headers)
-            logger.info(f"DETAILED CHECK: Response status: {response.status_code}")
+            if fetch_error:
+                logger.error(f"DETAILED CHECK: Fetch error: {fetch_error}")
+                return False, None, fetch_error
             
-            # Check if we were redirected
-            if response.history:
-                redirect_chain = " -> ".join([r.url for r in response.history] + [response.url])
-                logger.info(f"URL redirected: {url} -> {response.url}")
-                logger.info(f"DETAILED CHECK: Full redirect chain: {redirect_chain}")
-                # Update the URL to the final destination after redirects
-                url = response.url
-            
-            if response.status_code == 200:
-                page_content = response.text
+            if html_content:
+                # Use the regular HTML content for class detection
+                page_content = html_content
                 logger.info(f"DETAILED CHECK: Retrieved page content, length: {len(page_content)} characters")
                 
                 # Log a sample of the content for debugging
                 content_sample = page_content[:500] + "..." if len(page_content) > 500 else page_content
                 logger.info(f"DETAILED CHECK: Content sample: {content_sample}")
                 
-                # Check for expected product table classes
+                # Check for expected product table classes using multiple patterns
                 all_class_matches = []
+                
+                # Try exact pattern matching first
                 for class_pattern in expected_classes:
                     # Use regex to find the class in the HTML
                     pattern = re.escape(class_pattern)
-                    regex_pattern = f'class=["\']([^"\']*?{pattern}[^"\']*?)["\']'
-                    logger.info(f"DETAILED CHECK: Looking for pattern: {regex_pattern}")
                     
-                    class_matches = re.findall(regex_pattern, page_content)
-                    all_class_matches.extend(class_matches)
+                    # Try different regex patterns to find matches
+                    regex_patterns = [
+                        f'class=["\']([^"\']*?{pattern}[^"\']*?)["\']',  # Standard pattern
+                        f'class=["\'].*?{pattern}.*?["\']',              # More permissive pattern
+                        f'class="[^"]*{pattern}[^"]*"',                  # Double quotes
+                        f"class='[^']*{pattern}[^']*'",                  # Single quotes
+                        f"{pattern}"                                      # Direct pattern in content
+                    ]
                     
-                    # Also try a simpler search pattern as a backup
-                    if not class_matches:
-                        simple_matches = re.findall(f'class=["\'].*?{pattern}.*?["\']', page_content)
-                        if simple_matches:
-                            logger.info(f"DETAILED CHECK: Found with simple pattern: {simple_matches}")
-                            all_class_matches.extend([pattern])
-                    
-                    if class_matches:
-                        product_table_class = class_matches[0]
-                        logger.info(f"Found product table with class: {product_table_class}")
-                        return True, product_table_class, None
+                    for idx, regex_pattern in enumerate(regex_patterns):
+                        logger.info(f"DETAILED CHECK: Looking for pattern {idx+1}: {regex_pattern}")
+                        class_matches = re.findall(regex_pattern, page_content)
+                        
+                        if class_matches:
+                            all_class_matches.extend(class_matches)
+                            logger.info(f"DETAILED CHECK: Found matches with pattern {idx+1}: {class_matches}")
+                            product_table_class = class_matches[0]
+                            logger.info(f"Found product table with class: {product_table_class}")
+                            return True, product_table_class, None
+                
+                # Log all class attributes found for deeper analysis
+                all_classes = re.findall(r'class=["\'](.*?)["\']', page_content)
+                if all_classes:
+                    logger.info(f"DETAILED CHECK: All class attributes found: {all_classes[:20]}")
                 
                 logger.info(f"DETAILED CHECK: All class matches found: {all_class_matches}")
                 
                 # Additional check for common product table patterns if expected classes not found
-                common_patterns = ["product-list", "product-grid", "product-container", "product-row", "products-grid"]
+                common_patterns = ["product-list", "product-grid", "product-container", "product-row", "products-grid", 
+                                  "product_list", "product", "products"]
                 for pattern in common_patterns:
                     if pattern in page_content.lower():
                         logger.info(f"Found common product table pattern: {pattern}")
@@ -450,12 +516,18 @@ def check_for_product_tables(url, is_test_env=None):
                     logger.info(f"DETAILED CHECK: Found general product div: {product_divs[0]}")
                     return True, "product-related-element", None
                 
+                # Try using trafilatura extracted content as fallback
+                if extracted_content and 'product' in extracted_content.lower():
+                    logger.info(f"DETAILED CHECK: Found product mention in extracted content")
+                    return True, "product-mention-in-content", None
+                
                 logger.info(f"DETAILED CHECK: No product table classes found on {url}")
                 logger.info(f"No product table classes found on {url}")
                 return False, None, None
             else:
-                logger.error(f"DETAILED CHECK: Failed with status code {response.status_code}")
-                return False, None, f"Failed to get content from URL, status code: {response.status_code}"
+                error_msg = f"Failed to get content from URL, status code: {status_code}"
+                logger.error(f"DETAILED CHECK: {error_msg}")
+                return False, None, error_msg
         except Exception as e:
             logger.error(f"DETAILED CHECK: Exception during fetch: {str(e)}")
             raise
