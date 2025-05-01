@@ -470,18 +470,16 @@ def check_for_product_tables(url, is_test_env=None):
                 # Check for expected product table classes using multiple patterns
                 all_class_matches = []
                 
-                # Try exact pattern matching first
+                # Try exact pattern matching for ONLY the specific expected classes
                 for class_pattern in expected_classes:
                     # Use regex to find the class in the HTML
                     pattern = re.escape(class_pattern)
                     
-                    # Try different regex patterns to find matches
+                    # Use only strictly defined patterns for exact matching
                     regex_patterns = [
                         f'class=["\']([^"\']*?{pattern}[^"\']*?)["\']',  # Standard pattern
-                        f'class=["\'].*?{pattern}.*?["\']',              # More permissive pattern
                         f'class="[^"]*{pattern}[^"]*"',                  # Double quotes
-                        f"class='[^']*{pattern}[^']*'",                  # Single quotes
-                        f"{pattern}"                                      # Direct pattern in content
+                        f"class='[^']*{pattern}[^']*'"                   # Single quotes
                     ]
                     
                     for idx, regex_pattern in enumerate(regex_patterns):
@@ -489,37 +487,49 @@ def check_for_product_tables(url, is_test_env=None):
                         class_matches = re.findall(regex_pattern, page_content)
                         
                         if class_matches:
-                            all_class_matches.extend(class_matches)
-                            logger.info(f"DETAILED CHECK: Found matches with pattern {idx+1}: {class_matches}")
-                            product_table_class = class_matches[0]
-                            logger.info(f"Found product table with class: {product_table_class}")
-                            return True, product_table_class, None
+                            # Only accept the match if it contains the exact class pattern
+                            valid_matches = []
+                            for match in class_matches:
+                                # For pattern 0, we extract class names directly
+                                if idx == 0:
+                                    class_value = match
+                                # For patterns 1 and 2, we need to extract the class attribute value
+                                else:
+                                    class_attr_match = re.search(r'class=["\'](.*?)["\']', match)
+                                    if class_attr_match:
+                                        class_value = class_attr_match.group(1)
+                                    else:
+                                        continue
+                                
+                                # Check if the class value contains our pattern as a standalone class
+                                # This ensures "product" doesn't match "product-other" but still allows "product-table"
+                                classes = class_value.split()
+                                for cls in classes:
+                                    # For product-table* pattern
+                                    if class_pattern == "product-table" and cls.startswith("product-table"):
+                                        valid_matches.append(cls)
+                                        break
+                                    # For *productListContainer pattern
+                                    elif class_pattern == "productListContainer" and cls.endswith("productListContainer"):
+                                        valid_matches.append(cls)
+                                        break
+                                    # Exact match (just in case)
+                                    elif cls == class_pattern:
+                                        valid_matches.append(cls)
+                                        break
+                            
+                            if valid_matches:
+                                logger.info(f"DETAILED CHECK: Valid class matches: {valid_matches}")
+                                product_table_class = valid_matches[0]
+                                logger.info(f"Found product table with class: {product_table_class}")
+                                return True, product_table_class, None
                 
                 # Log all class attributes found for deeper analysis
                 all_classes = re.findall(r'class=["\'](.*?)["\']', page_content)
                 if all_classes:
                     logger.info(f"DETAILED CHECK: All class attributes found: {all_classes[:20]}")
                 
-                logger.info(f"DETAILED CHECK: All class matches found: {all_class_matches}")
-                
-                # Additional check for common product table patterns if expected classes not found
-                common_patterns = ["product-list", "product-grid", "product-container", "product-row", "products-grid", 
-                                  "product_list", "product", "products"]
-                for pattern in common_patterns:
-                    if pattern in page_content.lower():
-                        logger.info(f"Found common product table pattern: {pattern}")
-                        return True, pattern, None
-                
-                # Check for any div with class containing 'product'
-                product_divs = re.findall(r'class=["\'][^"\']*product[^"\']*["\']', page_content.lower())
-                if product_divs:
-                    logger.info(f"DETAILED CHECK: Found general product div: {product_divs[0]}")
-                    return True, "product-related-element", None
-                
-                # Try using trafilatura extracted content as fallback
-                if extracted_content and 'product' in extracted_content.lower():
-                    logger.info(f"DETAILED CHECK: Found product mention in extracted content")
-                    return True, "product-mention-in-content", None
+                logger.info(f"DETAILED CHECK: No matching product table classes found")
                 
                 logger.info(f"DETAILED CHECK: No product table classes found on {url}")
                 logger.info(f"No product table classes found on {url}")
