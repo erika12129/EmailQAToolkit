@@ -409,138 +409,127 @@ def check_for_product_tables(url, is_test_env=None):
     if is_test_env is None:
         is_test_env = not config.is_production
     
+    # Create a log header for this check
+    log_prefix = f"[PROD_CHECK] URL: {url}"
+    logger.info(f"{log_prefix} Starting product table check, is_test_env={is_test_env}")
+    
     try:
         # In test environment, redirect to test server if applicable
         if is_test_env:
             should_redirect, test_url, lang = should_redirect_to_test_server(url)
             
             if should_redirect and test_url:
-                logger.info(f"Redirecting test domain to local test server for product table check: {url} -> {test_url}")
+                logger.info(f"{log_prefix} Redirecting to test server: {test_url}")
                 
                 # Try the test URL, but we'll fall back to original if it fails
                 try:
                     test_response = requests.get(test_url, timeout=config.request_timeout)
                     if test_response.status_code == 200:
                         url = test_url
+                        logger.info(f"{log_prefix} Successfully redirected to test URL")
                     else:
-                        logger.warning(f"Test URL returned status code {test_response.status_code}, falling back to original URL")
+                        logger.warning(f"{log_prefix} Test URL returned status code {test_response.status_code}, falling back to original URL")
                 except Exception as test_e:
-                    logger.warning(f"Failed to connect to test URL: {test_e}, falling back to original URL")
+                    logger.warning(f"{log_prefix} Failed to connect to test URL: {test_e}, falling back to original URL")
         else:
-            logger.info(f"Running in production mode, checking original URL directly: {url}")
+            logger.info(f"{log_prefix} Running in production mode, checking original URL directly")
         
-        # Extract domain from the URL (original or test URL if redirected)
+        # Get expected classes based on domain
         url_parts = urlparse(url)
         domain = url_parts.netloc
-        
-        # Get domain configuration for product table checking
-        domain_config = config.get_domain_config(domain)
-        
-        # Always check for product tables regardless of domain configuration in production mode
-        # This ensures we still perform checks even if the domain isn't in our configuration
-        if not config.is_production and domain_config and not domain_config.get("product_table_check", False):
-            logger.info(f"Product table check disabled for domain {domain}")
-            return False, None, "Product table check not enabled for this domain"
-        
-        # Get the expected class names for this domain or use defaults
         expected_classes = config.get_expected_classes(domain)
+        logger.info(f"{log_prefix} Domain: {domain}, Expected classes: {expected_classes}")
         
-        # Get the HTML content using our enhanced fetching function
-        logger.info(f"Checking URL for product tables: {url}")
+        # Define headers that mimic a browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5'
+        }
+        
+        # Make a direct request to the URL
+        logger.info(f"{log_prefix} Making direct request...")
         try:
-            logger.info(f"DETAILED CHECK: Checking {url} - Expected classes: {expected_classes}")
+            response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
             
-            # Try multiple approaches to get content
-            status_code, html_content, extracted_content, fetch_error = fetch_web_content(url, use_trafilatura=True)
-            logger.info(f"DETAILED CHECK: Fetch results - Status: {status_code}, Content length: {len(html_content or '')} chars")
+            if response.history:
+                redirect_chain = " -> ".join([r.url for r in response.history] + [response.url])
+                logger.info(f"{log_prefix} Redirected: {url} -> {response.url}")
+                # Update URL to the final destination
+                url = response.url
             
-            if fetch_error:
-                logger.error(f"DETAILED CHECK: Fetch error: {fetch_error}")
-                return False, None, fetch_error
-            
-            if html_content:
-                # Use the regular HTML content for class detection
-                page_content = html_content
-                logger.info(f"DETAILED CHECK: Retrieved page content, length: {len(page_content)} characters")
+            if response.status_code == 200:
+                content = response.text
+                content_length = len(content)
+                logger.info(f"{log_prefix} Got response, status: {response.status_code}, content length: {content_length}")
                 
-                # Log a sample of the content for debugging
-                content_sample = page_content[:500] + "..." if len(page_content) > 500 else page_content
-                logger.info(f"DETAILED CHECK: Content sample: {content_sample}")
+                # Extract just the first few lines for logging to help with debugging
+                content_preview = '\n'.join(content.split('\n')[:10])
+                logger.info(f"{log_prefix} Content preview:\n{content_preview}")
                 
-                # Check for expected product table classes using multiple patterns
-                all_class_matches = []
+                # Search for product table classes using exact patterns
+                found_match = False
+                matched_class = None
                 
-                # Try exact pattern matching for ONLY the specific expected classes
-                for class_pattern in expected_classes:
-                    # Use regex to find the class in the HTML
-                    pattern = re.escape(class_pattern)
-                    
-                    # Use only strictly defined patterns for exact matching
-                    regex_patterns = [
-                        f'class=["\']([^"\']*?{pattern}[^"\']*?)["\']',  # Standard pattern
-                        f'class="[^"]*{pattern}[^"]*"',                  # Double quotes
-                        f"class='[^']*{pattern}[^']*'"                   # Single quotes
-                    ]
-                    
-                    for idx, regex_pattern in enumerate(regex_patterns):
-                        logger.info(f"DETAILED CHECK: Looking for pattern {idx+1}: {regex_pattern}")
-                        class_matches = re.findall(regex_pattern, page_content)
+                # Define various patterns to try
+                for expected_class in expected_classes:
+                    if expected_class == "product-table":
+                        # For product-table, we check for any class that starts with product-table
+                        pattern1 = r'class=["\']((\w|-|\s)*\bproduct-table\w*(\w|-|\s)*)["\']'
+                        pattern2 = r'class=["\']((\w|-|\s)*\b(product-table)(\w|-)*(\w|-|\s)*)["\']'
                         
-                        if class_matches:
-                            # Only accept the match if it contains the exact class pattern
-                            valid_matches = []
-                            for match in class_matches:
-                                # For pattern 0, we extract class names directly
-                                if idx == 0:
-                                    class_value = match
-                                # For patterns 1 and 2, we need to extract the class attribute value
-                                else:
-                                    class_attr_match = re.search(r'class=["\'](.*?)["\']', match)
-                                    if class_attr_match:
-                                        class_value = class_attr_match.group(1)
-                                    else:
-                                        continue
-                                
-                                # Check if the class value contains our pattern as a standalone class
-                                # This ensures "product" doesn't match "product-other" but still allows "product-table"
-                                classes = class_value.split()
-                                for cls in classes:
-                                    # For product-table* pattern
-                                    if class_pattern == "product-table" and cls.startswith("product-table"):
-                                        valid_matches.append(cls)
-                                        break
-                                    # For *productListContainer pattern
-                                    elif class_pattern == "productListContainer" and cls.endswith("productListContainer"):
-                                        valid_matches.append(cls)
-                                        break
-                                    # Exact match (just in case)
-                                    elif cls == class_pattern:
-                                        valid_matches.append(cls)
-                                        break
-                            
-                            if valid_matches:
-                                logger.info(f"DETAILED CHECK: Valid class matches: {valid_matches}")
-                                product_table_class = valid_matches[0]
-                                logger.info(f"Found product table with class: {product_table_class}")
-                                return True, product_table_class, None
+                        logger.info(f"{log_prefix} Searching for pattern1: {pattern1}")
+                        matches1 = re.findall(pattern1, content)
+                        
+                        logger.info(f"{log_prefix} Searching for pattern2: {pattern2}")
+                        matches2 = re.findall(pattern2, content)
+                        
+                        if matches1:
+                            matched_class = matches1[0][0].strip()
+                            found_match = True
+                            logger.info(f"{log_prefix} Found product-table match: {matched_class}")
+                            break
+                        
+                        if matches2:
+                            matched_class = matches2[0][0].strip()
+                            found_match = True
+                            logger.info(f"{log_prefix} Found product-table match with pattern2: {matched_class}")
+                            break
+                    
+                    elif expected_class == "productListContainer":
+                        # For productListContainer, we check for any class that ends with productListContainer
+                        pattern = r'class=["\']((\w|-|\s)*\w*productListContainer(\w|-|\s)*)["\']'
+                        
+                        logger.info(f"{log_prefix} Searching for productListContainer pattern: {pattern}")
+                        matches = re.findall(pattern, content)
+                        
+                        if matches:
+                            matched_class = matches[0][0].strip()
+                            found_match = True
+                            logger.info(f"{log_prefix} Found productListContainer match: {matched_class}")
+                            break
                 
-                # Log all class attributes found for deeper analysis
-                all_classes = re.findall(r'class=["\'](.*?)["\']', page_content)
-                if all_classes:
-                    logger.info(f"DETAILED CHECK: All class attributes found: {all_classes[:20]}")
-                
-                logger.info(f"DETAILED CHECK: No matching product table classes found")
-                
-                logger.info(f"DETAILED CHECK: No product table classes found on {url}")
-                logger.info(f"No product table classes found on {url}")
-                return False, None, None
+                # Check if we found a match
+                if found_match and matched_class:
+                    # Do a final verification that it's a real class
+                    logger.info(f"{log_prefix} Match found: {matched_class}")
+                    return True, matched_class, None
+                else:
+                    # Log that we couldn't find any matching class
+                    logger.info(f"{log_prefix} No matching product table classes found")
+                    return False, None, None
             else:
-                error_msg = f"Failed to get content from URL, status code: {status_code}"
-                logger.error(f"DETAILED CHECK: {error_msg}")
+                error_msg = f"Failed to get content from URL, status code: {response.status_code}"
+                logger.error(f"{log_prefix} Error: {error_msg}")
                 return False, None, error_msg
         except Exception as e:
-            logger.error(f"DETAILED CHECK: Exception during fetch: {str(e)}")
-            raise
+            error_msg = f"Exception requesting URL: {str(e)}"
+            logger.error(f"{log_prefix} Error: {error_msg}")
+            return False, None, error_msg
+    except Exception as outer_e:
+        error_msg = f"Outer exception: {str(outer_e)}"
+        logger.error(f"{log_prefix} Error: {error_msg}")
+        return False, None, error_msg
     except requests.exceptions.Timeout:
         error_message = f"Connection to {url} timed out"
         logger.error(error_message)
