@@ -14,10 +14,11 @@ class RuntimeConfig:
     """Runtime configuration that can be changed without restarting."""
     
     def __init__(self):
-        self.mode = os.environ.get("EMAIL_QA_MODE", "development")
-        self.enable_test_redirects = True
-        self.product_table_timeout = 5
-        self.request_timeout = 5
+        # Default to production mode for stability
+        self.mode = os.environ.get("EMAIL_QA_MODE", "production")
+        self.enable_test_redirects = False  # Default to disabled redirects
+        self.product_table_timeout = 10     # Longer timeout for production
+        self.request_timeout = 10
         self.max_retries = 2
         self.test_domains = [
             "localhost:5001", 
