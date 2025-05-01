@@ -376,8 +376,16 @@ def should_redirect_to_test_server(url):
     Returns:
         tuple: (should_redirect, test_url, lang)
     """
-    # Only redirect if enabled in config
+    # IMPROVED PRODUCTION MODE CHECK
+    # First, check if we're in production mode - this overrides everything
+    # Production mode means force_production=True in the UI, which sets config.is_production
+    if config.is_production:
+        logger.info(f"Production mode active - skipping redirect for {url}")
+        return False, None, None
+        
+    # If test redirects are disabled, never redirect
     if not config.enable_test_redirects:
+        logger.info(f"Test redirects disabled - skipping redirect for {url}")
         return False, None, None
         
     url_parts = urlparse(url)
@@ -387,13 +395,13 @@ def should_redirect_to_test_server(url):
     domain_config = config.get_domain_config(domain)
     if not domain_config:
         # Not in our domains list at all
+        logger.info(f"Domain {domain} not in configuration - skipping redirect")
         return False, None, None
         
     if not config.is_test_domain(domain):
         # It's in our domains list but not marked as a test domain
-        if config.is_production:
-            # In production, don't redirect unless explicitly configured
-            return False, None, None
+        logger.info(f"Domain {domain} not marked as test domain - skipping redirect")
+        return False, None, None
     
     # Determine language
     lang = 'en'
@@ -440,10 +448,11 @@ def check_for_product_tables(url, is_test_env=None):
     log_prefix = f"[PROD_CHECK] URL: {url}"
     logger.info(f"{log_prefix} Starting product table check, is_test_env={is_test_env}")
     
-    # SPECIAL CASE: In production mode, we'll skip the actual check to prevent hanging
+    # In production mode, we'll still attempt to check for product tables,
+    # but with additional safety measures to prevent hanging
     if not is_test_env:
-        logger.info(f"{log_prefix} Using simplified production check mode")
-        return False, None, "Production mode - actual check skipped"
+        logger.info(f"{log_prefix} Using enhanced production check mode with safeguards")
+        # We won't return immediately, but we'll set a shorter timeout for production URLs
     
     try:
         # In test environment, redirect to test server if applicable
@@ -482,8 +491,13 @@ def check_for_product_tables(url, is_test_env=None):
         # Make a direct request to the URL
         logger.info(f"{log_prefix} Making direct request...")
         try:
-            # Use a shorter timeout to prevent hanging
-            response = requests.get(url, headers=headers, timeout=5, allow_redirects=True)
+            # Set a timeout based on environment
+            # In production mode, use a very short timeout (2 seconds) to prevent hanging
+            # In test mode, we can use a slightly longer timeout (5 seconds)
+            timeout = 2 if not is_test_env else 5
+            logger.info(f"{log_prefix} Using timeout of {timeout} seconds")
+            
+            response = requests.get(url, headers=headers, timeout=timeout, allow_redirects=True)
             
             if response.history:
                 redirect_chain = " -> ".join([r.url for r in response.history] + [response.url])

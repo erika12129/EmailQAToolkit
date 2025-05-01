@@ -175,14 +175,23 @@ async def run_qa(
     # Create temporary directory
     temp_dir = tempfile.mkdtemp()
     
-    # If force_production is true, temporarily modify the environment
+    # If force_production is true, temporarily modify the environment settings
+    # Save original settings
     original_environment = None
+    original_is_production = config.is_production
+    original_test_redirects = config.enable_test_redirects
     
     if force_production:
         logger.info("Forcing production mode for this request")
+        # In production mode we MUST set both flags to prevent localhost redirects
         original_environment = config.environment
         config.environment = "production"
-        logger.info(f"Temporarily switched environment to: {config.environment}")
+        config.is_production = True
+        config.enable_test_redirects = False
+        logger.info(f"Temporarily switched to production mode:")
+        logger.info(f"  - environment: {config.environment}")
+        logger.info(f"  - is_production: {config.is_production}")
+        logger.info(f"  - enable_test_redirects: {config.enable_test_redirects}")
     
     try:
         # Save uploaded files
