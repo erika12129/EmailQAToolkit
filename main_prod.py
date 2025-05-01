@@ -175,13 +175,14 @@ async def run_qa(
     # Create temporary directory
     temp_dir = tempfile.mkdtemp()
     
-    # If force_production is true, temporarily disable test redirects
-    original_redirect_setting = None
+    # If force_production is true, temporarily modify the environment
+    original_environment = None
     
     if force_production:
         logger.info("Forcing production mode for this request")
-        original_redirect_setting = config.config_data["global_settings"]["enable_redirect_to_test"]
-        config.config_data["global_settings"]["enable_redirect_to_test"] = False
+        original_environment = config.environment
+        config.environment = "production"
+        logger.info(f"Temporarily switched environment to: {config.environment}")
     
     try:
         # Save uploaded files
@@ -217,9 +218,10 @@ async def run_qa(
         )
     
     finally:
-        # Restore original redirect setting if modified
-        if force_production and original_redirect_setting is not None:
-            config.config_data["global_settings"]["enable_redirect_to_test"] = original_redirect_setting
+        # Restore original environment if modified
+        if force_production and original_environment is not None:
+            config.environment = original_environment
+            logger.info(f"Restored environment to: {config.environment}")
         
         # Clean up temporary files
         shutil.rmtree(temp_dir)
