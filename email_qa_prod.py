@@ -125,9 +125,34 @@ def extract_links(soup):
     """Extract all links from email HTML with enhanced source context."""
     links = []
     for a in soup.find_all('a', href=True):
-        # Include source context (text, image, or button)
-        # (link extraction logic would remain as is)
-        links.append((f"Text: {a.get_text(strip=True)[:50]}", a['href']))
+        # Check if this link contains an image
+        img = a.find('img')
+        if img:
+            # This is an image link - extract image info
+            alt_text = img.get('alt', '').strip() or 'Image link'
+            src = img.get('src', '')
+            width = img.get('width', '100')
+            height = img.get('height', 'auto')
+            
+            # Create a visual representation using img tag
+            link_source = {
+                'type': 'image',
+                'text': alt_text,
+                'image_src': src,
+                'image_alt': alt_text,
+                'image_width': width,
+                'image_height': height
+            }
+        else:
+            # Regular text link
+            link_source = {
+                'type': 'text',
+                'text': a.get_text(strip=True) or 'Empty link text'
+            }
+        
+        # Store the link with its source context
+        links.append((link_source, a['href']))
+    
     return links
 
 def validate_utm_parameters(url, expected_utm):
@@ -427,17 +452,31 @@ def check_links(links, expected_utm):
                                 url, is_test_env=(should_redirect and test_url is not None)
                             )
                             
+                            # Format link entry like in the original version
+                            is_image_link = link_source.get('type') == 'image'
+                            link_text = link_source.get('text', 'No text')
+                            
+                            # Handle HTTP status display (status_code can be a number or string)
+                            http_status = status_code
+                            status = "OK" if http_status == 200 else "FAIL"
+                            
                             link_result = {
-                                'source': link_source,
+                                'link_text': link_text,
+                                'is_image_link': is_image_link,
                                 'url': url,
-                                'status': status_code,
+                                'redirected_to': redirect_url if redirect_url != url else None,
+                                'status': status,
+                                'http_status': http_status,
                                 'utm_issues': utm_issues,
                                 'has_product_table': has_product_table,
                                 'product_table_class': product_table_class,
-                                'product_table_error': product_table_error,
-                                'redirected_to': redirect_url if redirect_url != url else None,
-                                'retries': retries
+                                'product_table_error': product_table_error
                             }
+                            
+                            # Add image properties if this is an image link
+                            if is_image_link:
+                                link_result['image_src'] = link_source.get('image_src', '')
+                                link_result['image_alt'] = link_source.get('image_alt', '')
                             
                             results.append(link_result)
                             success = True
@@ -447,17 +486,31 @@ def check_links(links, expected_utm):
                         url, is_test_env=(should_redirect and test_url is not None)
                     )
                     
+                    # Format link entry like in the original version
+                    is_image_link = link_source.get('type') == 'image'
+                    link_text = link_source.get('text', 'No text')
+                    
+                    # Handle HTTP status display (status_code can be a number or string)
+                    http_status = status_code
+                    status = "OK" if http_status == 200 else "FAIL"
+                    
                     link_result = {
-                        'source': link_source,
+                        'link_text': link_text,
+                        'is_image_link': is_image_link,
                         'url': url,
-                        'status': status_code,
+                        'redirected_to': redirect_url if redirect_url != url else None,
+                        'status': status,
+                        'http_status': http_status,
                         'utm_issues': utm_issues,
                         'has_product_table': has_product_table,
                         'product_table_class': product_table_class,
-                        'product_table_error': product_table_error,
-                        'redirected_to': redirect_url if redirect_url != url else None,
-                        'retries': retries
+                        'product_table_error': product_table_error
                     }
+                    
+                    # Add image properties if this is an image link
+                    if is_image_link:
+                        link_result['image_src'] = link_source.get('image_src', '')
+                        link_result['image_alt'] = link_source.get('image_alt', '')
                     
                     results.append(link_result)
                     success = True
@@ -469,17 +522,31 @@ def check_links(links, expected_utm):
                 else:
                     logger.error(f"Failed to check link after {max_retries} retries: {url}")
                     # Record error result
+                    # Format error entry for consistency
+                    is_image_link = link_source.get('type') == 'image'
+                    link_text = link_source.get('text', 'No text')
+                    
+                    # For errors, set a special error status but keep http_status as None
+                    status = "FAIL"
+                    http_status = f"Error: {str(e)}"
+                    
                     link_result = {
-                        'source': link_source,
+                        'link_text': link_text,
+                        'is_image_link': is_image_link, 
                         'url': url,
-                        'status': f"Error: {str(e)}",
+                        'redirected_to': None,
+                        'status': status,
+                        'http_status': http_status,
                         'utm_issues': [],
                         'has_product_table': False,
                         'product_table_class': None,
-                        'product_table_error': f"Link check failed after {max_retries} retries: {str(e)}",
-                        'redirected_to': None,
-                        'retries': retries
+                        'product_table_error': f"Link check failed after {max_retries} retries: {str(e)}"
                     }
+                    
+                    # Add image properties if this is an image link
+                    if is_image_link:
+                        link_result['image_src'] = link_source.get('image_src', '')
+                        link_result['image_alt'] = link_source.get('image_alt', '')
                     results.append(link_result)
                     success = True
     
