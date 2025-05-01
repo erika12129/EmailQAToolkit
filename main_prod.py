@@ -179,17 +179,29 @@ async def run_qa(
     original_environment = None
     
     if force_production:
-        logger.info("Forcing production mode for this request")
-        # To enable production mode, we just need to change the environment
-        # The is_production and enable_test_redirects properties will automatically update
+        logger.info("[PRODUCTION_MODE] Forcing production mode for this request")
+        # To enable production mode, we need to set the environment
+        # This should disable all test redirects
         original_environment = config.environment
         config.environment = "production"
         
+        # CRITICAL FIX: Triple-check and explicitly set production mode flags
+        # This adds redundancy to ensure production mode is properly detected
+        
+        # Force environment variables if needed (os.environ persists across imports)
+        os.environ["EMAIL_QA_ENV"] = "production"
+        
         # Log the changes
-        logger.info(f"Temporarily switched to production mode:")
-        logger.info(f"  - environment: {config.environment}")
-        logger.info(f"  - is_production: {config.is_production}")
-        logger.info(f"  - enable_test_redirects: {config.enable_test_redirects}")
+        logger.info(f"[PRODUCTION_MODE] Temporarily switched to production mode:")
+        logger.info(f"[PRODUCTION_MODE]   - environment: {config.environment}")
+        logger.info(f"[PRODUCTION_MODE]   - is_production: {config.is_production}")
+        logger.info(f"[PRODUCTION_MODE]   - enable_test_redirects: {config.enable_test_redirects}")
+        
+        # Verify production mode is active
+        if not config.is_production:
+            logger.warning("[PRODUCTION_MODE] Production mode setting failed! Forcing direct property access.")
+            # Force direct property access as a last resort
+            config._is_production_override = True
     
     try:
         # Save uploaded files

@@ -379,18 +379,28 @@ def should_redirect_to_test_server(url):
     Returns:
         tuple: (should_redirect, test_url, lang)
     """
-    # IMPROVED PRODUCTION MODE CHECK
-    # First, check if we're in production mode - this overrides everything
-    # Production mode means force_production=True in the UI, which sets config.is_production
+    # CRITICAL FIX: Triple-check production mode to ensure no redirects happen
+    # Production mode can be set in THREE ways, and we check all of them for redundancy
+    
+    # 1. Direct check of environment variable/property
+    if config.environment == "production":
+        logger.info(f"[REDIRECT_CHECK] Production environment active - NO REDIRECT for {url}")
+        return False, None, None
+    
+    # 2. Check of is_production property
     if config.is_production:
-        logger.info(f"Production mode active - skipping redirect for {url}")
+        logger.info(f"[REDIRECT_CHECK] config.is_production is True - NO REDIRECT for {url}")
         return False, None, None
         
-    # If test redirects are disabled, never redirect
+    # 3. Check redirect setting directly
     if not config.enable_test_redirects:
-        logger.info(f"Test redirects disabled - skipping redirect for {url}")
+        logger.info(f"[REDIRECT_CHECK] Test redirects explicitly disabled - NO REDIRECT for {url}")
         return False, None, None
-        
+    
+    # If we get here, we're in development/test mode and redirects are allowed
+    logger.info(f"[REDIRECT_CHECK] In development mode with redirects enabled, checking domain for {url}")
+    
+    # Parse URL and extract domain
     url_parts = urlparse(url)
     domain = url_parts.netloc
     
@@ -398,12 +408,12 @@ def should_redirect_to_test_server(url):
     domain_config = config.get_domain_config(domain)
     if not domain_config:
         # Not in our domains list at all
-        logger.info(f"Domain {domain} not in configuration - skipping redirect")
+        logger.info(f"[REDIRECT_CHECK] Domain {domain} not in configuration - NO REDIRECT")
         return False, None, None
         
     if not config.is_test_domain(domain):
         # It's in our domains list but not marked as a test domain
-        logger.info(f"Domain {domain} not marked as test domain - skipping redirect")
+        logger.info(f"[REDIRECT_CHECK] Domain {domain} not marked as test domain - NO REDIRECT")
         return False, None, None
     
     # Determine language
@@ -422,6 +432,7 @@ def should_redirect_to_test_server(url):
     if url_parts.query:
         test_url += f"?{url_parts.query}"
     
+    logger.info(f"[REDIRECT_CHECK] Redirecting {url} to test server: {test_url}")
     return True, test_url, lang
 
 def check_for_product_tables(url, is_test_env=None):
@@ -471,33 +482,91 @@ def check_for_product_tables(url, is_test_env=None):
                 domain = url_parts.netloc
                 expected_classes = config.get_expected_classes(domain)
                 
+                logger.info(f"{log_prefix} [PROD CHECK] Checking URL: {url}")
+                logger.info(f"{log_prefix} [PROD CHECK] Domain: {domain}")
+                logger.info(f"{log_prefix} [PROD CHECK] Expected classes: {expected_classes}")
+                
                 # Make a direct request to the URL with very short timeout
                 headers = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
                 }
                 
-                # Use a very short timeout (1.5 seconds maximum)
+                # STRATEGY 1: Use a quick HEAD request to validate the URL is accessible
+                try:
+                    logger.info(f"{log_prefix} [PROD CHECK] Attempting HEAD request")
+                    head_response = requests.head(url, headers=headers, timeout=1.5, allow_redirects=True)
+                    logger.info(f"{log_prefix} [PROD CHECK] HEAD response: {head_response.status_code}")
+                    
+                    if head_response.status_code >= 400:
+                        logger.warning(f"{log_prefix} [PROD CHECK] HEAD request failed with status {head_response.status_code}, will try GET")
+                except Exception as head_error:
+                    logger.warning(f"{log_prefix} [PROD CHECK] HEAD request failed: {str(head_error)}")
+                
+                # STRATEGY 2: Use a very short timeout GET request
+                logger.info(f"{log_prefix} [PROD CHECK] Attempting GET request")
                 response = requests.get(url, headers=headers, timeout=1.5, allow_redirects=True)
                 
                 if response.status_code == 200:
-                    # Just do a quick search for the expected classes
+                    content = response.text
+                    logger.info(f"{log_prefix} [PROD CHECK] Got HTML content, length: {len(content)}")
+                    
+                    # STRATEGY 3: Look for exact class matches
                     for cls in expected_classes:
-                        if cls in response.text:
+                        # Try exact string search first (fastest)
+                        if cls in content:
+                            logger.info(f"{log_prefix} [PROD CHECK] Found class with string search: {cls}")
                             result[0] = True  # has_product_table
                             result[1] = cls   # matched class
                             result[2] = None  # no error
                             return
+                    
+                    # STRATEGY 4: Try regex patterns for more flexible matching
+                    found_match = False
+                    matched_class = None
+                    
+                    # Check patterns for different class names
+                    for expected_class in expected_classes:
+                        if expected_class == "product-table":
+                            # For product-table, check for any class that contains product-table
+                            pattern = r'class=["\']((\w|-|\s)*\bproduct-table\w*(\w|-|\s)*)["\']'
+                            matches = re.findall(pattern, content)
                             
+                            if matches:
+                                matched_class = matches[0][0].strip()
+                                found_match = True
+                                logger.info(f"{log_prefix} [PROD CHECK] Found product-table match with regex: {matched_class}")
+                                break
+                                
+                        elif expected_class == "productListContainer":
+                            # For productListContainer, check for any class with this substring
+                            pattern = r'class=["\']((\w|-|\s)*\w*productListContainer\w*(\w|-|\s)*)["\']'
+                            matches = re.findall(pattern, content)
+                            
+                            if matches:
+                                matched_class = matches[0][0].strip()
+                                found_match = True
+                                logger.info(f"{log_prefix} [PROD CHECK] Found productListContainer with regex: {matched_class}")
+                                break
+                    
+                    if found_match and matched_class:
+                        result[0] = True  # has_product_table
+                        result[1] = matched_class  # matched class
+                        result[2] = None  # no error
+                        return
+                    
                     # If we got here, no classes were found
+                    logger.info(f"{log_prefix} [PROD CHECK] No product table classes found in content")
                     result[0] = False
                     result[1] = None
                     result[2] = None
                 else:
+                    logger.warning(f"{log_prefix} [PROD CHECK] HTTP error: {response.status_code}")
                     result[0] = False
                     result[1] = None
                     result[2] = f"HTTP error: {response.status_code}"
             except Exception as e:
+                logger.error(f"{log_prefix} [PROD CHECK] Error: {str(e)}")
                 result[0] = False
                 result[1] = None
                 result[2] = f"Error: {str(e)}"
@@ -689,15 +758,24 @@ def check_links(links, expected_utm):
         
         while not success and retries <= max_retries:
             try:
-                # Check if this URL should be redirected to test server
+                # CRITICAL FIX: No redirects should happen in production mode
                 redirect_url = url
-                should_redirect, test_url, lang = should_redirect_to_test_server(url)
+                
+                # Only check redirection when not in production mode
+                if config.is_production:
+                    # In production mode, always use the original URL directly
+                    should_redirect = False
+                    test_url = None
+                    logger.info(f"[PROD_MODE] Using original URL directly: {url}")
+                else:
+                    # In development/test mode, check if we should redirect
+                    should_redirect, test_url, lang = should_redirect_to_test_server(url)
                 
                 if should_redirect and test_url:
                     redirect_url = test_url
                     logger.info(f"Redirecting test domain to local test server: {url} -> {redirect_url}")
                 
-                # Basic HTTP status check
+                # Basic HTTP status check - use the appropriate URL based on environment
                 status_code = check_http_status(redirect_url)
                 
                 # Check UTM parameters

@@ -29,6 +29,9 @@ class Config:
         self.config_data = {}
         self.load_config()
         
+        # Add an override flag that can be set directly
+        self._is_production_override = False
+        
         # Determine environment (development or production)
         self.environment = os.environ.get("EMAIL_QA_ENV", "development").lower()
         logger.info(f"Running in {self.environment} environment")
@@ -71,7 +74,8 @@ class Config:
     @property
     def is_production(self) -> bool:
         """Check if running in production environment."""
-        return self.environment == "production"
+        # Check both the environment setting and the override flag
+        return self.environment == "production" or self._is_production_override
     
     @property
     def is_development(self) -> bool:
