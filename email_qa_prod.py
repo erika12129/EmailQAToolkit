@@ -346,33 +346,39 @@ def check_for_product_tables(url, is_test_env=None):
         is_test_env = not config.is_production
     
     try:
-        # Check if this URL should be redirected to test server
-        should_redirect, test_url, lang = should_redirect_to_test_server(url)
-        
-        if should_redirect and test_url:
-            logger.info(f"Redirecting test domain to local test server for product table check: {url} -> {test_url}")
+        # In test environment, redirect to test server if applicable
+        if is_test_env:
+            should_redirect, test_url, lang = should_redirect_to_test_server(url)
             
-            # Try the test URL, but we'll fall back to original if it fails
-            try:
-                test_response = requests.get(test_url, timeout=config.request_timeout)
-                if test_response.status_code == 200:
-                    url = test_url
-                else:
-                    logger.warning(f"Test URL returned status code {test_response.status_code}, falling back to original URL")
-            except Exception as test_e:
-                logger.warning(f"Failed to connect to test URL: {test_e}, falling back to original URL")
+            if should_redirect and test_url:
+                logger.info(f"Redirecting test domain to local test server for product table check: {url} -> {test_url}")
+                
+                # Try the test URL, but we'll fall back to original if it fails
+                try:
+                    test_response = requests.get(test_url, timeout=config.request_timeout)
+                    if test_response.status_code == 200:
+                        url = test_url
+                    else:
+                        logger.warning(f"Test URL returned status code {test_response.status_code}, falling back to original URL")
+                except Exception as test_e:
+                    logger.warning(f"Failed to connect to test URL: {test_e}, falling back to original URL")
+        else:
+            logger.info(f"Running in production mode, checking original URL directly: {url}")
         
-        # Check if we should check for product tables for this domain
+        # Extract domain from the URL (original or test URL if redirected)
         url_parts = urlparse(url)
         domain = url_parts.netloc
         
         # Get domain configuration for product table checking
         domain_config = config.get_domain_config(domain)
-        if domain_config and not domain_config.get("product_table_check", False):
+        
+        # Always check for product tables regardless of domain configuration in production mode
+        # This ensures we still perform checks even if the domain isn't in our configuration
+        if not config.is_production and domain_config and not domain_config.get("product_table_check", False):
             logger.info(f"Product table check disabled for domain {domain}")
             return False, None, "Product table check not enabled for this domain"
         
-        # Get the expected class names for this domain
+        # Get the expected class names for this domain or use defaults
         expected_classes = config.get_expected_classes(domain)
         
         # Get the HTML content
@@ -397,8 +403,15 @@ def check_for_product_tables(url, is_test_env=None):
                 
                 if class_matches:
                     product_table_class = class_matches[0]
-                    logger.info(f"Found {class_pattern} class: {product_table_class}")
+                    logger.info(f"Found product table with class: {product_table_class}")
                     return True, product_table_class, None
+            
+            # Additional check for common product table patterns if expected classes not found
+            common_patterns = ["product-list", "product-grid", "product-container"]
+            for pattern in common_patterns:
+                if pattern in page_content.lower():
+                    logger.info(f"Found common product table pattern: {pattern}")
+                    return True, pattern, None
             
             logger.info(f"No product table classes found on {url}")
             return False, None, None
@@ -480,9 +493,15 @@ def check_links(links, expected_utm):
                         driver.get(redirect_url)
                         
                         # Check for product tables using both methods
-                        has_table, table_class, table_error = check_for_product_tables(
-                            url, is_test_env=(should_redirect and test_url is not None)
-                        )
+                        # In production mode, always pass the original URL to check directly
+                        if config.is_production:
+                            has_table, table_class, table_error = check_for_product_tables(
+                                url, is_test_env=False
+                            )
+                        else:
+                            has_table, table_class, table_error = check_for_product_tables(
+                                url, is_test_env=(should_redirect and test_url is not None)
+                            )
                         
                         # Record the results
                         link_result = {
@@ -509,9 +528,15 @@ def check_links(links, expected_utm):
                         else:
                             # Fall back to non-browser method on final attempt
                             logger.info("Falling back to non-browser validation after retries")
-                            has_product_table, product_table_class, product_table_error = check_for_product_tables(
-                                url, is_test_env=(should_redirect and test_url is not None)
-                            )
+                            # In production mode, always check the original URL directly
+                            if config.is_production:
+                                has_product_table, product_table_class, product_table_error = check_for_product_tables(
+                                    url, is_test_env=False
+                                )
+                            else:
+                                has_product_table, product_table_class, product_table_error = check_for_product_tables(
+                                    url, is_test_env=(should_redirect and test_url is not None)
+                                )
                             
                             # Format link entry like in the original version
                             is_image_link = link_source.get('type') == 'image'
@@ -544,9 +569,15 @@ def check_links(links, expected_utm):
                             success = True
                 else:
                     # Non-browser validation
-                    has_product_table, product_table_class, product_table_error = check_for_product_tables(
-                        url, is_test_env=(should_redirect and test_url is not None)
-                    )
+                    # In production mode, always check the original URL directly
+                    if config.is_production:
+                        has_product_table, product_table_class, product_table_error = check_for_product_tables(
+                            url, is_test_env=False
+                        )
+                    else:
+                        has_product_table, product_table_class, product_table_error = check_for_product_tables(
+                            url, is_test_env=(should_redirect and test_url is not None)
+                        )
                     
                     # Format link entry like in the original version
                     is_image_link = link_source.get('type') == 'image'
