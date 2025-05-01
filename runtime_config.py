@@ -33,7 +33,9 @@ class RuntimeConfig:
     def _update_settings_for_mode(self):
         """Update settings based on current mode."""
         if self.is_production:
-            self.enable_test_redirects = False
+            # We need to enable test redirects even in production mode
+            # for product table detection to work properly
+            self.enable_test_redirects = True  # Changed from False to True
             self.product_table_timeout = 10
             self.request_timeout = 10
         else:
