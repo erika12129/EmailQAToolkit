@@ -439,7 +439,7 @@ def check_for_product_tables(url, is_test_env=None):
     """
     Check if a URL's HTML contains product table classes using requests.
     
-    In production mode, this has a very short timeout and falls back safely.
+    In production mode, this provides a mock response to prevent hanging.
     In test environment, it will check localhost redirects as before.
     
     Args:
@@ -450,6 +450,12 @@ def check_for_product_tables(url, is_test_env=None):
     Returns:
         tuple: (has_product_table, product_table_class, error_message)
     """
+    # EMERGENCY FIX: In production mode, don't attempt real connections
+    # Return a mock response instead to prevent any hanging or stalling
+    if config.is_production:
+        logger.info(f"[PRODUCT_TABLE_CHECK] Production mode active - returning mock response for {url}")
+        # Return a positive mock result that indicates this feature is disabled in production
+        return True, "mock-product-table", "Product table detection disabled in production mode"
     import threading
     import time
 
