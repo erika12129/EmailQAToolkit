@@ -175,19 +175,17 @@ async def run_qa(
     # Create temporary directory
     temp_dir = tempfile.mkdtemp()
     
-    # If force_production is true, temporarily modify the environment settings
-    # Save original settings
+    # If force_production is true, temporarily modify the environment
     original_environment = None
-    original_is_production = config.is_production
-    original_test_redirects = config.enable_test_redirects
     
     if force_production:
         logger.info("Forcing production mode for this request")
-        # In production mode we MUST set both flags to prevent localhost redirects
+        # To enable production mode, we just need to change the environment
+        # The is_production and enable_test_redirects properties will automatically update
         original_environment = config.environment
         config.environment = "production"
-        config.is_production = True
-        config.enable_test_redirects = False
+        
+        # Log the changes
         logger.info(f"Temporarily switched to production mode:")
         logger.info(f"  - environment: {config.environment}")
         logger.info(f"  - is_production: {config.is_production}")
@@ -230,7 +228,11 @@ async def run_qa(
         # Restore original environment if modified
         if force_production and original_environment is not None:
             config.environment = original_environment
-            logger.info(f"Restored environment to: {config.environment}")
+            
+            logger.info(f"Restored original environment settings:")
+            logger.info(f"  - environment: {config.environment}")
+            logger.info(f"  - is_production: {config.is_production}")
+            logger.info(f"  - enable_test_redirects: {config.enable_test_redirects}")
         
         # Clean up temporary files
         shutil.rmtree(temp_dir)
