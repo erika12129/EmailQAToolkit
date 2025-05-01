@@ -24,9 +24,6 @@ author = "agent"
 agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python run_servers.py"
 waitForPort = 5000
@@ -46,6 +43,10 @@ externalPort = 5000
 [[ports]]
 localPort = 5001
 externalPort = 3001
+
+[[ports]]
+localPort = 5002
+externalPort = 3003
 
 [[ports]]
 localPort = 8000

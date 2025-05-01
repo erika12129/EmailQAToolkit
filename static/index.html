@@ -847,10 +847,51 @@
             };
             
             // Get expected metadata values from original form inputs
-            let allMetadata = [...data.metadata];
+            let allMetadata = [];
+            
+            // Convert metadata object to array format expected by frontend
+            if (data.metadata) {
+                // Check if metadata is already in array format
+                if (Array.isArray(data.metadata)) {
+                    allMetadata = [...data.metadata];
+                } else {
+                    // Convert object format to array format
+                    for (const [key, value] of Object.entries(data.metadata)) {
+                        // Get expected value from form fields based on the key
+                        let expected = '';
+                        let status = 'FAIL';
+                        
+                        if (key === 'sender_name' || key === 'sender') {
+                            expected = senderNameInput.value;
+                        } else if (key === 'sender_address') {
+                            expected = senderEmailInput.value;
+                        } else if (key === 'reply_to' || key === 'reply_address') {
+                            expected = replyEmailInput.value;
+                        } else if (key === 'subject') {
+                            expected = subjectInput.value;
+                        } else if (key === 'preheader') {
+                            expected = preheaderInput.value;
+                        }
+                        
+                        // Determine status based on expected value
+                        if (expected && value) {
+                            status = (value.trim().toLowerCase() === expected.trim().toLowerCase()) ? 'PASS' : 'FAIL';
+                        } else if (value) {
+                            status = 'INFO'; // We have a value but no expected value to compare
+                        }
+                        
+                        allMetadata.push({
+                            field: key,
+                            expected: expected,
+                            actual: value || 'Not found',
+                            status: status
+                        });
+                    }
+                }
+            }
             
             // Make sure we have sender_name and reply_address in the results
-            const hasField = (field) => allMetadata.some(item => item.field === field);
+            const hasField = (field) => allMetadata.some(item => item.field === field || item.field === fieldNameMap[field]);
             
             if (!hasField('sender_name') && senderNameInput.value) {
                 allMetadata.push({
@@ -907,7 +948,17 @@
                 
                 const statusCell = document.createElement('td');
                 statusCell.textContent = item.status;
-                statusCell.className = item.status === 'PASS' ? 'pass' : 'fail';
+                
+                // Apply appropriate styling based on status
+                if (item.status === 'PASS') {
+                    statusCell.className = 'pass';
+                } else if (item.status === 'FAIL') {
+                    statusCell.className = 'fail';
+                } else if (item.status === 'INFO') {
+                    statusCell.className = 'info';
+                    statusCell.style.color = '#4299e1'; // Blue for INFO status
+                }
+                
                 row.appendChild(statusCell);
                 
                 metadataResults.appendChild(row);

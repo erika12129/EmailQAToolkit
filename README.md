@@ -236,34 +236,43 @@ The system checks destination pages for product display tables using two detecti
    - Check for dynamically loaded product tables
    - Verify proper rendering of product displays
 
-## Migration to Production System
+## Enhanced System with Mode Switching
 
-To migrate the existing development system to the production-ready system:
+The Email QA System now features a unified approach with runtime mode switching between development and production modes:
 
-1. **File Preparation**:
-   - Keep the original files (`email_qa.py`, `main.py`, `run_servers.py`) for backward compatibility
-   - Add the new production-ready files (`email_qa_prod.py`, `main_prod.py`, `run_servers_prod.py`, `config.py`, `domain_config.json`)
+1. **New Components**:
+   - `runtime_config.py`: Configuration manager with mode switching capability
+   - `email_qa_enhanced.py`: Improved email validation with better error handling
+   - `main_enhanced.py`: FastAPI application with mode toggle UI
+   - `run_servers_enhanced.py`: Server launcher with mode parameter
 
-2. **Configuration Setup**:
-   - Review and modify `domain_config.json` to include your actual production domains
-   - Add any custom localization rules for your specific domains
-   - Configure allowed UTM parameters for your marketing campaigns
+2. **Key Features**:
+   - **Runtime Mode Switching**: Toggle between development and production modes without restarting
+   - **Smart Link Processing**: Intelligently handles redirects based on current mode
+   - **Improved Product Table Detection**: More robust detection with better error handling
+   - **User Interface Enhancements**: Visual mode indicator and toggle button
 
-3. **Testing the Production Setup**:
-   ```
-   # Test in development mode first
-   python run_servers_prod.py
+3. **Running the Enhanced System**:
+   ```bash
+   # Start in default mode (development)
+   python run_servers_enhanced.py
    
-   # Then test in production mode
-   python run_servers_prod.py --production
+   # Start explicitly in development mode
+   python run_servers_enhanced.py --mode development
+   
+   # Start in production mode
+   python run_servers_enhanced.py --mode production
    ```
 
-4. **Full Migration** (optional):
-   - Once fully tested, you can replace the original files with the production versions:
-     - `email_qa.py` → `email_qa_prod.py`
-     - `main.py` → `main_prod.py`
-     - `run_servers.py` → `run_servers_prod.py`
-   - Update imports in any dependent files
+4. **API Enhancements**:
+   - `/set-mode/development` or `/set-mode/production`: Change mode via API
+   - `/config`: View current configuration
+   - `/run-qa?force_production=true`: Run a single validation in production mode
+   - `/run-qa?force_development=true`: Run a single validation in development mode
+
+5. **In-App Mode Switching**:
+   - Click the mode indicator in the bottom-right corner to toggle between modes
+   - Page will reload with the new mode applied
 
 ## Troubleshooting
 

@@ -1,3 +1,7 @@
+"""
+Run both the FastAPI application and Flask test website with enhanced configuration.
+"""
+
 import subprocess
 import sys
 import time
@@ -27,7 +31,7 @@ def run_servers(initial_mode=None):
     
     # Start the FastAPI server (main application) on port 5000
     fastapi_process = subprocess.Popen(
-        ["python", "-c", "import uvicorn; import simple_mode_switcher; uvicorn.run(simple_mode_switcher.app, host='0.0.0.0', port=5000)"],
+        ["python", "-c", "import uvicorn; import main_enhanced; uvicorn.run(main_enhanced.app, host='0.0.0.0', port=5000)"],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
