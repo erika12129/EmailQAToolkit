@@ -383,42 +383,82 @@ def check_for_product_tables(url, is_test_env=None):
         
         # Get the HTML content
         logger.info(f"Checking URL for product tables: {url}")
-        response = requests.get(url, timeout=config.request_timeout, allow_redirects=True)
-        
-        # Check if we were redirected
-        if response.history:
-            redirect_chain = " -> ".join([r.url for r in response.history] + [response.url])
-            logger.info(f"URL redirected: {url} -> {response.url}")
-            # Update the URL to the final destination after redirects
-            url = response.url
-        
-        if response.status_code == 200:
-            page_content = response.text
+        try:
+            logger.info(f"DETAILED CHECK: Checking {url} - Expected classes: {expected_classes}")
             
-            # Check for expected product table classes
-            for class_pattern in expected_classes:
-                # Use regex to find the class in the HTML
-                pattern = re.escape(class_pattern)
-                class_matches = re.findall(f'class=["\']([^"\']*?{pattern}[^"\']*?)["\']', page_content)
+            # Add user agent to look like a real browser
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5'
+            }
+            
+            response = requests.get(url, timeout=config.request_timeout, allow_redirects=True, headers=headers)
+            logger.info(f"DETAILED CHECK: Response status: {response.status_code}")
+            
+            # Check if we were redirected
+            if response.history:
+                redirect_chain = " -> ".join([r.url for r in response.history] + [response.url])
+                logger.info(f"URL redirected: {url} -> {response.url}")
+                logger.info(f"DETAILED CHECK: Full redirect chain: {redirect_chain}")
+                # Update the URL to the final destination after redirects
+                url = response.url
+            
+            if response.status_code == 200:
+                page_content = response.text
+                logger.info(f"DETAILED CHECK: Retrieved page content, length: {len(page_content)} characters")
                 
-                if class_matches:
-                    product_table_class = class_matches[0]
-                    logger.info(f"Found product table with class: {product_table_class}")
-                    return True, product_table_class, None
-            
-            # Additional check for common product table patterns if expected classes not found
-            common_patterns = ["product-list", "product-grid", "product-container"]
-            for pattern in common_patterns:
-                if pattern in page_content.lower():
-                    logger.info(f"Found common product table pattern: {pattern}")
-                    return True, pattern, None
-            
-            logger.info(f"No product table classes found on {url}")
-            return False, None, None
-        else:
-            error_message = f"Failed to get content from URL, status code: {response.status_code}"
-            logger.error(error_message)
-            return False, None, error_message
+                # Log a sample of the content for debugging
+                content_sample = page_content[:500] + "..." if len(page_content) > 500 else page_content
+                logger.info(f"DETAILED CHECK: Content sample: {content_sample}")
+                
+                # Check for expected product table classes
+                all_class_matches = []
+                for class_pattern in expected_classes:
+                    # Use regex to find the class in the HTML
+                    pattern = re.escape(class_pattern)
+                    regex_pattern = f'class=["\']([^"\']*?{pattern}[^"\']*?)["\']'
+                    logger.info(f"DETAILED CHECK: Looking for pattern: {regex_pattern}")
+                    
+                    class_matches = re.findall(regex_pattern, page_content)
+                    all_class_matches.extend(class_matches)
+                    
+                    # Also try a simpler search pattern as a backup
+                    if not class_matches:
+                        simple_matches = re.findall(f'class=["\'].*?{pattern}.*?["\']', page_content)
+                        if simple_matches:
+                            logger.info(f"DETAILED CHECK: Found with simple pattern: {simple_matches}")
+                            all_class_matches.extend([pattern])
+                    
+                    if class_matches:
+                        product_table_class = class_matches[0]
+                        logger.info(f"Found product table with class: {product_table_class}")
+                        return True, product_table_class, None
+                
+                logger.info(f"DETAILED CHECK: All class matches found: {all_class_matches}")
+                
+                # Additional check for common product table patterns if expected classes not found
+                common_patterns = ["product-list", "product-grid", "product-container", "product-row", "products-grid"]
+                for pattern in common_patterns:
+                    if pattern in page_content.lower():
+                        logger.info(f"Found common product table pattern: {pattern}")
+                        return True, pattern, None
+                
+                # Check for any div with class containing 'product'
+                product_divs = re.findall(r'class=["\'][^"\']*product[^"\']*["\']', page_content.lower())
+                if product_divs:
+                    logger.info(f"DETAILED CHECK: Found general product div: {product_divs[0]}")
+                    return True, "product-related-element", None
+                
+                logger.info(f"DETAILED CHECK: No product table classes found on {url}")
+                logger.info(f"No product table classes found on {url}")
+                return False, None, None
+            else:
+                logger.error(f"DETAILED CHECK: Failed with status code {response.status_code}")
+                return False, None, f"Failed to get content from URL, status code: {response.status_code}"
+        except Exception as e:
+            logger.error(f"DETAILED CHECK: Exception during fetch: {str(e)}")
+            raise
     except requests.exceptions.Timeout:
         error_message = f"Connection to {url} timed out"
         logger.error(error_message)
