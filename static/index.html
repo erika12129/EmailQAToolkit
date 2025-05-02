@@ -903,8 +903,11 @@
                 'Campaign Code - Country': 'campaign_code'
             };
             
-            // Get expected metadata values from original form inputs
+            // Get expected metadata values from requirements JSON first, then form inputs as fallback
             let allMetadata = [];
+            
+            // Make sure we have a metadata object from requirements
+            const metadataRequirements = requirementsJSON.metadata || {};
             
             // Convert metadata object to array format expected by frontend
             if (data.metadata) {
@@ -914,26 +917,28 @@
                 } else {
                     // Convert object format to array format
                     for (const [key, value] of Object.entries(data.metadata)) {
-                        // Get expected value from form fields based on the key
+                        // Get expected value from requirements JSON first, then form fields as fallback
                         let expected = '';
                         let status = 'FAIL';
                         
                         if (key === 'sender_name' || key === 'sender') {
-                            expected = senderNameInput.value;
+                            expected = metadataRequirements.sender_name || senderNameInput.value;
                         } else if (key === 'sender_address') {
-                            expected = senderEmailInput.value;
+                            expected = metadataRequirements.sender_address || senderEmailInput.value;
                         } else if (key === 'reply_to' || key === 'reply_address') {
-                            expected = replyEmailInput.value;
+                            expected = metadataRequirements.reply_address || replyEmailInput.value;
                         } else if (key === 'subject') {
-                            expected = subjectInput.value;
+                            expected = metadataRequirements.subject || subjectInput.value;
                         } else if (key === 'preheader') {
-                            expected = preheaderInput.value;
+                            expected = metadataRequirements.preheader || preheaderInput.value;
                         } else if (key === 'campaign_code' || key === 'footer_campaign_code' || key === 'Campaign Code - Country') {
-                            // Check if we have campaign_code in the form or requirements JSON
-                            if (campaignCodeInput.value) {
-                                expected = campaignCodeInput.value;
-                            } else if (requirementsJSON && requirementsJSON.campaign_code) {
+                            // Check if we have campaign_code in requirements JSON or form
+                            if (metadataRequirements.campaign_code) {
+                                expected = metadataRequirements.campaign_code;
+                            } else if (requirementsJSON.campaign_code) {
                                 expected = requirementsJSON.campaign_code;
+                            } else if (campaignCodeInput.value) {
+                                expected = campaignCodeInput.value;
                             }
                         }
                         
@@ -957,46 +962,54 @@
             // Make sure we have sender_name and reply_address in the results
             const hasField = (field) => allMetadata.some(item => item.field === field || item.field === fieldNameMap[field]);
             
-            if (!hasField('sender_name') && senderNameInput.value) {
-                allMetadata.push({
-                    field: 'sender_name',
-                    expected: senderNameInput.value,
-                    actual: 'Not found',
-                    status: 'FAIL'
-                });
-            }
-            
-            if (!hasField('sender') && !hasField('sender_address') && senderEmailInput.value) {
-                allMetadata.push({
-                    field: 'sender_address',
-                    expected: senderEmailInput.value,
-                    actual: 'Not found',
-                    status: 'FAIL'
-                });
-            }
-            
-            if (!hasField('reply_to') && !hasField('reply_address') && replyEmailInput.value) {
-                allMetadata.push({
-                    field: 'reply_address',
-                    expected: replyEmailInput.value,
-                    actual: 'Not found',
-                    status: 'FAIL'
-                });
-            }
-            
-            // Make sure we have a campaign code field if one is specified in the form or requirements
-            if (!hasField('campaign_code') && !hasField('footer_campaign_code')) {
-                if (campaignCodeInput.value) {
+            // Get expected values from requirements metadata first, then form fields as fallback
+            if (!hasField('sender_name')) {
+                const expectedValue = metadataRequirements.sender_name || senderNameInput.value;
+                if (expectedValue) {
                     allMetadata.push({
-                        field: 'campaign_code',
-                        expected: campaignCodeInput.value,
+                        field: 'sender_name',
+                        expected: expectedValue,
                         actual: 'Not found',
                         status: 'FAIL'
                     });
-                } else if (requirementsJSON && requirementsJSON.campaign_code) {
+                }
+            }
+            
+            if (!hasField('sender') && !hasField('sender_address')) {
+                const expectedValue = metadataRequirements.sender_address || senderEmailInput.value;
+                if (expectedValue) {
+                    allMetadata.push({
+                        field: 'sender_address',
+                        expected: expectedValue,
+                        actual: 'Not found',
+                        status: 'FAIL'
+                    });
+                }
+            }
+            
+            if (!hasField('reply_to') && !hasField('reply_address')) {
+                const expectedValue = metadataRequirements.reply_address || replyEmailInput.value;
+                if (expectedValue) {
+                    allMetadata.push({
+                        field: 'reply_address',
+                        expected: expectedValue,
+                        actual: 'Not found',
+                        status: 'FAIL'
+                    });
+                }
+            }
+            
+            // Make sure we have a campaign code field if one is specified in the requirements or form
+            if (!hasField('campaign_code') && !hasField('footer_campaign_code')) {
+                // Try different places for campaign code in priority order
+                let expectedValue = metadataRequirements.campaign_code || 
+                                   requirementsJSON.campaign_code || 
+                                   campaignCodeInput.value;
+                
+                if (expectedValue) {
                     allMetadata.push({
                         field: 'campaign_code',
-                        expected: requirementsJSON.campaign_code,
+                        expected: expectedValue,
                         actual: 'Not found',
                         status: 'FAIL'
                     });

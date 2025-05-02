@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 import logging
+import json
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -194,10 +195,15 @@ async def run_qa(
         with open(req_path, "wb") as buffer:
             shutil.copyfileobj(requirements.file, buffer)
         
+        # Load requirements first so we can include them in the results
+        with open(req_path, "r") as f:
+            requirements_json = json.load(f)
+        
         # Run validation
         results = validate_email(email_path, req_path)
         
-        # Add environment information to results
+        # Add requirements and environment information to results
+        results["requirements"] = requirements_json
         results["environment"] = "production" if config.is_production or force_production else "development"
         results["force_production"] = force_production
         

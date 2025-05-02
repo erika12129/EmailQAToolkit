@@ -516,12 +516,22 @@ def validate_email(email_path, requirements_path):
     links = extract_links(soup)
     link_results = check_links(links, requirements.get('utm_parameters', {}))
     
+    # Format campaign code in expected metadata if needed
+    if 'campaign_code' in expected_metadata and 'country' in requirements:
+        campaign_code_value = expected_metadata.get('campaign_code', '')
+        country_code_value = requirements.get('country', '')
+        
+        if campaign_code_value and country_code_value:
+            # Format as "CODE - COUNTRY"
+            expected_metadata['campaign_code'] = f"{campaign_code_value} - {country_code_value}"
+    
     # Prepare results
     results = {
         'metadata': metadata,
         'metadata_issues': metadata_issues,
         'links': link_results,
-        'environment': 'production' if config.is_production else 'development'
+        'environment': 'production' if config.is_production else 'development',
+        'requirements': requirements
     }
     
     return results
