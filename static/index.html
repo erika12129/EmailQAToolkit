@@ -845,6 +845,9 @@
             metadataResults.innerHTML = '';
             linksResults.innerHTML = '';
             
+            // Initialize requirementsJSON from the response or create empty object
+            let requirementsJSON = data.requirements || {};
+            
             // Map field names for display
             const fieldNameMap = {
                 // Sender field mappings
