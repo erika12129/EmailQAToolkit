@@ -103,15 +103,14 @@ def extract_email_metadata(soup):
     # (code for finding campaign code in footer would remain as is)
     footer_campaign_code = "Not found"
     
-    # Create metadata dictionary
+    # Create metadata dictionary with clean field names
     metadata_dict = {
-        'sender': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
+        'sender_address': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
         'sender_name': sender_name.get('content') or (sender_name.get_text(strip=True) if hasattr(sender_name, 'get_text') else '') or 'Not found',
-        'reply_to': reply_to.get('content') or (reply_to.get_text(strip=True) if hasattr(reply_to, 'get_text') else '') or 'Not found',
+        'reply_address': reply_to.get('content') or (reply_to.get_text(strip=True) if hasattr(reply_to, 'get_text') else '') or 'Not found',
         'subject': subject.get('content') or (subject.get_text(strip=True) if hasattr(subject, 'get_text') else '') or 'Not found',
         'preheader': preheader_text,
-        'preheader_details': f"Attempted classes: {', '.join(attempted_classes)}" if not hasattr(preheader, 'get_text') else '',
-        'footer_campaign_code': footer_campaign_code
+        'campaign_code': footer_campaign_code
     }
     
     # Always include campaign_code_match with the same value as footer_campaign_code

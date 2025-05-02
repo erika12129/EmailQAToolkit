@@ -105,18 +105,49 @@ def extract_email_metadata(soup):
         preheader_text = visible_preheader.strip()
     
     # Standard campaign code extraction logic
-    # (Footer campaign code extraction would remain intact)
     footer_campaign_code = "Not found"
+    campaign_code = ""
+    country_code = ""
     
-    # Create metadata dictionary
+    # Look for footer campaign code in specific format like ABC2505 - US
+    # Try different patterns based on known email formats
+    campaign_code_pattern = re.compile(r'([A-Z0-9]{6,8})\s*[-–—]\s*([A-Z]{2})', re.IGNORECASE)
+    
+    # Check the entire email for campaign code
+    for tag in soup.find_all(text=campaign_code_pattern):
+        match = campaign_code_pattern.search(tag.strip())
+        if match:
+            campaign_code = match.group(1)
+            country_code = match.group(2)
+            footer_campaign_code = f"{campaign_code} - {country_code}"
+            break
+    
+    # Check for utm_campaign in links as fallback
+    if footer_campaign_code == "Not found":
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            campaign_param = re.search(r'utm_campaign=([^&]+)', href)
+            country_param = re.search(r'country=([^&]+)', href)
+            
+            if campaign_param:
+                campaign_code = campaign_param.group(1)
+                if country_param:
+                    country_code = country_param.group(1)
+                    footer_campaign_code = f"{campaign_code} - {country_code}"
+                    break
+                elif country_code:
+                    # Use previously found country code
+                    footer_campaign_code = f"{campaign_code} - {country_code}"
+                    break
+    
+    # Create metadata dictionary with clean field names
     metadata_dict = {
-        'sender': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
+        'sender_address': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
         'sender_name': sender_name.get('content') or (sender_name.get_text(strip=True) if hasattr(sender_name, 'get_text') else '') or 'Not found',
-        'reply_to': reply_to.get('content') or (reply_to.get_text(strip=True) if hasattr(reply_to, 'get_text') else '') or 'Not found',
+        'reply_address': reply_to.get('content') or (reply_to.get_text(strip=True) if hasattr(reply_to, 'get_text') else '') or 'Not found',
         'subject': subject.get('content') or (subject.get_text(strip=True) if hasattr(subject, 'get_text') else '') or 'Not found',
         'preheader': preheader_text,
-        'preheader_details': f"Attempted classes: {', '.join(attempted_classes)}" if not hasattr(preheader, 'get_text') else '',
-        'footer_campaign_code': footer_campaign_code
+        'campaign_code': footer_campaign_code
     }
     
     return metadata_dict
