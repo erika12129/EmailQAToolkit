@@ -247,6 +247,12 @@
                             <label for="preheader">Preheader Text:</label>
                             <input type="text" id="preheader" class="text-input" placeholder="Limited time offer: 25% discount on all products!">
                         </div>
+                        
+                        <div class="form-group">
+                            <label for="campaign-code">Campaign Code:</label>
+                            <input type="text" id="campaign-code" class="text-input" placeholder="ABC123 - US">
+                            <small class="form-helper">Expected format: CODE - COUNTRY (e.g., ABC123 - US)</small>
+                        </div>
                     </div>
                     
                     <!-- UTM Parameters Section -->
@@ -414,6 +420,7 @@
         // Form fields - Email content
         const subjectInput = document.getElementById('subject');
         const preheaderInput = document.getElementById('preheader');
+        const campaignCodeInput = document.getElementById('campaign-code');
         const countryInput = document.getElementById('country');
         const languageInput = document.getElementById('language');
         
@@ -756,6 +763,7 @@
                     reply_address: replyEmailInput.value,
                     subject: subjectInput.value,
                     preheader: preheaderInput.value,
+                    campaign_code: campaignCodeInput.value,
                     country: countryInput.value,
                     language: languageInput.value,
                     email_type: promotionalRadio.checked ? 'promotional' : 'transactional',
@@ -839,11 +847,23 @@
             
             // Map field names for display
             const fieldNameMap = {
+                // Sender field mappings
                 'sender': 'sender_address', 
                 'sender_address': 'sender_address',
                 'sender_name': 'sender_name',
+                
+                // Reply address mappings
                 'reply_to': 'reply_address',
-                'reply_address': 'reply_address'
+                'reply_address': 'reply_address',
+                
+                // Subject and preheader
+                'subject': 'subject',
+                'preheader': 'preheader',
+                
+                // Campaign code mappings
+                'footer_campaign_code': 'campaign_code',
+                'campaign_code': 'campaign_code',
+                'Campaign Code - Country': 'campaign_code'
             };
             
             // Get expected metadata values from original form inputs
@@ -871,6 +891,13 @@
                             expected = subjectInput.value;
                         } else if (key === 'preheader') {
                             expected = preheaderInput.value;
+                        } else if (key === 'campaign_code' || key === 'footer_campaign_code' || key === 'Campaign Code - Country') {
+                            // Check if we have campaign_code in the form or requirements JSON
+                            if (campaignCodeInput.value) {
+                                expected = campaignCodeInput.value;
+                            } else if (requirementsJSON && requirementsJSON.campaign_code) {
+                                expected = requirementsJSON.campaign_code;
+                            }
                         }
                         
                         // Determine status based on expected value
@@ -920,6 +947,25 @@
                 });
             }
             
+            // Make sure we have a campaign code field if one is specified in the form or requirements
+            if (!hasField('campaign_code') && !hasField('footer_campaign_code')) {
+                if (campaignCodeInput.value) {
+                    allMetadata.push({
+                        field: 'campaign_code',
+                        expected: campaignCodeInput.value,
+                        actual: 'Not found',
+                        status: 'FAIL'
+                    });
+                } else if (requirementsJSON && requirementsJSON.campaign_code) {
+                    allMetadata.push({
+                        field: 'campaign_code',
+                        expected: requirementsJSON.campaign_code,
+                        actual: 'Not found',
+                        status: 'FAIL'
+                    });
+                }
+            }
+            
             // Display metadata results
             allMetadata.forEach(item => {
                 const row = document.createElement('tr');
@@ -934,7 +980,35 @@
                 row.appendChild(expectedCell);
                 
                 const actualCell = document.createElement('td');
-                actualCell.textContent = item.actual;
+                
+                // Special handling for campaign_code display
+                if ((item.field === 'campaign_code' || item.field === 'footer_campaign_code') && item.actual) {
+                    // Make sure campaign code is fully visible and properly formatted
+                    // Ensure it displays as "CODE - COUNTRY" if it contains a hyphen
+                    let displayValue = item.actual;
+                    
+                    // Clean up any truncation or formatting issues
+                    if (displayValue.includes(' - ')) {
+                        const parts = displayValue.split(' - ');
+                        if (parts.length === 2) {
+                            const [code, country] = parts;
+                            // Make sure both parts are fully displayed
+                            displayValue = `${code} - ${country}`;
+                        }
+                    } else if (displayValue.includes('-')) {
+                        // Handle case where there's no space around the hyphen
+                        const parts = displayValue.split('-');
+                        if (parts.length === 2) {
+                            const [code, country] = parts;
+                            // Add proper spacing
+                            displayValue = `${code.trim()} - ${country.trim()}`;
+                        }
+                    }
+                    
+                    actualCell.textContent = displayValue;
+                } else {
+                    actualCell.textContent = item.actual;
+                }
                 
                 if (item.details) {
                     const detailsElement = document.createElement('div');
