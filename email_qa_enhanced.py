@@ -125,16 +125,26 @@ def extract_links(soup):
     """Extract all links from email HTML with enhanced source context."""
     links = []
     for a in soup.find_all('a', href=True):
+        # Create the basic link entry
+        link_entry = {
+            'href': a['href']
+        }
+        
         # Include source context (text, image, or button)
         if a.find('img'):
             # Image link
             img = a.find('img')
             alt_text = img.get('alt', '')
-            source_context = {
-                'type': 'image',
-                'alt_text': alt_text[:50] if alt_text else '',
-                'text': f"Image: {alt_text[:50]}" if alt_text else "Image link"
-            }
+            img_src = img.get('src', '')
+            
+            # Add image-specific properties
+            link_entry['is_image_link'] = True
+            link_entry['image_alt'] = alt_text[:50] if alt_text else ''
+            link_entry['image_src'] = img_src
+            
+            # Set display text
+            source_context = f"Image: {alt_text[:50]}" if alt_text else "Image link"
+            link_text = alt_text[:50] if alt_text else ''
         else:
             # Text or button link
             text = a.get_text(strip=True)
@@ -144,36 +154,27 @@ def extract_links(soup):
             # Check if link appears to be a button based on classes
             is_button = any(btn_class in classes.lower() for btn_class in ['btn', 'button'])
             
+            # Set display text
             if text:
                 link_type = 'button' if is_button else 'text'
-                source_context = {
-                    'type': link_type,
-                    'text': text[:50],
-                    'display': f"{link_type.capitalize()}: {text[:50]}"
-                }
+                source_context = f"{link_type.capitalize()}: {text[:50]}"
+                link_text = text[:50]
             else:
-                source_context = {
-                    'type': 'empty',
-                    'text': '',
-                    'display': "Empty link"
-                }
+                source_context = "Empty link"
+                link_text = ''
         
-        # For backwards compatibility, we'll convert to the string format
-        # expected by existing code
-        display_text = source_context.get('display') if isinstance(source_context, dict) else str(source_context)
-        link_text = source_context.get('text', '') if isinstance(source_context, dict) else ''
+        # Add the display text to the entry
+        link_entry['link_source'] = source_context
+        link_entry['link_text'] = link_text
         
-        # Add both the rich object and text representation
-        links.append({
-            'link_source': display_text,
-            'link_text': link_text,
-            'href': a['href']
-        })
+        # Add to links list
+        links.append(link_entry)
     
-    # Convert to the expected format for backwards compatibility
+    # Convert to the expected format for backwards compatibility with older code
     formatted_links = [(item['link_source'], item['href']) for item in links]
     
-    return formatted_links
+    # Return the enriched version with all the details
+    return links
 
 def validate_utm_parameters(url, expected_utm):
     """Validate UTM parameters in a URL against expected values."""
@@ -392,7 +393,24 @@ def check_links(links, expected_utm):
     """
     results = []
     
-    for link_source, url in links:
+    # Links can now be either a list of tuples (legacy format) or a list of dictionaries (new format)
+    # We need to handle both cases
+    for link in links:
+        # Check if we have a dictionary or tuple
+        if isinstance(link, tuple):
+            # Legacy format: (link_source, url)
+            link_source, url = link
+            # Create a minimal link dict with only essential fields
+            link_dict = {
+                'link_source': link_source,
+                'href': url
+            }
+        else:
+            # New format: dict with all fields
+            link_dict = link
+            url = link_dict['href']
+            link_source = link_dict.get('link_source', '')
+        
         original_url = url
         processed_url = url
         redirected = False
@@ -473,9 +491,11 @@ def check_links(links, expected_utm):
                 thread.daemon = True
                 thread.start()
                 
+                # Define thread timeout outside the try block to avoid unbound variable issues
+                thread_timeout = check_timeout + 1  # Give thread a little extra time
+                
                 try:
                     # Wait for result with timeout
-                    thread_timeout = check_timeout + 1  # Give thread a little extra time
                     product_table_result = result_queue.get(timeout=thread_timeout)
                 except queue.Empty:
                     # If we timeout waiting for the thread
@@ -559,11 +579,25 @@ def validate_email(email_path, requirements_path):
         links = extract_links(soup)
         link_results = check_links(links, requirements.get('utm_parameters', {}))
         
+        # Enrich the links results with additional details from original links
+        enriched_links = []
+        for link_result in link_results:
+            # Find the corresponding original link with image info
+            for original_link in links:
+                if isinstance(original_link, dict) and original_link.get('href') == link_result.get('url'):
+                    # Copy image properties from original link to result
+                    if original_link.get('is_image_link'):
+                        link_result['is_image_link'] = True
+                        link_result['image_alt'] = original_link.get('image_alt', '')
+                        link_result['image_src'] = original_link.get('image_src', '')
+                    break
+            enriched_links.append(link_result)
+        
         # Prepare results
         results = {
             'metadata': metadata,
             'metadata_issues': metadata_issues,
-            'links': link_results,
+            'links': enriched_links,
             'mode': config.mode
         }
         
