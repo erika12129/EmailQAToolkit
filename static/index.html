@@ -990,7 +990,7 @@
                     // Ensure it displays as "CODE - COUNTRY" if it contains a hyphen
                     let displayValue = item.actual;
                     
-                    // Clean up any truncation or formatting issues
+                    // Handle various campaign code formats and potential truncation issues
                     if (displayValue.includes(' - ')) {
                         const parts = displayValue.split(' - ');
                         if (parts.length === 2) {
@@ -1006,6 +1006,12 @@
                             // Add proper spacing
                             displayValue = `${code.trim()} - ${country.trim()}`;
                         }
+                    } else if (displayValue.toLowerCase().includes('upported')) {
+                        // Fix for specific truncation issue with "Supported - Country" format
+                        displayValue = displayValue.replace(/upported[\s-]*co/i, "Supported - CO");
+                    } else if (displayValue.length < 5) {
+                        // Handle very short truncated values
+                        displayValue = `${displayValue} (Truncated)`;
                     }
                     
                     actualCell.textContent = displayValue;
