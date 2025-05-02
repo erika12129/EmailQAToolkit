@@ -25,9 +25,18 @@ def run_servers(initial_mode=None):
     env = os.environ.copy()
     env["EMAIL_QA_MODE"] = config.mode
     
+    # Determine if this is a deployment environment
+    is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
+    
     # Start the FastAPI server (main application) on port 5000
+    # Use a consistent import path regardless of environment
+    server_cmd = ["python", "-c", 
+                 "import uvicorn; import simple_mode_switcher; "
+                 "print('Running in DEPLOYMENT mode' if '{}' else 'Running in local mode'); "
+                 "uvicorn.run(simple_mode_switcher.app, host='0.0.0.0', port=5000)".format(is_deployment)]
+    
     fastapi_process = subprocess.Popen(
-        ["python", "-c", "import uvicorn; import simple_mode_switcher; uvicorn.run(simple_mode_switcher.app, host='0.0.0.0', port=5000)"],
+        server_cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,

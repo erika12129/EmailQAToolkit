@@ -14,9 +14,18 @@ class RuntimeConfig:
     """Runtime configuration that can be changed without restarting."""
     
     def __init__(self):
+        # Check if this is a deployment environment
+        self.is_deployment_env = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
+        
         # Default to production mode for stability
         self.mode = os.environ.get("EMAIL_QA_MODE", "production")
-        self.enable_test_redirects = False  # Default to disabled redirects
+        
+        # Force development mode in preview environments
+        if not self.is_deployment_env and os.environ.get("EMAIL_QA_FORCE_PROD") != "1":
+            self.mode = "development"
+            logger.info("Preview environment detected, forcing development mode")
+            
+        self.enable_test_redirects = True   # Always enable test redirects for reliability
         self.product_table_timeout = 10     # Longer timeout for production
         self.request_timeout = 10
         self.max_retries = 2
@@ -28,7 +37,7 @@ class RuntimeConfig:
         
         # Initialize settings based on initial mode
         self._update_settings_for_mode()
-        logger.info(f"Initialized in {self.mode} mode")
+        logger.info(f"Initialized in {self.mode} mode - Deployment environment: {self.is_deployment_env}")
     
     def _update_settings_for_mode(self):
         """Update settings based on current mode."""
