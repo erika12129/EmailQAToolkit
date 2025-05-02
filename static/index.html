@@ -848,6 +848,15 @@
             // Initialize requirementsJSON from the response or create empty object
             let requirementsJSON = data.requirements || {};
             
+            // Pre-process the campaign code to ensure it has the format "CODE - COUNTRY"
+            if (requirementsJSON.campaign_code && requirementsJSON.country) {
+                // If the campaign code doesn't already contain a country code
+                if (!requirementsJSON.campaign_code.includes(' - ') && !requirementsJSON.campaign_code.includes('-')) {
+                    // Format it as "CODE - COUNTRY"
+                    requirementsJSON.campaign_code = `${requirementsJSON.campaign_code} - ${requirementsJSON.country}`;
+                }
+            }
+            
             // Map field names for display
             const fieldNameMap = {
                 // Sender field mappings

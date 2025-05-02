@@ -596,10 +596,22 @@ def validate_email(email_path, requirements_path):
         # Extract metadata and validate
         metadata = extract_email_metadata(soup)
         
-        # Compare with expected values
+        # Process expected values
         expected_metadata = requirements.get('metadata', {})
         metadata_issues = []
         
+        # Special handling for campaign code with country formatting
+        if 'campaign_code' in expected_metadata and 'country' in requirements:
+            campaign_code = expected_metadata.get('campaign_code')
+            country = requirements.get('country')
+            
+            # Format as "CODE - COUNTRY" if not already formatted
+            if campaign_code and country and not campaign_code.endswith(f" - {country}"):
+                expected_metadata['campaign_code'] = f"{campaign_code} - {country}"
+                # Also set footer_campaign_code to match the same format
+                expected_metadata['footer_campaign_code'] = f"{campaign_code} - {country}"
+        
+        # Compare actual vs expected values
         for key, expected_value in expected_metadata.items():
             if expected_value and key in metadata:
                 actual_value = metadata[key]
