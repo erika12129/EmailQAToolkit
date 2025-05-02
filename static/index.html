@@ -848,13 +848,38 @@
             // Initialize requirementsJSON from the response or create empty object
             let requirementsJSON = data.requirements || {};
             
-            // Pre-process the campaign code to ensure it has the format "CODE - COUNTRY"
+            // Make sure the campaign code is formatted as "CODE - COUNTRY" in the requirements
             if (requirementsJSON.campaign_code && requirementsJSON.country) {
                 // If the campaign code doesn't already contain a country code
                 if (!requirementsJSON.campaign_code.includes(' - ') && !requirementsJSON.campaign_code.includes('-')) {
                     // Format it as "CODE - COUNTRY"
                     requirementsJSON.campaign_code = `${requirementsJSON.campaign_code} - ${requirementsJSON.country}`;
                 }
+            }
+            
+            // Pre-populate form fields from requirements if they're not already filled
+            if (requirementsJSON.sender_name && !senderNameInput.value) {
+                senderNameInput.value = requirementsJSON.sender_name;
+            }
+            
+            if (requirementsJSON.sender_address && !senderEmailInput.value) {
+                senderEmailInput.value = requirementsJSON.sender_address;
+            }
+            
+            if (requirementsJSON.reply_address && !replyEmailInput.value) {
+                replyEmailInput.value = requirementsJSON.reply_address;
+            }
+            
+            if (requirementsJSON.subject && !subjectInput.value) {
+                subjectInput.value = requirementsJSON.subject;
+            }
+            
+            if (requirementsJSON.preheader && !preheaderInput.value) {
+                preheaderInput.value = requirementsJSON.preheader;
+            }
+            
+            if (requirementsJSON.campaign_code && !campaignCodeInput.value) {
+                campaignCodeInput.value = requirementsJSON.campaign_code;
             }
             
             // Map field names for display
