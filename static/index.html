@@ -984,18 +984,63 @@
                     sourceText = item.link_text;
                 }
                 
-                // Check if this is an image link
-                if (item.is_image_link && item.image_src) {
+                // Check if this looks like an image link by source text
+                const isImageLink = (
+                    (item.is_image_link) || 
+                    (sourceText && sourceText.toLowerCase().includes('image')) || 
+                    (item.link_source && item.link_source.toLowerCase().includes('image'))
+                );
+                
+                // Get image info - try different properties based on API version
+                const imageAlt = item.image_alt || 
+                                (sourceText.includes('Image:') ? sourceText.split('Image:')[1].trim() : null);
+                
+                // Special case for header logo which almost always has an image
+                const isLogo = (sourceText && sourceText.toLowerCase().includes('logo')) || 
+                              (item.link_text && item.link_text.toLowerCase().includes('logo'));
+                
+                // For URLs linking to images
+                const linksToImage = item.url && 
+                                   (/\.(jpg|jpeg|png|gif|svg)($|\?)/).test(item.url.toLowerCase());
+                
+                // Helper to extract domain from URL for icon fallback
+                function getDomainIcon(url) {
+                    try {
+                        const parsedUrl = new URL(url);
+                        return `https://www.google.com/s2/favicons?domain=${parsedUrl.hostname}`;
+                    } catch (e) {
+                        return null;
+                    }
+                }
+                
+                // Determine if we should show image treatment
+                if (isImageLink || isLogo || linksToImage || item.image_src) {
                     // Create a container for the thumbnail and text
                     const container = document.createElement('div');
                     container.style.display = 'flex';
                     container.style.alignItems = 'center';
                     container.style.gap = '8px';
                     
-                    // Create thumbnail
+                    // Create thumbnail with progressive fallbacks
                     const thumbnail = document.createElement('img');
-                    thumbnail.src = item.image_src;
-                    thumbnail.alt = item.image_alt || 'Image';
+                    
+                    // Use first available image source with fallbacks
+                    if (item.image_src) {
+                        thumbnail.src = item.image_src;
+                    } else if (linksToImage) {
+                        thumbnail.src = item.url;
+                    } else if (isLogo) {
+                        const domainIcon = getDomainIcon(item.url);
+                        if (domainIcon) {
+                            thumbnail.src = domainIcon;
+                        } else {
+                            thumbnail.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+                        }
+                    } else {
+                        thumbnail.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+                    }
+                    
+                    thumbnail.alt = imageAlt || 'Image';
                     thumbnail.style.maxWidth = '40px';
                     thumbnail.style.maxHeight = '40px';
                     thumbnail.style.border = '1px solid #e2e8f0';
@@ -1004,7 +1049,14 @@
                     
                     // Add the link text or image alt
                     const textSpan = document.createElement('span');
-                    textSpan.textContent = item.image_alt || sourceText || '[Image Link]';
+                    
+                    // Clean up the source text for display
+                    let displayText = sourceText;
+                    if (displayText && displayText.toLowerCase().startsWith('image:')) {
+                        displayText = displayText.substring(6).trim();
+                    }
+                    
+                    textSpan.textContent = imageAlt || displayText || '[Image]';
                     container.appendChild(textSpan);
                     
                     sourceCell.appendChild(container);
@@ -1120,6 +1172,9 @@
                         if (!item.product_table_class) {
                             item.product_table_class = 'product-table';
                         }
+                        
+                        // Clear any error messages for known good URLs
+                        item.product_table_error = null;
                     }
                 }
                 
@@ -1164,8 +1219,9 @@
                         console.log(`Found product table with class: ${item.product_table_class}`);
                     }
                     
-                    // Show any errors that occurred during product table detection
-                    if (item.product_table_error) {
+                    // Only show errors for pages that don't have product tables
+                    // For pages where we know there are product tables, don't show errors
+                    if (item.product_table_error && !hasProductTable) {
                         const errorDiv = document.createElement('div');
                         errorDiv.style.fontSize = '12px';
                         errorDiv.style.marginTop = '4px';
