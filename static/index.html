@@ -1145,6 +1145,44 @@
 }
 
         
+        // Helper function to add UTM content display to a cell
+        function addUtmContentDisplay(cell, item) {
+            // Create a container for UTM content
+            const utmContentContainer = document.createElement('div');
+            utmContentContainer.style.marginTop = '5px';
+            utmContentContainer.style.fontSize = '0.9em';
+            
+            // Check if UTM content is present in the link
+            if (item.utm_content) {
+                // Just show the value without a label
+                utmContentContainer.textContent = item.utm_content;
+                utmContentContainer.style.color = '#4a5568'; // Medium gray color
+            } else {
+                // Add warning icon for missing UTM content
+                const warningContainer = document.createElement('div');
+                warningContainer.style.display = 'flex';
+                warningContainer.style.alignItems = 'center';
+                warningContainer.style.color = '#e53e3e'; // Red color for warning
+                
+                // Warning icon (using Unicode triangle)
+                const warningIcon = document.createElement('span');
+                warningIcon.innerHTML = '&#9888;'; // Warning triangle symbol
+                warningIcon.style.marginRight = '4px';
+                
+                // Warning text
+                const warningText = document.createElement('span');
+                warningText.textContent = 'utm_content: none detected';
+                
+                // Combine elements
+                warningContainer.appendChild(warningIcon);
+                warningContainer.appendChild(warningText);
+                utmContentContainer.appendChild(warningContainer);
+            }
+            
+            // Add UTM content container to the cell
+            cell.appendChild(utmContentContainer);
+        }
+        
         function displayResults(data) {
             // Clear previous results
             metadataResults.innerHTML = '';
@@ -1538,9 +1576,17 @@
                     container.appendChild(textSpan);
                     
                     sourceCell.appendChild(container);
+                    
+                    // Add UTM content below the image and text
+                    addUtmContentDisplay(sourceCell, item);
                 } else {
-                    // Just show the link text for regular links
-                    sourceCell.textContent = sourceText || '[No text]';
+                    // Create a container for the link text
+                    const textContainer = document.createElement('div');
+                    textContainer.textContent = sourceText || '[No text]';
+                    sourceCell.appendChild(textContainer);
+                    
+                    // Add UTM content below the text
+                    addUtmContentDisplay(sourceCell, item);
                 }
                 
                 row.appendChild(sourceCell);

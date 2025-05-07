@@ -93,11 +93,14 @@ def extract_email_metadata(soup):
     # Extract preheader text safely based on the object type
     if preheader is None:
         preheader_text = 'Not found'
-    elif hasattr(preheader, 'get_text') and callable(preheader.get_text):
+    elif isinstance(preheader, str):
+        preheader_text = preheader
+    elif hasattr(preheader, 'get_text') and callable(getattr(preheader, 'get_text', None)):
         preheader_text = preheader.get_text(strip=True)
     elif isinstance(preheader, dict):
         preheader_text = 'Not found'
     else:
+        # In case of any other type, convert to string
         preheader_text = str(preheader)
     
     # Extract just the readable text from the preheader
@@ -150,12 +153,20 @@ def extract_email_metadata(soup):
     
     # Helper function to safely extract content from elements that might be either BS4 objects or dicts
     def safe_extract(element):
-        if hasattr(element, 'get_text'):
+        if element is None:
+            return ''
+        elif isinstance(element, str):
+            return element
+        elif hasattr(element, 'get_text') and callable(getattr(element, 'get_text', None)):
             return element.get_text(strip=True)
         elif isinstance(element, dict) and 'content' in element:
             return element.get('content', '')
         else:
-            return ''
+            # Convert any other type to string
+            try:
+                return str(element)
+            except:
+                return ''
             
     # Create metadata dictionary with clean field names
     metadata_dict = {
@@ -170,13 +181,21 @@ def extract_email_metadata(soup):
     return metadata_dict
 
 def extract_links(soup):
-    """Extract all links from email HTML with enhanced source context."""
+    """Extract all links from email HTML with enhanced source context and UTM content."""
     links = []
     for a in soup.find_all('a', href=True):
         # Create the basic link entry
         link_entry = {
             'href': a['href']
         }
+        
+        # Extract UTM content parameter if present
+        utm_content = None
+        url_parts = urlparse(a['href'])
+        query_params = parse_qs(url_parts.query)
+        if 'utm_content' in query_params:
+            utm_content = query_params['utm_content'][0]
+        link_entry['utm_content'] = utm_content
         
         # Include source context (text, image, or button)
         if a.find('img'):
