@@ -1,10 +1,92 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Test Page</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email QA Simple Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        .icons {
+            display: flex;
+            justify-content: space-around;
+            margin: 30px 0;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #e0f7fa;
+        }
+        button {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3182ce;
+        }
+    </style>
 </head>
 <body>
-    <h1>Test Page</h1>
-    <p>If you can see this, the server is running correctly.</p>
+    <div class="container">
+        <h1>Email QA Test Page</h1>
+        <p>This is a simple test page to verify that the Email QA application is working correctly.</p>
+        
+        <div class="icons">
+            <img src="/icon-twitter.png" alt="Twitter" width="50" height="50">
+            <img src="/icon-facebook.png" alt="Facebook" width="50" height="50">
+            <img src="/icon-instagram.png" alt="Instagram" width="50" height="50">
+        </div>
+        
+        <div class="status" id="status">Checking server status...</div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button onclick="checkServer()">Check Server Status</button>
+        </div>
+    </div>
+
+    <script>
+        // Check server status on load
+        window.addEventListener('DOMContentLoaded', function() {
+            checkServer();
+        });
+        
+        function checkServer() {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = 'Checking server status...';
+            
+            fetch('/ping')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Server response:', data);
+                    statusElement.textContent = `Server Status: ${data.status} - ${data.message}`;
+                    statusElement.style.backgroundColor = '#c8e6c9';
+                })
+                .catch(error => {
+                    console.error('Error checking server:', error);
+                    statusElement.textContent = 'Error: Server is not responding';
+                    statusElement.style.backgroundColor = '#ffcdd2';
+                });
+        }
+    </script>
 </body>
 </html>
