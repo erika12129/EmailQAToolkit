@@ -6,11 +6,12 @@ import os
 import shutil
 import tempfile
 import logging
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from typing import Optional
+from typing import Optional, List, Dict, Any
+import email_qa_enhanced
 from email_qa_enhanced import validate_email
 from runtime_config import config
 
@@ -120,12 +121,54 @@ async def set_mode(mode: str):
             status_code=500
         )
 
+@app.post("/api/check-product-tables")
+async def check_product_tables(
+    urls: list = Body(..., description="List of URLs to check for product tables"),
+    timeout: Optional[int] = Body(None, description="Timeout for product table checks in seconds")
+):
+    """
+    Check if the specified URLs contain product tables.
+    This endpoint allows for checking selected links after initial validation,
+    with an adjustable timeout to prevent hanging the main validation process.
+    
+    Args:
+        urls: List of URLs to check for product tables
+        timeout: Timeout for each check in seconds (defaults to config setting)
+        
+    Returns:
+        dict: Results of product table detection for each URL
+    """
+    try:
+        if not urls:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No URLs provided"}
+            )
+            
+        results = {}
+        for url in urls:
+            # Call product table detection function directly
+            # This avoids the overhead of validating an entire email
+            result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+            results[url] = result
+            
+        return JSONResponse(content={"results": results})
+        
+    except Exception as e:
+        logger.error(f"Error checking product tables: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to check product tables: {str(e)}"}
+        )
+
 @app.post("/run-qa")
 async def run_qa(
     email: UploadFile = File(...), 
     requirements: UploadFile = File(...),
     force_production: Optional[bool] = Query(False, description="Force production mode for this request"),
-    force_development: Optional[bool] = Query(False, description="Force development mode for this request")
+    force_development: Optional[bool] = Query(False, description="Force development mode for this request"),
+    check_product_tables: Optional[bool] = Query(False, description="Whether to check for product tables"),
+    product_table_timeout: Optional[int] = Query(None, description="Timeout for product table checks in seconds")
 ):
     """
     Run QA validation on the uploaded email HTML against the provided requirements JSON.
@@ -135,6 +178,8 @@ async def run_qa(
         requirements: JSON file containing validation requirements
         force_production: If True, temporarily run in production mode
         force_development: If True, temporarily run in development mode
+        check_product_tables: If True, check for product tables (may slow down validation)
+        product_table_timeout: Timeout for product table checks in seconds
     
     Returns:
         dict: Validation results
@@ -169,14 +214,26 @@ async def run_qa(
         with open(req_path, "wb") as buffer:
             shutil.copyfileobj(requirements.file, buffer)
         
-        # Run validation
-        results = validate_email(email_path, req_path)
+        # Run validation with product table detection parameters
+        # Convert check_product_tables to a boolean to handle the None case
+        check_tables = bool(check_product_tables)
+        results = validate_email(
+            email_path, 
+            req_path,
+            check_product_tables=check_tables,
+            product_table_timeout=product_table_timeout
+        )
         
-        # Add force mode info to results
+        # Add mode and product table detection info to results
         if force_production:
             results["forced_mode"] = "production"
         elif force_development:
             results["forced_mode"] = "development"
+            
+        # Add product table detection status to results
+        results["product_tables_checked"] = check_tables
+        if product_table_timeout:
+            results["product_table_timeout"] = product_table_timeout
         
         # Explicitly return as JSON with appropriate headers
         return JSONResponse(content=results)

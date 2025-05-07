@@ -306,29 +306,9 @@ def check_for_product_tables(url, timeout=None):
     # Special case for test domains - if this is a test domain, be more permissive
     is_test_domain = urlparse(url).netloc in config.test_domains
     
-    # If this is a partly-products-showcase URL, hardcode product table detection
-    # This is a fallback to ensure product tables are detected even if connection fails
+    # Log the URL we're checking (but no more hardcoded detection)
     if any(domain in url for domain in ['partly-products-showcase.lovable.app']):
-        logger.info(f"Special case detection for {url}")
-        
-        # Check for product URLs - both detail and listing pages
-        is_product_page = False
-        
-        # Product detail pages like /products/123
-        if '/products/' in url:
-            is_product_page = True
-        # Product listing page
-        elif '/products' in url or url.endswith('/products'):
-            is_product_page = True
-            
-        if is_product_page:
-            # This is a product details or listing page, which we know has product tables
-            logger.info(f"Hardcoded product table detection for known URL: {url}")
-            return {
-                'found': True,
-                'class_name': 'product-table',
-                'detection_method': 'known_url_pattern'
-            }
+        logger.info(f"Checking product showcase URL: {url}")
     
     # Normal path with retries
     for attempt in range(max_retries + 1):
@@ -417,10 +397,16 @@ def check_for_product_tables(url, timeout=None):
         'detection_method': 'failed'
     }
 
-def check_links(links, expected_utm):
+def check_links(links, expected_utm, check_product_tables=False, product_table_timeout=None):
     """
     Check if links load correctly and have correct UTM parameters.
     Enhanced with smart redirection and improved product table detection.
+    
+    Args:
+        links: List of links to check
+        expected_utm: Dictionary of expected UTM parameters
+        check_product_tables: Whether to check for product tables (can be skipped to speed up validation)
+        product_table_timeout: Timeout for product table checks (if None, use default configuration)
     """
     results = []
     
@@ -487,22 +473,24 @@ def check_links(links, expected_utm):
         # Check UTM parameters
         utm_issues = validate_utm_parameters(url, expected_utm)
         
-        # Check for product tables
+        # Initialize product table variables
         product_table_result = None
         product_table_found = False
         product_table_class = None
         product_table_error = None
+        product_table_checked = False
         
-        # Only check if status code is numeric and 200 (OK)
-        if isinstance(status_code, int) and status_code == 200:
+        # Only check for product tables if explicitly requested and status code is 200
+        if check_product_tables and isinstance(status_code, int) and status_code == 200:
+            product_table_checked = True
             try:
-                # Use a fixed, short timeout in production mode to prevent hung requests
-                # In development mode, use the configured timeout
-                check_timeout = 3 if config.is_production else config.product_table_timeout
+                # Use provided timeout or default
+                check_timeout = product_table_timeout if product_table_timeout is not None else (
+                    3 if config.is_production else config.product_table_timeout
+                )
                 
                 # Create a separate thread for the product table check with a timeout
                 # This ensures one slow check doesn't block subsequent ones
-                
                 result_queue = queue.Queue()
                 
                 def check_table_thread():
@@ -549,8 +537,11 @@ def check_links(links, expected_utm):
                 logger.error(f"Unexpected error during product table check for {processed_url}: {str(e)}")
                 product_table_error = f"Check failed: {str(e)}"
         else:
-            # If status check failed, don't attempt product table check
-            product_table_error = f"URL returned HTTP status {status_code}, product table check skipped"
+            # If product table check is not requested or status check failed, skip product table check
+            if not check_product_tables:
+                product_table_error = "Product table check skipped (not requested)"
+            else:
+                product_table_error = f"URL returned HTTP status {status_code}, product table check skipped"
         
         # Compile result
         # Set status to PASS/FAIL - special handling for known working domains
@@ -568,6 +559,7 @@ def check_links(links, expected_utm):
             'has_product_table': product_table_found,
             'product_table_class': product_table_class,
             'product_table_error': product_table_error,
+            'product_table_checked': product_table_checked,
             # Override logic - only show redirects in development mode, hide them completely in production mode
             # This ensures product tables are correctly detected but not shown in the UI
             'redirected_to': processed_url if (
@@ -579,10 +571,16 @@ def check_links(links, expected_utm):
     
     return results
 
-def validate_email(email_path, requirements_path):
+def validate_email(email_path, requirements_path, check_product_tables=False, product_table_timeout=None):
     """
     Main function to validate email against requirements.
     Enhanced with mode awareness and improved error handling.
+    
+    Args:
+        email_path: Path to the email HTML file
+        requirements_path: Path to the requirements JSON file
+        check_product_tables: Whether to check for product tables (default: False)
+        product_table_timeout: Timeout for product table checks in seconds (default: use config)
     """
     metadata = None  # Initialize to avoid unbound variable issue
     
@@ -620,7 +618,12 @@ def validate_email(email_path, requirements_path):
         
         # Extract and check links
         links = extract_links(soup)
-        link_results = check_links(links, requirements.get('utm_parameters', {}))
+        link_results = check_links(
+            links, 
+            requirements.get('utm_parameters', {}),
+            check_product_tables=check_product_tables,
+            product_table_timeout=product_table_timeout
+        )
         
         # Enrich the links results with additional details from original links
         enriched_links = []

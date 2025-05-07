@@ -913,145 +913,120 @@
         // Display QA results
         // Add product table checking functionality
         function checkSelectedProductTables() {
-    const selectedLinks = [];
-    const linkCheckboxes = document.querySelectorAll('#links-results .product-table-checkbox:checked');
-    
-    // Get the timeout setting
-    const timeout = document.getElementById('selected-timeout').value;
-    
-    // Get all selected URLs
-    linkCheckboxes.forEach(checkbox => {
-        if (checkbox.checked) {
-            selectedLinks.push(checkbox.getAttribute('data-url'));
-        }
-    });
-    
-    if (selectedLinks.length === 0) {
-        alert('Please select at least one link to check');
-        return;
-    }
-    
-    // Show loading state
-    const checkButton = document.getElementById('check-product-tables-btn');
-    checkButton.disabled = true;
-    checkButton.textContent = 'Checking...';
-    
-    // Update status of selected checkboxes to indicate loading
-    linkCheckboxes.forEach(checkbox => {
-        const statusSpan = checkbox.closest('div').querySelector('.product-table-status');
-        if (statusSpan) {
-            statusSpan.textContent = 'Checking...';
-            statusSpan.style.color = '#3182ce'; // Blue for loading state
-        }
-    });
-    
-    // Make API request
-    fetch('/api/check-product-tables', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            urls: selectedLinks,
-            timeout: parseInt(timeout)
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json();
-    })
-    .then(data => {
-        // Update UI with results
-        if (data.results) {
-            Object.entries(data.results).forEach(([url, result]) => {
-                // Find all checkboxes with this URL
-                const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]`);
-                
-                checkboxes.forEach(checkbox => {
-                    const container = checkbox.closest('div');
-                    const statusContainer = container.querySelector('.product-table-status-container');
-                    const statusSpan = statusContainer.querySelector('.product-table-status');
-                    
-                    // Remove any existing additional elements
-                    while (statusContainer.childNodes.length > 1) {
-                        statusContainer.removeChild(statusContainer.lastChild);
-                    }
-                    
-                    // Update row styling
-                    const row = checkbox.closest('tr');
-                    
-                    // Process the result
-                    if (result.found === true) {
-                        statusSpan.textContent = 'Yes';
-                        statusSpan.style.color = '#38a169'; // Green
+            const selectedLinks = [];
+            const linkCheckboxes = document.querySelectorAll('#link-selection-list input[type="checkbox"]:checked');
+            
+            // Get the timeout setting
+            const timeout = document.getElementById('selected-timeout').value;
+            
+            // Get all selected URLs
+            linkCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedLinks.push(checkbox.value);
+                }
+            });
+            
+            if (selectedLinks.length === 0) {
+                alert('Please select at least one link to check');
+                return;
+            }
+            
+            // Show loading state
+            const checkButton = document.getElementById('check-product-tables-btn');
+            checkButton.disabled = true;
+            checkButton.textContent = 'Checking...';
+            
+            // Make API request
+            fetch('/api/check-product-tables', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    urls: selectedLinks,
+                    timeout: parseInt(timeout)
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update UI with results
+                if (data.results) {
+                    Object.entries(data.results).forEach(([url, result]) => {
+                        // Find the corresponding row in the results table
+                        const rows = document.querySelectorAll('#links-results tr');
                         
-                        if (row) {
-                            row.style.backgroundColor = '#f0fff4'; // Light green background
+                        for (const row of rows) {
+                            const linkCell = row.querySelector('td:nth-child(2)');
+                            if (linkCell && linkCell.querySelector('a').href === url) {
+                                // Update the product table detection cell
+                                const productTableCell = row.querySelector('td:nth-child(5)');
+                                
+                                if (productTableCell) {
+                                    // Clear existing content
+                                    productTableCell.innerHTML = '';
+                                    
+                                    // Create container
+                                    const container = document.createElement('div');
+                                    
+                                    // Show Yes/No with appropriate styling
+                                    const statusSpan = document.createElement('span');
+                                    statusSpan.style.fontWeight = 'bold';
+                                    
+                                    if (result.has_product_table === true) {
+                                        statusSpan.textContent = 'Yes';
+                                        statusSpan.style.color = '#38a169'; // Green
+                                        row.style.backgroundColor = '#f0fff4'; // Light green background
+                                        
+                                        if (result.product_table_class) {
+                                            const classSpan = document.createElement('span');
+                                            classSpan.textContent = ` (${result.product_table_class})`;
+                                            classSpan.style.fontSize = '0.8em';
+                                            classSpan.style.color = '#718096';
+                                            container.appendChild(statusSpan);
+                                            container.appendChild(classSpan);
+                                        } else {
+                                            container.appendChild(statusSpan);
+                                        }
+                                    } else {
+                                        statusSpan.textContent = 'No';
+                                        statusSpan.style.color = '#4a5568'; // Gray
+                                        container.appendChild(statusSpan);
+                                        
+                                        // Add error if available
+                                        if (result.error) {
+                                            const errorSpan = document.createElement('div');
+                                            errorSpan.textContent = result.error;
+                                            errorSpan.style.fontSize = '0.8em';
+                                            errorSpan.style.color = '#e53e3e'; // Red
+                                            container.appendChild(errorSpan);
+                                        }
+                                    }
+                                    
+                                    productTableCell.appendChild(container);
+                                }
+                                
+                                break;
+                            }
                         }
-                        
-                        // Add class name if available
-                        if (result.class_name) {
-                            const classSpan = document.createElement('span');
-                            classSpan.style.fontSize = '0.9em';
-                            classSpan.style.display = 'block';
-                            classSpan.style.color = '#718096'; // Gray
-                            classSpan.textContent = `Class: ${result.class_name}`;
-                            statusContainer.appendChild(classSpan);
-                        }
-                    } else {
-                        statusSpan.textContent = 'No';
-                        statusSpan.style.color = '#4a5568'; // Gray
-                        
-                        // Add error if available
-                        if (result.error) {
-                            const errorDiv = document.createElement('div');
-                            errorDiv.style.fontSize = '12px';
-                            errorDiv.style.marginTop = '4px';
-                            errorDiv.style.color = '#e53e3e'; // Red
-                            errorDiv.textContent = `Error: ${result.error}`;
-                            statusContainer.appendChild(errorDiv);
-                        }
-                        
-                        // Add detection method if available
-                        if (result.detection_method) {
-                            const methodSpan = document.createElement('span');
-                            methodSpan.style.fontSize = '0.9em';
-                            methodSpan.style.display = 'block';
-                            methodSpan.style.color = '#718096'; // Gray
-                            methodSpan.textContent = `Method: ${result.detection_method}`;
-                            statusContainer.appendChild(methodSpan);
-                        }
-                    }
-                });
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error checking product tables:', error);
+                alert('Error checking product tables: ' + error.message);
+            })
+            .finally(() => {
+                // Reset button state
+                checkButton.disabled = false;
+                checkButton.textContent = 'Check Product Tables';
             });
         }
-        
-        // Restore button state
-        checkButton.disabled = false;
-        checkButton.textContent = 'Check Selected Links';
-    })
-    .catch(error => {
-        console.error('Error checking product tables:', error);
-        alert('Error checking product tables: ' + error.message);
-        
-        // Reset status for checkboxes that were being checked
-        linkCheckboxes.forEach(checkbox => {
-            const statusSpan = checkbox.closest('div').querySelector('.product-table-status');
-            if (statusSpan) {
-                statusSpan.textContent = 'Check failed';
-                statusSpan.style.color = '#e53e3e'; // Red for error
-            }
-        });
-        
-        // Restore button state
-        checkButton.disabled = false;
-        checkButton.textContent = 'Check Selected Links';
-    });
-}
-
         
         function displayResults(data) {
             // Clear previous results
@@ -1061,36 +1036,64 @@
             // Setup the product table controls
             const productTableControls = document.getElementById('product-table-controls');
             
-            // Always show product table controls when we have links
-            if (data.links && data.links.length > 0) {
+            // Show product table controls only if they weren't already checked during validation
+            if (!data.product_tables_checked) {
                 productTableControls.style.display = 'block';
                 
-                // Set up button event handlers if not already set up
-                const selectAllBtn = document.getElementById('select-all-links');
-                const deselectAllBtn = document.getElementById('deselect-all-links');
-                const checkTablesBtn = document.getElementById('check-product-tables-btn');
+                // Populate the link selection list
+                const linkSelectionList = document.getElementById('link-selection-list');
+                linkSelectionList.innerHTML = '';
                 
-                // Remove existing event listeners (to prevent duplicates)
-                const newSelectAllBtn = selectAllBtn.cloneNode(true);
-                const newDeselectAllBtn = deselectAllBtn.cloneNode(true);
-                const newCheckTablesBtn = checkTablesBtn.cloneNode(true);
-                
-                selectAllBtn.parentNode.replaceChild(newSelectAllBtn, selectAllBtn);
-                deselectAllBtn.parentNode.replaceChild(newDeselectAllBtn, deselectAllBtn);
-                checkTablesBtn.parentNode.replaceChild(newCheckTablesBtn, checkTablesBtn);
-                
-                // Add event listeners to the new buttons
-                newSelectAllBtn.addEventListener('click', () => {
-                    const checkboxes = document.querySelectorAll('#links-results .product-table-checkbox');
-                    checkboxes.forEach(cb => cb.checked = true);
-                });
-                
-                newDeselectAllBtn.addEventListener('click', () => {
-                    const checkboxes = document.querySelectorAll('#links-results .product-table-checkbox');
-                    checkboxes.forEach(cb => cb.checked = false);
-                });
-                
-                newCheckTablesBtn.addEventListener('click', checkSelectedProductTables);
+                if (data.links && data.links.length > 0) {
+                    data.links.forEach((link, index) => {
+                        const linkItem = document.createElement('div');
+                        linkItem.style.marginBottom = '5px';
+                        
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = link.url;
+                        checkbox.id = 'link-' + index;
+                        
+                        const label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.textContent = link.url;
+                        label.style.marginLeft = '5px';
+                        label.style.wordBreak = 'break-all';
+                        
+                        linkItem.appendChild(checkbox);
+                        linkItem.appendChild(label);
+                        linkSelectionList.appendChild(linkItem);
+                    });
+                    
+                    // Set up button event handlers if not already set up
+                    const selectAllBtn = document.getElementById('select-all-links');
+                    const deselectAllBtn = document.getElementById('deselect-all-links');
+                    const checkTablesBtn = document.getElementById('check-product-tables-btn');
+                    
+                    // Remove existing event listeners (to prevent duplicates)
+                    const newSelectAllBtn = selectAllBtn.cloneNode(true);
+                    const newDeselectAllBtn = deselectAllBtn.cloneNode(true);
+                    const newCheckTablesBtn = checkTablesBtn.cloneNode(true);
+                    
+                    selectAllBtn.parentNode.replaceChild(newSelectAllBtn, selectAllBtn);
+                    deselectAllBtn.parentNode.replaceChild(newDeselectAllBtn, deselectAllBtn);
+                    checkTablesBtn.parentNode.replaceChild(newCheckTablesBtn, checkTablesBtn);
+                    
+                    // Add event listeners to the new buttons
+                    newSelectAllBtn.addEventListener('click', () => {
+                        const checkboxes = document.querySelectorAll('#link-selection-list input[type="checkbox"]');
+                        checkboxes.forEach(cb => cb.checked = true);
+                    });
+                    
+                    newDeselectAllBtn.addEventListener('click', () => {
+                        const checkboxes = document.querySelectorAll('#link-selection-list input[type="checkbox"]');
+                        checkboxes.forEach(cb => cb.checked = false);
+                    });
+                    
+                    newCheckTablesBtn.addEventListener('click', checkSelectedProductTables);
+                } else {
+                    linkSelectionList.innerHTML = '<div>No links found to check</div>';
+                }
             } else {
                 productTableControls.style.display = 'none';
             }
