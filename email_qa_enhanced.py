@@ -287,7 +287,7 @@ def check_http_status(url, timeout=None):
 def check_for_product_tables(url, timeout=None):
     """
     Check if a URL's HTML contains product table classes with improved error handling.
-    Enhanced with retry logic for more robust checking.
+    Enhanced with retry logic for more robust checking and bot detection.
     
     Args:
         url: The URL to check for product tables
@@ -306,9 +306,19 @@ def check_for_product_tables(url, timeout=None):
     # Special case for test domains - if this is a test domain, be more permissive
     is_test_domain = urlparse(url).netloc in config.test_domains
     
-    # Log the URL we're checking (but no more hardcoded detection)
-    if any(domain in url for domain in ['partly-products-showcase.lovable.app']):
-        logger.info(f"Checking product showcase URL: {url}")
+    # Log the URL we're checking
+    logger.info(f"Checking product showcase URL: {url}")
+    
+    # Create a session with appropriate headers to appear more like a regular browser
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'max-age=0'
+    })
     
     # Normal path with retries
     for attempt in range(max_retries + 1):
@@ -316,37 +326,88 @@ def check_for_product_tables(url, timeout=None):
             logger.info(f"Checking URL for product tables (attempt {attempt+1}/{max_retries+1}): {url}")
             
             # Get the HTML content with timeout
-            response = requests.get(url, timeout=timeout, allow_redirects=True)
+            response = session.get(url, timeout=timeout, allow_redirects=True)
             
             if response.status_code == 200:
                 page_content = response.text
                 
-                # Check for product-table class
-                product_table_match = re.search(r'class=["\']([^"\']*?product-table[^"\']*?)["\']', page_content)
-                if product_table_match:
-                    class_name = product_table_match.group(1)
-                    logger.info(f"Found product-table class: {class_name}")
+                # Check for common bot detection signs
+                bot_detection_phrases = [
+                    'captcha', 'security check', 'access denied', 'blocked', 
+                    'suspicious activity', 'unusual traffic', 'automated request',
+                    'too many requests', 'rate limit', 'please verify', 'cloudflare'
+                ]
+                
+                # Check response content for bot detection indications
+                if any(phrase in page_content.lower() for phrase in bot_detection_phrases):
+                    logger.warning(f"Bot detection likely on {url} - found bot detection indicators in content")
                     return {
-                        'found': True,
-                        'class_name': class_name,
-                        'detection_method': 'direct_html'
+                        'found': False,
+                        'error': 'Bot detection/blocking detected on the page',
+                        'detection_method': 'failed',
+                        'bot_blocked': True
                     }
                 
-                # Check for productListContainer class if still not found
-                list_container_match = re.search(r'class=["\']([^"\']*?productListContainer[^"\']*?)["\']', page_content)
-                if list_container_match:
-                    class_name = list_container_match.group(1)
-                    logger.info(f"Found productListContainer class: {class_name}")
-                    return {
-                        'found': True,
-                        'class_name': class_name,
-                        'detection_method': 'direct_html'
-                    }
+                # Enhanced pattern to detect various forms of product-related class names
+                product_class_patterns = [
+                    # Standard product table class
+                    r'class=["\']([^"\']*?product-table[^"\']*?)["\']',
+                    # Product list container
+                    r'class=["\']([^"\']*?productListContainer[^"\']*?)["\']',
+                    # More flexible patterns
+                    r'class=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?product[_\-\s]grid[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?products[_\-\s]container[^"\']*?)["\']',
+                    # Common eCommerce specific patterns
+                    r'class=["\']([^"\']*?product[_\-\s]catalog[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?shop[_\-\s]products[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?product[_\-\s]showcase[^"\']*?)["\']'
+                ]
+                
+                # Check each pattern
+                for pattern in product_class_patterns:
+                    match = re.search(pattern, page_content)
+                    if match:
+                        class_name = match.group(1)
+                        logger.info(f"Found product class: {class_name} using pattern {pattern}")
+                        return {
+                            'found': True,
+                            'class_name': class_name,
+                            'detection_method': 'direct_html'
+                        }
+                
+                # Also check for ID-based indicators
+                product_id_patterns = [
+                    r'id=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
+                    r'id=["\']([^"\']*?product[_\-\s]grid[^"\']*?)["\']',
+                    r'id=["\']([^"\']*?products[_\-\s]container[^"\']*?)["\']'
+                ]
+                
+                for pattern in product_id_patterns:
+                    match = re.search(pattern, page_content)
+                    if match:
+                        id_value = match.group(1)
+                        logger.info(f"Found product ID: {id_value} using pattern {pattern}")
+                        return {
+                            'found': True,
+                            'class_name': f"id:{id_value}",
+                            'detection_method': 'direct_html'
+                        }
                 
                 logger.info(f"No product table classes found on {url}")
                 return {
                     'found': False,
                     'detection_method': 'direct_html'
+                }
+            elif response.status_code == 403 or response.status_code == 429:
+                # These status codes often indicate bot detection/blocking
+                error_message = f"Likely bot detection/blocking, status code: {response.status_code}"
+                logger.error(error_message)
+                return {
+                    'found': False,
+                    'error': error_message,
+                    'detection_method': 'failed',
+                    'bot_blocked': True
                 }
             else:
                 # Only retry on 5xx server errors or if it's a test domain

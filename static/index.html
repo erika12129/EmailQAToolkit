@@ -919,6 +919,7 @@
         function checkSelectedProductTables() {
     const selectedLinks = [];
     const linkCheckboxes = document.querySelectorAll('#links-results .product-table-checkbox:checked');
+    const allCheckboxes = document.querySelectorAll('#links-results .product-table-checkbox');
     
     // Get the timeout setting
     const timeout = document.getElementById('selected-timeout').value;
@@ -934,6 +935,34 @@
         alert('Please select at least one link to check');
         return;
     }
+    
+    // First, ensure all non-checked rows have a "Not checked" status
+    allCheckboxes.forEach(checkbox => {
+        if (!checkbox.checked) {
+            const container = checkbox.closest('div');
+            const statusContainer = container.querySelector('.product-table-status-container');
+            const statusSpan = statusContainer.querySelector('.product-table-status');
+            
+            // Reset any previously checked status to "Not checked"
+            statusSpan.textContent = 'Not checked';
+            statusSpan.style.color = '#718096'; // Gray
+            
+            // Remove any data attribute that might indicate it was previously checked
+            checkbox.removeAttribute('data-checked');
+            
+            // Find the closest table row and remove any product table checked state
+            const row = checkbox.closest('tr');
+            if (row) {
+                row.removeAttribute('data-product-table-checked');
+                row.style.backgroundColor = ''; // Reset any background color
+            }
+            
+            // Remove any additional elements that might have been added
+            while (statusContainer.childNodes.length > 1) {
+                statusContainer.removeChild(statusContainer.lastChild);
+            }
+        }
+    });
     
     // Show loading state
     const checkButton = document.getElementById('check-product-tables-btn');
@@ -971,8 +1000,8 @@
         // Update UI with results
         if (data.results) {
             Object.entries(data.results).forEach(([url, result]) => {
-                // Find all checkboxes with this URL
-                const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]`);
+                // Only find checked checkboxes with this URL
+                const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]:checked`);
                 
                 checkboxes.forEach(checkbox => {
                     const container = checkbox.closest('div');
@@ -1017,8 +1046,17 @@
                         statusSpan.textContent = 'No';
                         statusSpan.style.color = '#4a5568'; // Gray
                         
+                        // Check for bot blocking specifically
+                        if (result.bot_blocked === true) {
+                            const errorDiv = document.createElement('div');
+                            errorDiv.style.fontSize = '12px';
+                            errorDiv.style.marginTop = '4px';
+                            errorDiv.style.color = '#e53e3e'; // Red
+                            errorDiv.textContent = 'Error: Bot detection triggered - site is blocking automated checks';
+                            statusContainer.appendChild(errorDiv);
+                        } 
                         // Add error if available
-                        if (result.error) {
+                        else if (result.error) {
                             const errorDiv = document.createElement('div');
                             errorDiv.style.fontSize = '12px';
                             errorDiv.style.marginTop = '4px';
@@ -1565,24 +1603,24 @@
                 statusContainer.className = 'product-table-status-container';
                 statusContainer.style.flex = '1';
                 
-                // Only consider has_product_table value when explicitly checked
+                // We want to start with "Not checked" by default, with a clean state
+                // This ensures we don't show any old status from previous checks
                 let hasProductTable = false;
-                
-                // Only show product table status if it was explicitly checked
-                if (item.product_table_checked === true && item.has_product_table === true) {
-                    hasProductTable = true;
-                }
                 
                 // Create status span
                 const statusSpan = document.createElement('span');
                 statusSpan.className = 'product-table-status';
                 statusSpan.style.fontWeight = 'bold';
                 
-                // Determine what to display based on explicit product table checking
+                // Default to "Not checked" 
+                statusSpan.textContent = 'Not checked';
+                statusSpan.style.color = '#718096'; // Gray
+                
+                // Only display product table status if it was explicitly checked and exists in the response
                 if (item.product_table_checked === true) {
-                    // Product tables were explicitly checked
-                    
-                    if (hasProductTable) {
+                    // If product table was found, update accordingly
+                    if (item.has_product_table === true) {
+                        hasProductTable = true;
                         statusSpan.textContent = 'Yes';
                         statusSpan.style.color = '#38a169'; // Green
                         row.style.backgroundColor = '#f0fff4'; // Light green background
@@ -1617,15 +1655,12 @@
                         statusContainer.appendChild(errorDiv);
                     }
                 } else {
-                    // Product tables were not checked
-                    statusSpan.textContent = 'Not checked';
-                    statusSpan.style.color = '#718096'; // Gray
-                    
-                    if (item.product_table_error) {
+                    // Important: Only add error message if it's a "skip" error, not a failure error
+                    if (item.product_table_error && item.product_table_error.includes("skipped")) {
                         const errorDiv = document.createElement('div');
                         errorDiv.style.fontSize = '12px';
                         errorDiv.style.marginTop = '4px';
-                        errorDiv.style.color = '#e53e3e'; // Red
+                        errorDiv.style.color = '#718096'; // Gray for informational message
                         errorDiv.textContent = `Error: ${item.product_table_error}`;
                         statusContainer.appendChild(errorDiv);
                     }
