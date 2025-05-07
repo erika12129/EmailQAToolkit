@@ -1,0 +1,17 @@
+{
+    "sender_address": "reply@partly-products-showcase.lovable.app/", 
+    "sender_name": "Marketing Team",
+    "reply_address": "reply@partly-products-showcase.lovable.app", 
+    "subject": "Automate your QA", 
+    "preheader": "Get your time back", 
+    "country": "US", 
+    "language": "en", 
+    "campaign_code": "ABC2505",
+    "domain": "https://partly-products-showcase.lovable.app/", 
+    "utm_parameters": {
+        "utm_source": "abc", 
+        "utm_campaign": "0_ABC2505", 
+        "utm_medium": "email", 
+        "webtrends": null
+    }
+}

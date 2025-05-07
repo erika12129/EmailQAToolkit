@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 import logging
+import json
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
@@ -217,12 +218,22 @@ async def run_qa(
         # Run validation with product table detection parameters
         # Convert check_product_tables to a boolean to handle the None case
         check_tables = bool(check_product_tables)
+        # Load requirements first so we can include them in the results
+        with open(req_path, "r") as f:
+            requirements_json = json.load(f)
+            
+        # Log the requirements JSON for debugging
+        logger.info(f"Requirements JSON: {json.dumps(requirements_json, indent=2)}")
+        
         results = validate_email(
             email_path, 
             req_path,
             check_product_tables=check_tables,
             product_table_timeout=product_table_timeout
         )
+        
+        # Add requirements to results
+        results["requirements"] = requirements_json
         
         # Add mode and product table detection info to results
         if force_production:

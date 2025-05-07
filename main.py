@@ -144,12 +144,18 @@ async def run_qa(
         # Load requirements first so we can include them in the results
         with open(req_path, "r") as f:
             requirements_json = json.load(f)
+            
+        # Add logging for debugging requirements
+        print(f"Requirements JSON in main.py: {json.dumps(requirements_json, indent=2)}")
         
         # Run validation
+        # Convert check_product_tables to a boolean to handle the None case
+        check_tables = bool(check_product_tables)
+        
         results = validate_email(
             email_path, 
             req_path, 
-            check_product_tables=check_product_tables,
+            check_product_tables=check_tables,
             product_table_timeout=product_table_timeout
         )
         

@@ -1292,8 +1292,10 @@
             // Get expected metadata values from requirements JSON first, then form inputs as fallback
             let allMetadata = [];
             
-            // Make sure we have a metadata object from requirements
-            const metadataRequirements = requirementsJSON.metadata || {};
+            // Use requirements JSON directly (not a nested metadata object)
+            const metadataRequirements = requirementsJSON;
+            
+            console.log("Requirements JSON:", JSON.stringify(requirementsJSON, null, 2));
             
             // Convert metadata object to array format expected by frontend
             if (data.metadata) {
@@ -1303,29 +1305,34 @@
                 } else {
                     // Convert object format to array format
                     for (const [key, value] of Object.entries(data.metadata)) {
-                        // Get expected value from requirements JSON first, then form fields as fallback
+                        // Get expected value directly from requirements JSON, then form fields as fallback
                         let expected = '';
                         let status = 'FAIL';
                         
+                        // Special handling for the most common metadata fields
                         if (key === 'sender_name' || key === 'sender') {
-                            expected = metadataRequirements.sender_name || senderNameInput.value;
+                            expected = requirementsJSON.sender_name || senderNameInput.value || '';
+                            console.log(`For ${key}, expected value: ${expected}`);
                         } else if (key === 'sender_address') {
-                            expected = metadataRequirements.sender_address || senderEmailInput.value;
+                            expected = requirementsJSON.sender_address || senderEmailInput.value || '';
+                            console.log(`For ${key}, expected value: ${expected}`);
                         } else if (key === 'reply_to' || key === 'reply_address') {
-                            expected = metadataRequirements.reply_address || replyEmailInput.value;
+                            expected = requirementsJSON.reply_address || replyEmailInput.value || '';
+                            console.log(`For ${key}, expected value: ${expected}`);
                         } else if (key === 'subject') {
-                            expected = metadataRequirements.subject || subjectInput.value;
+                            expected = requirementsJSON.subject || subjectInput.value || '';
+                            console.log(`For ${key}, expected value: ${expected}`);
                         } else if (key === 'preheader') {
-                            expected = metadataRequirements.preheader || preheaderInput.value;
+                            expected = requirementsJSON.preheader || preheaderInput.value || '';
+                            console.log(`For ${key}, expected value: ${expected}`);
                         } else if (key === 'campaign_code' || key === 'footer_campaign_code' || key === 'Campaign Code - Country') {
                             // Check if we have campaign_code in requirements JSON or form
-                            if (metadataRequirements.campaign_code) {
-                                expected = metadataRequirements.campaign_code;
-                            } else if (requirementsJSON.campaign_code) {
+                            if (requirementsJSON.campaign_code) {
                                 expected = requirementsJSON.campaign_code;
                             } else if (campaignCodeInput.value) {
                                 expected = campaignCodeInput.value;
                             }
+                            console.log(`For ${key}, expected value: ${expected}`);
                         }
                         
                         // Determine status based on expected value
