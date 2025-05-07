@@ -1,16 +1,17 @@
 {
-  "sender_address": "marketing@company.com",
-  "sender_name": "Company Name",
-  "reply_address": "support@company.com",
-  "subject": "Special Discount - 25% Off",
-  "preheader": "Limited time offer: 25% discount on all products! Shop now and save!",
-  "country": "US",
-  "language": "en",
-  "campaign_code": "PROMO2505",
-  "utm_parameters": {
-    "utm_source": "email",
-    "utm_medium": "marketing",
-    "utm_campaign": "123_PROMO2505",
-    "utm_content": "summer-sale-2025"
-  }
+    "sender_address": "reply@partly-products-showcase.lovable.app/", 
+    "sender_name": "Marketing Team",
+    "reply_address": "reply@partly-products-showcase.lovable.app", 
+    "subject": "Automate your QA", 
+    "preheader": "Get your time back", 
+    "country": "US", 
+    "language": "en", 
+    "campaign_code": "ABC2505",
+    "domain": "https://partly-products-showcase.lovable.app/", 
+    "utm_parameters": {
+        "utm_source": "abc", 
+        "utm_campaign": "0_ABC2505", 
+        "utm_medium": "email", 
+        "webtrends": null
+    }
 }
