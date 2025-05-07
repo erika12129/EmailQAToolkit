@@ -816,7 +816,7 @@
                     campaign_code: campaignCodeInput.value,
                     country: countryInput.value,
                     language: languageInput.value,
-                    email_type: promotionalRadio.checked ? 'promotional' : 'transactional',
+                    email_type: (promotionalRadio && promotionalRadio.checked) ? 'promotional' : 'transactional',
                     utm_parameters: {}
                 };
                 
@@ -835,9 +835,12 @@
                 formData.append('requirements', requirementsFile);
             }
             
-            // Get the advanced settings values
-            const checkProductTables = document.getElementById('product-table-check').checked;
-            const productTableTimeout = document.getElementById('product-table-timeout').value;
+            // Get the advanced settings values (with safety checks)
+            const productTableCheckElem = document.getElementById('product-table-check');
+            const productTableTimeoutElem = document.getElementById('product-table-timeout');
+            
+            const checkProductTables = productTableCheckElem ? productTableCheckElem.checked : false;
+            const productTableTimeout = productTableTimeoutElem ? productTableTimeoutElem.value : '5';
             
             // Create URL with query parameters for the advanced settings
             let url = '/run-qa';
