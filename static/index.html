@@ -464,6 +464,11 @@
         
         // Set default values based on email type
         function setDefaultsByEmailType() {
+            // Safety check - only run if the form elements exist
+            if (!promotionalRadio || !utmMediumInput || !utmSourceInput || !utmCampaignInput || !senderEmailInput) {
+                return; // Exit if form elements aren't available
+            }
+            
             if (promotionalRadio.checked) {
                 // Promotional email defaults
                 utmMediumInput.value = utmMediumInput.value || 'email';
@@ -504,9 +509,11 @@
             toggleButton.textContent = 'Switch to JSON';
         }
         
-        // Listen for changes to email type
-        promotionalRadio.addEventListener('change', setDefaultsByEmailType);
-        transactionalRadio.addEventListener('change', setDefaultsByEmailType);
+        // Listen for changes to email type (if the elements exist)
+        if (promotionalRadio && transactionalRadio) {
+            promotionalRadio.addEventListener('change', setDefaultsByEmailType);
+            transactionalRadio.addEventListener('change', setDefaultsByEmailType);
+        }
         
         // Toggle between form fields and JSON upload
         toggleButton.addEventListener('click', function() {
