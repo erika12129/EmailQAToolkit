@@ -37,22 +37,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Mount attached assets
 app.mount("/attached_assets", StaticFiles(directory="attached_assets"), name="attached_assets")
 
-# Create routes for social media icons at root level
-@app.get("/icon-twitter.png")
-@app.head("/icon-twitter.png")
-async def serve_twitter_icon():
-    return FileResponse("static/icon-twitter.svg", media_type="image/png")
-
-@app.get("/icon-facebook.png")
-@app.head("/icon-facebook.png")
-async def serve_facebook_icon():
-    return FileResponse("static/icon-facebook.svg", media_type="image/png")
-
-@app.get("/icon-instagram.png")
-@app.head("/icon-instagram.png")
-async def serve_instagram_icon():
-    return FileResponse("static/icon-instagram.svg", media_type="image/png")
-
 @app.get("/")
 async def read_root():
     """Serve the frontend application with mode indicator."""
@@ -87,11 +71,6 @@ async def test_page():
     with open("static/simple.html", "r") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
-
-@app.get("/ping")
-async def ping():
-    """Simple endpoint to test if the server is responsive."""
-    return {"status": "ok", "message": "Server is running"}
 
 @app.get("/config")
 async def get_config():
