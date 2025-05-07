@@ -646,12 +646,16 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             (is_known_working and config.is_production)
         ) else "FAIL"
         
+        # Preserve the utm_content value from the original link object
+        utm_content = link.get('utm_content') if isinstance(link, dict) else None
+        
         result = {
             'source': link_source,
             'url': original_url,
             'status': result_status,
             'http_status': status_code,  # Keep the actual HTTP status code
             'utm_issues': utm_issues,
+            'utm_content': utm_content,  # Add utm_content to the result
             'has_product_table': product_table_found,
             'product_table_class': product_table_class,
             'product_table_error': product_table_error,
