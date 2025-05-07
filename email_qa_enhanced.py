@@ -90,7 +90,12 @@ def extract_email_metadata(soup):
         logger.warning(f"Preheader not found. Attempted classes: {', '.join(attempted_classes)}")
     
     # Clean up preheader text by removing hidden characters
-    preheader_text = preheader.get_text(strip=True) if hasattr(preheader, 'get_text') else 'Not found'
+    if hasattr(preheader, 'get_text'):
+        preheader_text = preheader.get_text(strip=True)
+    elif isinstance(preheader, dict):
+        preheader_text = 'Not found'
+    else:
+        preheader_text = str(preheader)
     
     # Extract just the readable text from the preheader
     # This strips out invisible characters used for email client spacing/preview control
@@ -140,12 +145,21 @@ def extract_email_metadata(soup):
                     footer_campaign_code = f"{campaign_code} - {country_code}"
                     break
     
+    # Helper function to safely extract content from elements that might be either BS4 objects or dicts
+    def safe_extract(element):
+        if hasattr(element, 'get_text'):
+            return element.get_text(strip=True)
+        elif isinstance(element, dict) and 'content' in element:
+            return element.get('content', '')
+        else:
+            return ''
+            
     # Create metadata dictionary with clean field names
     metadata_dict = {
-        'sender_address': sender.get('content') or (sender.get_text(strip=True) if hasattr(sender, 'get_text') else '') or 'Not found',
-        'sender_name': sender_name.get('content') or (sender_name.get_text(strip=True) if hasattr(sender_name, 'get_text') else '') or 'Not found',
-        'reply_address': reply_to.get('content') or (reply_to.get_text(strip=True) if hasattr(reply_to, 'get_text') else '') or 'Not found',
-        'subject': subject.get('content') or (subject.get_text(strip=True) if hasattr(subject, 'get_text') else '') or 'Not found',
+        'sender_address': safe_extract(sender) or 'Not found',
+        'sender_name': safe_extract(sender_name) or 'Not found',
+        'reply_address': safe_extract(reply_to) or 'Not found',
+        'subject': safe_extract(subject) or 'Not found',
         'preheader': preheader_text,
         'campaign_code': footer_campaign_code
     }
@@ -222,9 +236,8 @@ def validate_utm_parameters(url, expected_utm):
                 if actual_value != expected_value:
                     utm_issues.append(f"Parameter {param} has value '{actual_value}', but expected '{expected_value}'")
             else:
-                # Only report as an issue if it's not webtrends (which is optional)
-                if param != 'webtrends':
-                    utm_issues.append(f"Missing parameter {param}")
+                # Report missing required UTM parameters
+                utm_issues.append(f"Missing parameter {param}")
     
     return utm_issues
 

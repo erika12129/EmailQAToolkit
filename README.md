@@ -1,6 +1,6 @@
 # Email QA Automation System
 
-A comprehensive web application for automated QA testing of HTML emails, providing advanced validation and analysis capabilities for email templates, links, and UTM parameters.
+A comprehensive web application for automated QA testing of HTML emails, providing advanced validation and analysis capabilities for email templates, links, UTM parameters, and product table detection with bot protection awareness.
 
 ## Features
 
@@ -10,9 +10,11 @@ A comprehensive web application for automated QA testing of HTML emails, providi
 - **UTM Parameter Verification**: Validate marketing parameters in URLs (utm_source, utm_campaign, utm_medium, etc.)
 - **Domain Validation**: Support for localized domains with language-specific URLs
 - **Product Table Detection**: Verify the presence of product tables on destination pages
+- **Bot Detection**: Identify when target websites are blocking automated checks
 - **Multilingual Support**: Testing of localized email templates in multiple languages
 - **Responsive User Interface**: Simple web-based interface for non-technical users
 - **Detailed Reporting**: Clear pass/fail indications with detailed error logs
+- **Configurable Timeouts**: Adjustable timeouts for handling slow-loading pages
 
 ## System Architecture
 
@@ -225,54 +227,57 @@ The `run_servers_prod.py` version adds:
 
 ## Product Table Detection
 
-The system checks destination pages for product display tables using two detection methods:
+The system checks destination pages for product display tables using an improved detection mechanism:
 
-1. **Direct HTML Parsing**: Looks for elements with class names containing:
-   - `product-table` or
-   - `productListContainer`
+1. **Direct HTML Parsing**: Checks for elements with class names matching specific patterns:
+   - Multiple pattern matching with smart detection for variant class names
+   - Support for configurable class name patterns per domain
+   - Pattern-based approach rather than exact string matching for more flexible detection
 
-2. **Selenium Automation**: For more complex pages, uses browser automation to:
-   - Load the page with JavaScript execution
-   - Check for dynamically loaded product tables
-   - Verify proper rendering of product displays
+2. **Bot Detection**: Identifies when websites are blocking automated checks:
+   - Detects when a website is blocking the automated request
+   - Provides clear feedback that bot protection is in place
+   - Prevents false negatives when product tables can't be accessed due to bot protection
 
-## Enhanced System with Mode Switching
+3. **Configurable Timeouts**: Adjustable timeout settings:
+   - Options for 5s, 10s, 30s, and 60s timeouts
+   - Handles slow-loading sites and complex product pages
+   - Prevents hanging the main application during detection
 
-The Email QA System now features a unified approach with runtime mode switching between development and production modes:
+## Current System Architecture
 
-1. **New Components**:
+The Email QA System now features a streamlined architecture with simplified workflow and improved UI:
+
+1. **Core Components**:
+   - `simple_mode_switcher.py`: Main FastAPI application with integrated mode switching
+   - `email_qa_enhanced.py`: Improved email validation with better error handling and bot detection
    - `runtime_config.py`: Configuration manager with mode switching capability
-   - `email_qa_enhanced.py`: Improved email validation with better error handling
-   - `main_enhanced.py`: FastAPI application with mode toggle UI
-   - `run_servers_enhanced.py`: Server launcher with mode parameter
+   - `run_servers.py`: Unified server launcher with simple workflow
 
 2. **Key Features**:
-   - **Runtime Mode Switching**: Toggle between development and production modes without restarting
-   - **Smart Link Processing**: Intelligently handles redirects based on current mode
-   - **Improved Product Table Detection**: More robust detection with better error handling
-   - **User Interface Enhancements**: Visual mode indicator and toggle button
+   - **Two-Phase Validation**: Fast initial link validation followed by optional product table detection
+   - **Selective Product Table Checking**: User-selectable URLs for product table validation
+   - **Bot Detection**: Identifies when websites are blocking automated requests
+   - **Configurable Timeouts**: User-adjustable timeout settings for product table checks
+   - **UI Improvements**: Clearer status indicators and more intuitive workflow
 
-3. **Running the Enhanced System**:
+3. **Running the System**:
    ```bash
-   # Start in default mode (development)
-   python run_servers_enhanced.py
-   
-   # Start explicitly in development mode
-   python run_servers_enhanced.py --mode development
-   
-   # Start in production mode
-   python run_servers_enhanced.py --mode production
+   # Start the application
+   python run_servers.py
    ```
 
-4. **API Enhancements**:
-   - `/set-mode/development` or `/set-mode/production`: Change mode via API
+4. **API Endpoints**:
+   - `/run-qa`: Main validation endpoint with multiple options
+   - `/check-product-tables`: Dedicated endpoint for product table checking
+   - `/set-mode/development` or `/set-mode/production`: Mode switching
    - `/config`: View current configuration
-   - `/run-qa?force_production=true`: Run a single validation in production mode
-   - `/run-qa?force_development=true`: Run a single validation in development mode
 
-5. **In-App Mode Switching**:
-   - Click the mode indicator in the bottom-right corner to toggle between modes
-   - Page will reload with the new mode applied
+5. **Product Table Detection Workflow**:
+   - Initial validation performs fast link checking only
+   - User selects which links to perform product table checks on
+   - Dedicated check runs with configurable timeout
+   - Results display clear status including bot detection
 
 ## Troubleshooting
 
@@ -280,8 +285,10 @@ The Email QA System now features a unified approach with runtime mode switching 
 
 - **404 Not Found**: Make sure both servers are running
 - **File Upload Errors**: Check file formats (HTML for emails, JSON for requirements)
-- **Link Validation Failures**: Verify URL accessibility
-- **Product Table Detection Issues**: Check console logs for detailed class information
+- **Link Validation Failures**: Verify URL accessibility 
+- **Bot Detection Messages**: This indicates the website is blocking automated requests, not a system error
+- **Product Table Detection Issues**: Check if the appropriate checkboxes are selected before running detection
+- **Slow Detection Responses**: Try increasing the timeout setting for slow-loading sites
 - **Production Mode Failures**: Check domain configuration in `domain_config.json`
 
 ## Development and Extension

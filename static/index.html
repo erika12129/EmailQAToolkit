@@ -13,6 +13,23 @@
             margin: 0;
             padding: 20px;
         }
+        /* Control button layout styles */
+        .controls-flex-container {
+            display: flex !important; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        /* Check Selected Links button styling */
+        #check-product-tables-btn {
+            min-width: 140px;
+            text-align: center;
+            white-space: nowrap;
+            height: 32px; /* Fixed height to prevent layout shift */
+            box-sizing: border-box;
+            position: relative;
+        }
         .container {
             max-width: 800px;
             margin: 0 auto;
@@ -72,7 +89,8 @@
         #links-results th:nth-child(2) { width: 30%; } /* URL - give space for long URLs */
         #links-results th:nth-child(3) { width: 25%; } /* Redirected To - for localized domains */
         #links-results th:nth-child(4) { width: 10%; } /* Status */
-        #links-results th:nth-child(5) { width: 25%; } /* Issues */
+        #links-results th:nth-child(5) { width: 25%; } /* Product Table Detection */
+        #links-results th:nth-child(6) { width: 25%; } /* Issues */
         .pass {
             color: #38a169;
         }
@@ -81,6 +99,12 @@
         }
         .hidden {
             display: none;
+        }
+        .dev-mode-only {
+            display: table-cell; /* Default to visible */
+        }
+        .production-mode .dev-mode-only {
+            display: none; /* Hide in production mode */
         }
         .file-name {
             margin-top: 5px;
@@ -283,10 +307,7 @@
                             <input type="text" id="utm-country" class="text-input" placeholder="us">
                         </div>
                         
-                        <div class="form-group">
-                            <label for="webtrends">Webtrends:</label>
-                            <input type="text" id="webtrends" class="text-input" placeholder="summer-promo">
-                        </div>
+
                     </div>
                 </div>
                 
@@ -358,7 +379,7 @@
             
             <h3>Links</h3>
             <div id="product-table-controls" style="margin-bottom: 15px; display: none;">
-                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                <div class="controls-flex-container" style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 10px;">
                     <div>
                         <label for="selected-timeout">Product Table Detection Timeout:</label>
                         <select id="selected-timeout" class="form-control" style="margin-left: 5px;">
@@ -369,11 +390,11 @@
                         </select>
                     </div>
                     <div>
-                        <button type="button" id="select-all-links" class="button" style="background-color: #4299e1; margin-right: 5px; width: auto; padding: 5px 10px;">Select All</button>
-                        <button type="button" id="deselect-all-links" class="button" style="background-color: #a0aec0; width: auto; padding: 5px 10px;">Deselect All</button>
+                        <button type="button" id="select-all-links" class="button" style="background-color: #4299e1; margin-right: 5px; padding: 5px 10px; height: 32px;">Select All</button>
+                        <button type="button" id="deselect-all-links" class="button" style="background-color: #a0aec0; padding: 5px 10px; height: 32px;">Deselect All</button>
                     </div>
                     <div>
-                        <button type="button" id="check-product-tables-btn" class="button" style="background-color: #48bb78; width: auto; padding: 5px 10px;">Check Selected Links</button>
+                        <button type="button" id="check-product-tables-btn" class="button" style="background-color: #48bb78; padding: 5px 10px;">Check Selected Links</button>
                     </div>
                 </div>
                 <p style="font-size: 0.9em; color: #718096;">
@@ -385,7 +406,7 @@
                     <tr>
                         <th>Link Source</th>
                         <th>URL</th>
-                        <th>Redirected To</th>
+                        <th id="redirected-to-header" class="dev-mode-only">Redirected To</th>
                         <th>Status</th>
                         <th>Product Table Detection</th>
                         <th>Issues</th>
@@ -457,7 +478,6 @@
         const utmCampaignInput = document.getElementById('utm-campaign');
         const utmContentInput = document.getElementById('utm-content');
         const utmCountryInput = document.getElementById('utm-country');
-        const webtrendsInput = document.getElementById('webtrends');
         
         let useJsonUpload = true; // Start with JSON editor by default
         let useJsonTextarea = true; // Use JSON editor instead of file upload by default
@@ -508,6 +528,30 @@
             hideElement(jsonUploadContainer);
             toggleButton.textContent = 'Switch to JSON';
         }
+        
+        // Check application mode on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            // Fetch the current configuration to determine mode
+            fetch('/config')
+                .then(response => response.json())
+                .then(data => {
+                    const appMode = data.mode || 'production';  // Default to production if not specified
+                    
+                    // Apply mode class to container
+                    if (appMode === 'production') {
+                        document.querySelector('.container').classList.add('production-mode');
+                    } else {
+                        document.querySelector('.container').classList.remove('production-mode');
+                    }
+                    
+                    console.log('Application running in ' + appMode + ' mode');
+                })
+                .catch(err => {
+                    console.error('Error fetching application config:', err);
+                    // Default to production mode on error
+                    document.querySelector('.container').classList.add('production-mode');
+                });
+        });
         
         // Listen for changes to email type (if the elements exist)
         if (promotionalRadio && transactionalRadio) {
@@ -826,7 +870,6 @@
                 if (utmCampaignInput.value) requirementsObj.utm_parameters.utm_campaign = utmCampaignInput.value;
                 if (utmContentInput.value) requirementsObj.utm_parameters.utm_content = utmContentInput.value;
                 if (utmCountryInput.value) requirementsObj.utm_parameters.country = utmCountryInput.value;
-                if (webtrendsInput.value) requirementsObj.utm_parameters.webtrends = webtrendsInput.value;
                 
                 // Convert to JSON and create a file
                 const requirementsBlob = new Blob([JSON.stringify(requirementsObj, null, 2)], { type: 'application/json' });
@@ -1114,6 +1157,12 @@
             // Always show product table controls when we have links
             if (data.links && data.links.length > 0) {
                 productTableControls.style.display = 'block';
+                
+                // Make sure flex container is displayed correctly
+                const flexContainer = productTableControls.querySelector('.controls-flex-container');
+                if (flexContainer) {
+                    flexContainer.style.display = 'flex';
+                }
                 
                 // Set up button event handlers if not already set up
                 const selectAllBtn = document.getElementById('select-all-links');
@@ -1510,16 +1559,24 @@
                 urlCell.appendChild(link);
                 row.appendChild(urlCell);
                 
-                // Redirected URL Cell (new)
+                // Redirected URL Cell
                 const redirectedCell = document.createElement('td');
+                redirectedCell.classList.add('dev-mode-only'); // Add class for mode-based display
                 redirectedCell.style.wordBreak = 'break-word'; // Allow URLs to wrap
                 redirectedCell.style.maxWidth = '250px'; // Set a max width to encourage wrapping
                 
                 // Get the current application mode from the data
                 const appMode = data.mode || 'production';  // Default to production if not specified
                 
-                // Only show redirected URLs in development mode, or if not localhost/internal
-                if (item.redirected_to && (appMode === 'development' || !item.redirected_to.includes('localhost'))) {
+                // Apply appropriate mode class to container for CSS control
+                if (appMode === 'production') {
+                    document.querySelector('.container').classList.add('production-mode');
+                } else {
+                    document.querySelector('.container').classList.remove('production-mode');
+                }
+                
+                // Add content to the cell regardless of mode (CSS will handle visibility)
+                if (item.redirected_to) {
                     const redirectedLink = document.createElement('a');
                     redirectedLink.href = item.redirected_to;
                     redirectedLink.target = '_blank';
@@ -1684,15 +1741,7 @@
                     
                     item.utm_issues.forEach(issue => {
                         const issueItem = document.createElement('li');
-                        
-                        // Note that empty webtrends is OK
-                        if (issue.includes('webtrends') && issue.includes('missing')) {
-                            issueItem.textContent = issue + ' (This is acceptable)';
-                            issueItem.style.color = '#718096'; // Gray color to indicate it's not a critical issue
-                        } else {
-                            issueItem.textContent = issue;
-                        }
-                        
+                        issueItem.textContent = issue;
                         issuesList.appendChild(issueItem);
                     });
                     
