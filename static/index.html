@@ -181,12 +181,12 @@
                 <div style="display: flex; align-items: center; margin-bottom: 10px;">
                     <h3 style="margin: 0; font-size: 16px;">Email Requirements</h3>
                     <button type="button" id="toggle-advanced" style="margin-left: 10px; font-size: 12px; padding: 4px 8px; background-color: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">
-                        Switch to JSON
+                        Switch to Form Fields
                     </button>
                 </div>
                 
-                <!-- Form Fields for Requirements -->
-                <div id="requirements-form">
+                <!-- Form Fields for Requirements (hidden by default) -->
+                <div id="requirements-form" class="hidden">
                     <!-- Email Type Selection -->
                     <div class="form-section">
                         <h4 class="section-title">Email Type</h4>
@@ -290,15 +290,15 @@
                     </div>
                 </div>
                 
-                <!-- JSON Upload (hidden by default) -->
-                <div id="json-upload-container" class="hidden">
+                <!-- JSON Upload (shown by default) -->
+                <div id="json-upload-container">
                     <div style="display: flex; align-items: center; margin-bottom: 10px;">
                         <button type="button" id="toggle-json-input" style="font-size: 12px; padding: 4px 8px; background-color: #e2e8f0; border: none; border-radius: 4px; cursor: pointer;">
-                            Switch to JSON Editor
+                            Switch to File Upload
                         </button>
                     </div>
                     
-                    <div id="json-file-container">
+                    <div id="json-file-container" class="hidden">
                         <div class="file-input-container">
                             <label>Upload Requirements JSON:</label>
                             <input type="file" accept=".json" id="req-file" />
@@ -306,7 +306,7 @@
                         </div>
                     </div>
                     
-                    <div id="json-editor-container" class="hidden">
+                    <div id="json-editor-container">
                         <div style="margin-bottom: 10px;">
                             <label for="json-textarea">Edit Requirements JSON:</label>
                             <div style="display: flex; justify-content: flex-end; margin: 5px 0;">
@@ -329,29 +329,7 @@
             
             <div id="error-message" class="error hidden"></div>
             
-            <!-- Advanced Settings Section -->
-            <div id="advanced-settings" class="form-section" style="margin-top: 20px; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px;">
-                <h3>Advanced Settings</h3>
-                
-                <div class="form-group">
-                    <label for="product-table-check">
-                        <input type="checkbox" id="product-table-check" name="product-table-check">
-                        Check for product tables
-                    </label>
-                    <small class="form-helper">Enabling this will check for product tables in links, which may slow down validation.</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="product-table-timeout">Product Table Check Timeout:</label>
-                    <select id="product-table-timeout" name="product-table-timeout" class="form-control">
-                        <option value="5">5 seconds (default)</option>
-                        <option value="10">10 seconds</option>
-                        <option value="30">30 seconds</option>
-                        <option value="60">60 seconds (slow connections)</option>
-                    </select>
-                    <small class="form-helper">Longer timeouts allow more time for product table detection, but may slow down validation.</small>
-                </div>
-            </div>
+            <!-- Advanced settings have been moved to the product table controls section -->
             
             <button type="submit" class="button" id="submit-button">Run QA</button>
         </form>
@@ -481,7 +459,8 @@
         const utmCountryInput = document.getElementById('utm-country');
         const webtrendsInput = document.getElementById('webtrends');
         
-        let useJsonUpload = false; // Start with form fields by default
+        let useJsonUpload = true; // Start with JSON editor by default
+        let useJsonTextarea = true; // Use JSON editor instead of file upload by default
         
         // Set default values based on email type
         function setDefaultsByEmailType() {
@@ -508,6 +487,22 @@
         
         // Initialize defaults
         setDefaultsByEmailType();
+        
+        // Set initial state based on useJsonUpload value
+        if (useJsonUpload) {
+            hideElement(requirementsForm);
+            showElement(jsonUploadContainer);
+            toggleButton.textContent = 'Switch to Form Fields';
+            
+            // Default to the JSON editor view instead of file upload
+            hideElement(jsonFileContainer);
+            showElement(jsonEditorContainer);
+            toggleJsonInputButton.textContent = 'Switch to File Upload';
+        } else {
+            showElement(requirementsForm);
+            hideElement(jsonUploadContainer);
+            toggleButton.textContent = 'Switch to JSON';
+        }
         
         // Listen for changes to email type
         promotionalRadio.addEventListener('change', setDefaultsByEmailType);
@@ -548,7 +543,6 @@
         });
         
         // Toggle between JSON file upload and JSON textarea
-        let useJsonTextarea = false;
         toggleJsonInputButton.addEventListener('click', function() {
             useJsonTextarea = !useJsonTextarea;
             
@@ -982,6 +976,14 @@
                     
                     // Update row styling
                     const row = checkbox.closest('tr');
+                    
+                    // Mark this link as explicitly checked
+                    checkbox.setAttribute('data-checked', 'true');
+                    
+                    // Find the closest table row and store the product_table_checked state
+                    if (row) {
+                        row.setAttribute('data-product-table-checked', 'true');
+                    }
                     
                     // Process the result
                     if (result.found === true) {
@@ -1553,29 +1555,12 @@
                 statusContainer.className = 'product-table-status-container';
                 statusContainer.style.flex = '1';
                 
-                // Normalize has_product_table value across environments
+                // Only consider has_product_table value when explicitly checked
                 let hasProductTable = false;
                 
-                // First check explicit has_product_table flag
-                if (item.has_product_table === true) {
+                // Only show product table status if it was explicitly checked
+                if (item.product_table_checked === true && item.has_product_table === true) {
                     hasProductTable = true;
-                }
-                
-                // Special case for partly-products-showcase URLs
-                if (item.url && item.url.includes('partly-products-showcase.lovable.app')) {
-                    // Product URLs should show product tables
-                    if (item.url.includes('/products/') || 
-                        item.url.includes('/products?') || 
-                        item.url.endsWith('/products')) {
-                        hasProductTable = true;
-                        // Ensure we have a class name for logging
-                        if (!item.product_table_class) {
-                            item.product_table_class = 'product-table';
-                        }
-                        
-                        // Clear any error messages for known good URLs
-                        item.product_table_error = null;
-                    }
                 }
                 
                 // Create status span
@@ -1583,9 +1568,9 @@
                 statusSpan.className = 'product-table-status';
                 statusSpan.style.fontWeight = 'bold';
                 
-                // Determine what to display based on whether product tables were checked
-                if (item.has_product_table !== undefined || hasProductTable) {
-                    // Product tables were checked during initial validation
+                // Determine what to display based on explicit product table checking
+                if (item.product_table_checked === true) {
+                    // Product tables were explicitly checked
                     
                     if (hasProductTable) {
                         statusSpan.textContent = 'Yes';
@@ -1612,8 +1597,8 @@
                         statusSpan.style.color = '#4a5568'; // Gray
                     }
                     
-                    // Only show errors for pages that don't have product tables
-                    if (item.product_table_error && !hasProductTable) {
+                    // Show errors for any checked page
+                    if (item.product_table_error) {
                         const errorDiv = document.createElement('div');
                         errorDiv.style.fontSize = '12px';
                         errorDiv.style.marginTop = '4px';
@@ -1623,8 +1608,17 @@
                     }
                 } else {
                     // Product tables were not checked
-                    statusSpan.textContent = 'Product table check not requested';
+                    statusSpan.textContent = 'Not checked';
                     statusSpan.style.color = '#718096'; // Gray
+                    
+                    if (item.product_table_error) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.style.fontSize = '12px';
+                        errorDiv.style.marginTop = '4px';
+                        errorDiv.style.color = '#e53e3e'; // Red
+                        errorDiv.textContent = `Error: ${item.product_table_error}`;
+                        statusContainer.appendChild(errorDiv);
+                    }
                 }
                 
                 // Add status span to container
