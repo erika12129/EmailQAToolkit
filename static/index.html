@@ -379,23 +379,22 @@
             
             <h3>Links</h3>
             <div id="product-table-controls" style="margin-bottom: 15px; display: none;">
-                <div class="controls-flex-container" style="display: flex; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 10px;">
-                    <div>
-                        <label for="selected-timeout">Product Table Detection Timeout:</label>
-                        <select id="selected-timeout" class="form-control" style="margin-left: 5px;">
-                            <option value="5">5 seconds (default)</option>
-                            <option value="10">10 seconds</option>
-                            <option value="30">30 seconds</option>
-                            <option value="60">60 seconds (slow connections)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <button type="button" id="select-all-links" class="button" style="background-color: #4299e1; margin-right: 5px; padding: 5px 10px; height: 32px;">Select All</button>
-                        <button type="button" id="deselect-all-links" class="button" style="background-color: #a0aec0; padding: 5px 10px; height: 32px;">Deselect All</button>
-                    </div>
-                    <div>
-                        <button type="button" id="check-product-tables-btn" class="button" style="background-color: #48bb78; padding: 5px 10px;">Check Selected Links</button>
-                    </div>
+                <!-- Timeout dropdown in its own row -->
+                <div style="margin-bottom: 15px;">
+                    <label for="selected-timeout">Product Table Detection Timeout:</label>
+                    <select id="selected-timeout" class="form-control" style="margin-left: 5px;">
+                        <option value="5">5 seconds (default)</option>
+                        <option value="10">10 seconds</option>
+                        <option value="30">30 seconds</option>
+                        <option value="60">60 seconds (slow connections)</option>
+                    </select>
+                </div>
+                
+                <!-- All buttons in a single row with consistent spacing -->
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <button type="button" id="select-all-links" class="button" style="background-color: #4299e1; padding: 5px 10px; height: 32px; min-width: 90px;">Select All</button>
+                    <button type="button" id="deselect-all-links" class="button" style="background-color: #a0aec0; padding: 5px 10px; height: 32px; min-width: 90px;">Deselect All</button>
+                    <button type="button" id="check-product-tables-btn" class="button" style="background-color: #48bb78; padding: 5px 10px; height: 32px; min-width: 140px;">Check Selected Links</button>
                 </div>
                 <p style="font-size: 0.9em; color: #718096;">
                     Select links to check for product tables and click "Check Selected Links" to validate.

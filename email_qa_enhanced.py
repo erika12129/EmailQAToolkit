@@ -90,7 +90,10 @@ def extract_email_metadata(soup):
         logger.warning(f"Preheader not found. Attempted classes: {', '.join(attempted_classes)}")
     
     # Clean up preheader text by removing hidden characters
-    if hasattr(preheader, 'get_text'):
+    # Extract preheader text safely based on the object type
+    if preheader is None:
+        preheader_text = 'Not found'
+    elif hasattr(preheader, 'get_text') and callable(preheader.get_text):
         preheader_text = preheader.get_text(strip=True)
     elif isinstance(preheader, dict):
         preheader_text = 'Not found'
