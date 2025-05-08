@@ -52,14 +52,14 @@ def extract_email_metadata(soup):
         soup.find('meta', {'name': 'sender_address'}) or 
         soup.find('meta', {'name': 'sender-address'}) or 
         soup.find('from') or 
-        {}
+        None
     )
     
     sender_name = (
         soup.find('meta', {'name': 'sender-name'}) or 
         soup.find('meta', {'name': 'sender_name'}) or 
         soup.find('from-name') or 
-        {}
+        None
     )
     
     reply_to = (
@@ -68,10 +68,10 @@ def extract_email_metadata(soup):
         soup.find('meta', {'name': 'reply_address'}) or 
         soup.find('meta', {'name': 'reply-address'}) or 
         soup.find('reply-to') or 
-        {}
+        None
     )
     
-    subject = soup.find('meta', {'name': 'subject'}) or soup.find('title') or {}
+    subject = soup.find('meta', {'name': 'subject'}) or soup.find('title') or None
     
     # Try various common preheader class names
     preheader_classes = ['preheader', 'preview-text', 'preview', 'hidden-preheader']
@@ -151,20 +151,28 @@ def extract_email_metadata(soup):
                     footer_campaign_code = f"{campaign_code} - {country_code}"
                     break
     
-    # Helper function to safely extract content from elements that might be either BS4 objects or dicts
+    # Helper function to safely extract content from elements that might be various types
     def safe_extract(element):
         if element is None:
             return ''
         elif isinstance(element, str):
             return element
-        elif hasattr(element, 'get_text') and callable(getattr(element, 'get_text', None)):
+        # Handle BeautifulSoup elements with content attribute (meta tags)
+        elif hasattr(element, 'get') and callable(getattr(element, 'get', None)):
+            # If it's a meta tag, use its content attribute
+            content = element.get('content')
+            if content:
+                return content
+                
+        # Handle BeautifulSoup elements with text content
+        if hasattr(element, 'get_text') and callable(getattr(element, 'get_text', None)):
             return element.get_text(strip=True)
         elif isinstance(element, dict) and 'content' in element:
             return element.get('content', '')
         else:
-            # Convert any other type to string
+            # Try to convert any other type to string
             try:
-                return str(element)
+                return str(element).strip()
             except:
                 return ''
             
