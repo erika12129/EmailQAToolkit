@@ -1042,25 +1042,53 @@
         }
     });
     
-    // Make API request - use path relative to the current hostname
-    fetch(window.location.origin + '/api/check_product_tables', { // Using full origin and underscore version which is more reliable in production
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            urls: selectedLinks,
-            timeout: parseInt(timeout)
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
+    // For debugging
+    console.log('Making API request to check product tables for URLs:', selectedLinks);
+    
+    // Define multiple endpoints to try in sequence
+    const endpoints = [
+        '/api/check_product_tables',
+        '/check_product_tables',
+        '/api/check-product-tables'
+    ];
+    
+    // Function to try the next endpoint
+    function tryEndpoint(index) {
+        if (index >= endpoints.length) {
+            // If we've tried all endpoints and none worked
+            throw new Error('All product table check endpoints failed');
         }
-        return response.json();
-    })
+        
+        const endpoint = endpoints[index];
+        console.log(`Trying product table check endpoint: ${endpoint}`);
+        
+        // Make API request - use path relative to the current hostname
+        return fetch(window.location.origin + endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                urls: selectedLinks,
+                timeout: parseInt(timeout)
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                console.log(`Endpoint ${endpoint} failed with status ${response.status}`);
+                // Try the next endpoint
+                return tryEndpoint(index + 1);
+            }
+            return response.json();
+        });
+    }
+    
+    // Start with the first endpoint
+    tryEndpoint(0)
     .then(data => {
+        console.log('Product table check succeeded, results:', data);
+        
         // Update UI with results
         if (data.results) {
             Object.entries(data.results).forEach(([url, result]) => {
@@ -1149,7 +1177,14 @@
     })
     .catch(error => {
         console.error('Error checking product tables:', error);
-        alert('Error checking product tables: ' + error.message);
+        
+        // Create more detailed error message
+        let errorMessage = error.message || 'Unknown error';
+        
+        // Don't show alert if server is unavailable - just log it
+        if (errorMessage !== 'All product table check endpoints failed') {
+            alert('Error checking product tables: ' + errorMessage);
+        }
         
         // Reset status for checkboxes that were being checked
         linkCheckboxes.forEach(checkbox => {
@@ -1157,6 +1192,23 @@
             if (statusSpan) {
                 statusSpan.textContent = 'Check failed';
                 statusSpan.style.color = '#e53e3e'; // Red for error
+                
+                // Add error message to each status container
+                const container = checkbox.closest('div');
+                const statusContainer = container.querySelector('.product-table-status-container');
+                
+                // Clear existing error messages
+                const existingErrors = statusContainer.querySelectorAll('.error-message');
+                existingErrors.forEach(el => el.remove());
+                
+                // Add error message
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.style.fontSize = '12px';
+                errorDiv.style.marginTop = '4px';
+                errorDiv.style.color = '#e53e3e'; // Red
+                errorDiv.textContent = `Error: ${errorMessage}`;
+                statusContainer.appendChild(errorDiv);
             }
         });
         
