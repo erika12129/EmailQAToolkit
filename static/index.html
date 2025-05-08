@@ -377,6 +377,28 @@
                 </tbody>
             </table>
             
+            <!-- Standalone Images Section -->
+            <div id="images-section" style="margin-top: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3>Standalone Images</h3>
+                    <span id="image-warning-count" style="background-color: #FEF3C7; color: #92400E; padding: 4px 10px; border-radius: 9999px; font-size: 12px; display: none;">0 warnings</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Alt Text</th>
+                            <th>Status</th>
+                            <th>Location</th>
+                            <th>Dimensions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="images-results">
+                        <!-- Image results will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+            
             <h3>Links</h3>
             <div id="product-table-controls" style="margin-bottom: 15px; display: none;">
                 <!-- Timeout dropdown in its own row -->
@@ -1021,7 +1043,7 @@
     });
     
     // Make API request
-    fetch('/api/check-product-tables', {
+    fetch('/api/check_product_tables', { // Using underscore version which is more reliable in production
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1504,6 +1526,101 @@
                 
                 metadataResults.appendChild(row);
             });
+            
+            // Process and display standalone images if available
+            const imagesSection = document.getElementById('images-section');
+            const imagesResults = document.getElementById('images-results');
+            const imageWarningCount = document.getElementById('image-warning-count');
+            
+            // Clear previous results
+            if (imagesResults) imagesResults.innerHTML = '';
+            
+            if (data.images && data.images.length > 0) {
+                // Show the section
+                if (imagesSection) imagesSection.style.display = 'block';
+                
+                // Display warning count if any
+                if (imageWarningCount) {
+                    if (data.image_warnings && data.image_warnings > 0) {
+                        imageWarningCount.textContent = `${data.image_warnings} warning${data.image_warnings !== 1 ? 's' : ''}`;
+                        imageWarningCount.style.display = 'inline-block';
+                    } else {
+                        imageWarningCount.style.display = 'none';
+                    }
+                }
+                
+                // Process each image
+                data.images.forEach(image => {
+                    const row = document.createElement('tr');
+                    
+                    // Image thumbnail cell
+                    const imageCell = document.createElement('td');
+                    if (image.src) {
+                        const thumbnail = document.createElement('img');
+                        thumbnail.src = image.src;
+                        thumbnail.alt = image.alt || 'No alt text';
+                        thumbnail.style.maxWidth = '120px';
+                        thumbnail.style.maxHeight = '80px';
+                        thumbnail.style.border = '1px solid #e2e8f0';
+                        imageCell.appendChild(thumbnail);
+                    } else {
+                        imageCell.textContent = 'No image source';
+                    }
+                    row.appendChild(imageCell);
+                    
+                    // Alt text cell
+                    const altTextCell = document.createElement('td');
+                    if (image.has_alt) {
+                        // Has alt text - display it normally
+                        altTextCell.textContent = image.alt;
+                    } else {
+                        // No alt text - display warning
+                        const altTextWarning = document.createElement('div');
+                        altTextWarning.innerHTML = '⚠️ alt: none detected';
+                        altTextWarning.style.color = '#e53e3e'; // Red for warning
+                        altTextCell.appendChild(altTextWarning);
+                    }
+                    row.appendChild(altTextCell);
+                    
+                    // Status cell
+                    const statusCell = document.createElement('td');
+                    if (image.alt_warning) {
+                        statusCell.textContent = 'Missing alt text';
+                        statusCell.className = 'fail';
+                    } else {
+                        statusCell.textContent = 'OK';
+                        statusCell.className = 'pass';
+                    }
+                    row.appendChild(statusCell);
+                    
+                    // Location cell
+                    const locationCell = document.createElement('td');
+                    locationCell.textContent = image.location || 'Unknown';
+                    if (image.likely_purpose) {
+                        const purposeSpan = document.createElement('div');
+                        purposeSpan.textContent = image.likely_purpose;
+                        purposeSpan.style.fontSize = '12px';
+                        purposeSpan.style.color = '#718096';
+                        purposeSpan.style.marginTop = '4px';
+                        locationCell.appendChild(purposeSpan);
+                    }
+                    row.appendChild(locationCell);
+                    
+                    // Dimensions cell
+                    const dimensionsCell = document.createElement('td');
+                    if (image.width && image.height) {
+                        dimensionsCell.textContent = `${image.width} × ${image.height}`;
+                    } else {
+                        dimensionsCell.textContent = 'Not specified';
+                    }
+                    row.appendChild(dimensionsCell);
+                    
+                    imagesResults.appendChild(row);
+                });
+            } else {
+                // No images found - hide the section
+                if (imagesSection) imagesSection.style.display = 'none';
+            }
             
             // Display links results
             data.links.forEach(item => {

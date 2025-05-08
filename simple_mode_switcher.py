@@ -123,6 +123,7 @@ async def set_mode(mode: str):
         )
 
 @app.post("/api/check-product-tables")
+@app.post("/api/check_product_tables") # Adding an alternative endpoint with underscores
 async def check_product_tables(
     urls: list = Body(..., description="List of URLs to check for product tables"),
     timeout: Optional[int] = Body(None, description="Timeout for product table checks in seconds")

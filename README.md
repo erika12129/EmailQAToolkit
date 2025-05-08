@@ -1,6 +1,6 @@
 # Email QA Automation System
 
-A comprehensive web application for automated QA testing of HTML emails, providing advanced validation and analysis capabilities for email templates, links, UTM parameters, and product table detection with bot protection awareness.
+A comprehensive web application for automated QA testing of HTML emails, providing advanced validation and analysis capabilities for email templates, links, UTM parameters, image alt text accessibility, and product table detection with bot protection awareness.
 
 ## Features
 
@@ -10,6 +10,7 @@ A comprehensive web application for automated QA testing of HTML emails, providi
 - **UTM Parameter Verification**: Validate marketing parameters in URLs (utm_source, utm_campaign, utm_medium, etc.)
 - **Domain Validation**: Support for localized domains with language-specific URLs
 - **Product Table Detection**: Verify the presence of product tables on destination pages
+- **Image Alt Text Validation**: Verify standalone images have appropriate alt text for accessibility
 - **Bot Detection**: Identify when target websites are blocking automated checks
 - **Multilingual Support**: Testing of localized email templates in multiple languages
 - **Responsive User Interface**: Simple web-based interface for non-technical users
@@ -176,6 +177,7 @@ Core functionality for email validation:
 - Link extraction and validation
 - UTM parameter checking
 - Metadata verification
+- Image alt text extraction and validation
 - Product table detection (both with direct HTTP requests and Selenium)
 
 The `email_qa_prod.py` version adds:
@@ -257,6 +259,7 @@ The Email QA System now features a streamlined architecture with simplified work
 2. **Key Features**:
    - **Two-Phase Validation**: Fast initial link validation followed by optional product table detection
    - **Selective Product Table Checking**: User-selectable URLs for product table validation
+   - **Image Alt Text Validation**: Extracts standalone images and validates proper alt text for accessibility
    - **Bot Detection**: Identifies when websites are blocking automated requests
    - **Configurable Timeouts**: User-adjustable timeout settings for product table checks
    - **UI Improvements**: Clearer status indicators and more intuitive workflow
@@ -278,6 +281,14 @@ The Email QA System now features a streamlined architecture with simplified work
    - User selects which links to perform product table checks on
    - Dedicated check runs with configurable timeout
    - Results display clear status including bot detection
+   
+6. **Image Alt Text Validation**:
+   - Extracts all standalone images not contained within links
+   - Validates presence of alt text attributes for accessibility compliance
+   - Displays warning icons (⚠️) for images missing alt text 
+   - Shows image thumbnails alongside location and dimension information
+   - Provides count of accessibility warnings in the interface
+   - Helps identify and fix missing image descriptions for screen readers
 
 ## Troubleshooting
 
@@ -288,6 +299,8 @@ The Email QA System now features a streamlined architecture with simplified work
 - **Link Validation Failures**: Verify URL accessibility 
 - **Bot Detection Messages**: This indicates the website is blocking automated requests, not a system error
 - **Product Table Detection Issues**: Check if the appropriate checkboxes are selected before running detection
+- **Missing Image Alt Text Warnings**: These indicate accessibility issues that should be fixed in the email HTML
+- **Image Section Not Appearing**: Email may not contain any standalone images (images inside links appear in the Links section)
 - **Slow Detection Responses**: Try increasing the timeout setting for slow-loading sites
 - **Production Mode Failures**: Check domain configuration in `domain_config.json`
 

@@ -98,7 +98,8 @@ def extract_email_metadata(soup):
     elif hasattr(preheader, 'get_text') and callable(getattr(preheader, 'get_text', None)):
         preheader_text = preheader.get_text(strip=True)
     elif isinstance(preheader, dict):
-        preheader_text = 'Not found'
+        # For dictionary type, try to extract a value or convert to string representation
+        preheader_text = str(preheader.get('text', preheader))
     else:
         # In case of any other type, convert to string
         preheader_text = str(preheader)
@@ -271,6 +272,72 @@ def extract_email_metadata(soup):
     }
     
     return metadata_dict
+
+def extract_standalone_images(soup):
+    """
+    Extract all standalone images (not inside links) from email HTML.
+    
+    Args:
+        soup: BeautifulSoup object of the email HTML
+        
+    Returns:
+        list: List of dictionaries containing image details
+    """
+    images = []
+    
+    # Get all images
+    all_images = soup.find_all('img')
+    
+    # Filter out images that are inside links
+    for img in all_images:
+        # Skip if this image is inside a link
+        if img.parent.name == 'a' or img.find_parent('a'):
+            continue
+        
+        # Get image attributes
+        src = img.get('src', '')
+        alt = img.get('alt', '')
+        width = img.get('width', '')
+        height = img.get('height', '')
+        
+        # Create image entry
+        image_entry = {
+            'src': src,
+            'alt': alt,
+            'width': width,
+            'height': height,
+            'has_alt': bool(alt.strip()),  # Flag for whether alt text exists
+        }
+        
+        # Add location context
+        parent_id = img.parent.get('id', '')
+        parent_class = ' '.join(img.parent.get('class', [])) if isinstance(img.parent.get('class', []), list) else str(img.parent.get('class', ''))
+        parent_tag = img.parent.name
+        
+        # Add location context to help identify where the image is in the email
+        location_context = []
+        if parent_id:
+            location_context.append(f"ID: {parent_id}")
+        if parent_class:
+            location_context.append(f"Class: {parent_class}")
+        if parent_tag:
+            location_context.append(f"Parent tag: {parent_tag}")
+            
+        image_entry['location'] = ', '.join(location_context) if location_context else 'Standalone image'
+        
+        # Check for common locations based on parent classes
+        if any(c.lower() in ['header', 'logo', 'brand'] for c in img.parent.get('class', [])):
+            image_entry['likely_purpose'] = 'Logo or header image'
+        elif any(c.lower() in ['footer', 'social', 'icon'] for c in img.parent.get('class', [])):
+            image_entry['likely_purpose'] = 'Footer or social icon'
+        elif any(c.lower() in ['product', 'item', 'thumbnail'] for c in img.parent.get('class', [])):
+            image_entry['likely_purpose'] = 'Product image'
+        else:
+            image_entry['likely_purpose'] = 'Content image'
+        
+        images.append(image_entry)
+    
+    return images
 
 def extract_links(soup):
     """Extract all links from email HTML with enhanced source context and UTM content."""
@@ -828,6 +895,19 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
             product_table_timeout=product_table_timeout
         )
         
+        # Extract standalone images (not in links)
+        standalone_images = extract_standalone_images(soup)
+        
+        # Add validation for alt text on standalone images
+        for image in standalone_images:
+            # Flag images without alt text
+            if not image['has_alt']:
+                image['alt_warning'] = True
+                image['alt_status'] = 'Missing alt text'
+            else:
+                image['alt_warning'] = False
+                image['alt_status'] = 'OK'
+        
         # Enrich the links results with additional details from original links
         enriched_links = []
         for link_result in link_results:
@@ -847,7 +927,9 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
             'metadata': metadata,
             'metadata_issues': metadata_issues,
             'links': enriched_links,
-            'mode': config.mode
+            'images': standalone_images,  # Add standalone images to results
+            'mode': config.mode,
+            'image_warnings': sum(1 for img in standalone_images if img['alt_warning'])  # Count of images with warnings
         }
         
         return results
