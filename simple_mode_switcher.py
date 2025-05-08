@@ -1,5 +1,6 @@
 """
 Simple mode-switching implementation for the Email QA System.
+Enhanced with hybrid browser automation for better product table detection.
 """
 
 import os
@@ -15,6 +16,26 @@ from typing import Optional, List, Dict, Any
 import email_qa_enhanced
 from email_qa_enhanced import validate_email
 from runtime_config import config
+
+# Import browser automation module
+# Define a fallback function in case the real one isn't available
+def browser_check_fallback(url, timeout=None):
+    """Fallback function when browser automation is not available."""
+    return {
+        'found': False,
+        'error': "Browser automation not available",
+        'detection_method': 'unavailable'
+    }
+
+# Try to import the real browser check function
+try:
+    from browser_automation import check_for_product_tables_sync as browser_check
+    BROWSER_AUTOMATION_AVAILABLE = True
+    logging.info("Browser automation module loaded successfully")
+except ImportError:
+    browser_check = browser_check_fallback  # Use the fallback function
+    BROWSER_AUTOMATION_AVAILABLE = False
+    logging.warning("Browser automation module not available. Using HTTP-only checks.")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -173,8 +194,31 @@ async def check_product_tables(
                         'is_test_domain': True
                     }
                 else:
-                    # For all other domains, perform normal check
-                    result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                    # Use hybrid approach for better detection
+                    if BROWSER_AUTOMATION_AVAILABLE:
+                        # Try browser automation first
+                        logger.info(f"Attempting browser-based check for {url}")
+                        try:
+                            result = browser_check(url, timeout=timeout)
+                            # If browser check fails but it's not a timeout (which is a real result),
+                            # we should try the HTTP method as fallback
+                            error_msg = result.get('error', '')
+                            if not result.get('found', False) and error_msg and not (isinstance(error_msg, str) and 'timeout' in error_msg.lower()):
+                                logger.info(f"Browser check failed for {url}, falling back to HTTP method: {result}")
+                                http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                                # If HTTP method finds something, use that result
+                                if http_result.get('found', False):
+                                    result = http_result
+                                    result['detection_method'] = 'http_fallback'
+                        except Exception as browser_error:
+                            logger.warning(f"Browser automation failed for {url}: {str(browser_error)}")
+                            result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                            result['detection_method'] = 'http_fallback'
+                    else:
+                        # Fall back to regular HTTP check if browser automation is not available
+                        logger.info(f"Browser automation not available, using HTTP check for {url}")
+                        result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                    
                     logger.info(f"Product table check result for {url}: {result}")
                     results[url] = result
             except Exception as url_error:
@@ -195,6 +239,98 @@ async def check_product_tables(
             content={"error": f"Failed to check product tables: {str(e)}"}
         )
 
+# Add a new endpoint to compare HTTP vs browser checking methods
+@app.post("/api/compare_detection_methods")
+async def compare_detection_methods(
+    urls: list = Body(..., description="List of URLs to check using both methods"),
+    timeout: Optional[int] = Body(None, description="Timeout for checks in seconds")
+):
+    """
+    Check the specified URLs using both HTTP and browser automation methods,
+    and compare the results.
+    
+    Args:
+        urls: List of URLs to check
+        timeout: Timeout for each check in seconds
+        
+    Returns:
+        dict: Comparison of detection results for each URL
+    """
+    try:
+        if not urls:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "No URLs provided"}
+            )
+            
+        results = {}
+        for url in urls:
+            try:
+                # Log the URL we're checking
+                logger.info(f"Comparing detection methods for URL: {url}")
+                
+                # For test domains, use simulated results
+                if ('partly-products-showcase.lovable.app' in url or 
+                    'localhost:5001' in url or 
+                    '127.0.0.1:5001' in url):
+                    
+                    simulated_result = {
+                        'found': True, 
+                        'class_name': 'product-table productListContainer',
+                        'detection_method': 'simulated',
+                        'is_test_domain': True
+                    }
+                    
+                    results[url] = {
+                        'http': simulated_result,
+                        'browser': simulated_result,
+                        'is_test_domain': True
+                    }
+                    
+                else:
+                    # First, try HTTP method
+                    http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                    
+                    # Then try browser method if available
+                    if BROWSER_AUTOMATION_AVAILABLE:
+                        try:
+                            browser_result = browser_check(url, timeout=timeout)
+                        except Exception as browser_error:
+                            browser_result = {
+                                'found': False,
+                                'error': f"Browser automation error: {str(browser_error)}",
+                                'detection_method': 'browser_error'
+                            }
+                    else:
+                        browser_result = {
+                            'found': False,
+                            'error': "Browser automation not available",
+                            'detection_method': 'unavailable'
+                        }
+                    
+                    # Compare the results
+                    results[url] = {
+                        'http': http_result,
+                        'browser': browser_result,
+                        'agreement': http_result.get('found') == browser_result.get('found'),
+                        'recommended': 'browser' if browser_result.get('found') else ('http' if http_result.get('found') else None)
+                    }
+            
+            except Exception as url_error:
+                logger.error(f"Error comparing methods for URL {url}: {str(url_error)}")
+                results[url] = {
+                    'error': f"Error processing URL: {str(url_error)}"
+                }
+                
+        return JSONResponse(content={"results": results})
+        
+    except Exception as e:
+        logger.error(f"Error comparing detection methods: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to compare detection methods: {str(e)}"}
+        )
+
 @app.post("/run-qa")
 async def run_qa(
     email: UploadFile = File(...), 
@@ -202,7 +338,8 @@ async def run_qa(
     force_production: Optional[bool] = Query(False, description="Force production mode for this request"),
     force_development: Optional[bool] = Query(False, description="Force development mode for this request"),
     check_product_tables: Optional[bool] = Query(False, description="Whether to check for product tables"),
-    product_table_timeout: Optional[int] = Query(None, description="Timeout for product table checks in seconds")
+    product_table_timeout: Optional[int] = Query(None, description="Timeout for product table checks in seconds"),
+    prefer_browser: Optional[bool] = Query(True, description="Prefer browser automation for product table checks")
 ):
     """
     Run QA validation on the uploaded email HTML against the provided requirements JSON.
