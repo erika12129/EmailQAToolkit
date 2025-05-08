@@ -1042,8 +1042,8 @@
         }
     });
     
-    // Make API request
-    fetch('/api/check_product_tables', { // Using underscore version which is more reliable in production
+    // Make API request - use path relative to the current hostname
+    fetch(window.location.origin + '/api/check_product_tables', { // Using full origin and underscore version which is more reliable in production
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
