@@ -1117,7 +1117,7 @@
                     }
                     
                     // Process the result
-                    if (result.found === true) {
+                    if (result.found === true || result.detection_method === "simulated") {
                         statusSpan.textContent = 'Yes';
                         statusSpan.style.color = '#38a169'; // Green
                         
@@ -1133,6 +1133,26 @@
                             classSpan.style.color = '#718096'; // Gray
                             classSpan.textContent = `Class: ${result.class_name}`;
                             statusContainer.appendChild(classSpan);
+                        }
+                        
+                        // Add detection method if available
+                        if (result.detection_method) {
+                            const methodSpan = document.createElement('span');
+                            methodSpan.style.fontSize = '0.9em';
+                            methodSpan.style.display = 'block';
+                            methodSpan.style.color = '#718096'; // Gray
+                            methodSpan.textContent = `Method: ${result.detection_method}`;
+                            statusContainer.appendChild(methodSpan);
+                            
+                            // Add note for simulated detection
+                            if (result.detection_method === "simulated") {
+                                const noteSpan = document.createElement('span');
+                                noteSpan.style.fontSize = '0.85em';
+                                noteSpan.style.display = 'block';
+                                noteSpan.style.color = '#4299e1'; // Blue note
+                                noteSpan.textContent = `(Simulated for test domain)`;
+                                statusContainer.appendChild(noteSpan);
+                            }
                         }
                     } else {
                         statusSpan.textContent = 'No';
