@@ -15,12 +15,43 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 from runtime_config import config
 
-# Note: Selenium imports are commented out as they are not currently used
-# but may be needed for future advanced detection methods
-# from selenium import webdriver
-# from selenium.webdriver.chrome.options import Options
-# from selenium.webdriver.chrome.service import Service
-# from webdriver_manager.chrome import ChromeDriverManager
+# Set up logging
+logger = logging.getLogger(__name__)
+
+# Import Selenium automation module
+try:
+    from selenium_automation import check_for_product_tables_selenium_sync
+    # Also check if browsers are actually available
+    from selenium_automation import _check_browser_availability
+    # This will initialize the CHROME_AVAILABLE and FIREFOX_AVAILABLE variables
+    browsers_available = _check_browser_availability()
+    SELENIUM_AVAILABLE = browsers_available
+    if SELENIUM_AVAILABLE:
+        logger.info("Selenium browser automation is available with working browsers")
+    else:
+        logger.warning("Selenium imported but no compatible browsers are available")
+except ImportError:
+    SELENIUM_AVAILABLE = False
+    logger.warning("Selenium browser automation is not available")
+
+# Import text analysis module for enhanced detection
+TEXT_ANALYSIS_AVAILABLE = False
+try:
+    from web_scraper import check_for_product_tables_with_text_analysis
+    TEXT_ANALYSIS_AVAILABLE = True
+    logger.info("Text analysis module loaded successfully - enhanced detection available")
+except ImportError:
+    logger.warning("Text analysis module not available - some advanced detection features will be disabled")
+    
+    # Define a fallback function to prevent unbound errors
+    def check_for_product_tables_with_text_analysis(url):
+        logger.warning(f"Text analysis called but not available for {url}")
+        return {
+            'found': False,
+            'error': "Text analysis module not available",
+            'detection_method': 'text_analysis_unavailable',
+            'confidence_score': 0
+        }
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -96,13 +127,20 @@ def extract_email_metadata(soup):
     elif isinstance(preheader, str):
         preheader_text = preheader
     elif hasattr(preheader, 'get_text') and callable(getattr(preheader, 'get_text', None)):
+        # BeautifulSoup elements have get_text method
         preheader_text = preheader.get_text(strip=True)
     elif isinstance(preheader, dict):
-        # For dictionary type, try to extract a value or convert to string representation
-        preheader_text = str(preheader.get('text', preheader))
+        # Handle dictionary type objects
+        if 'text' in preheader:
+            preheader_text = str(preheader['text'])
+        else:
+            preheader_text = str(preheader)
     else:
-        # In case of any other type, convert to string
-        preheader_text = str(preheader)
+        # In case of any other type, convert to string safely
+        try:
+            preheader_text = str(preheader)
+        except:
+            preheader_text = 'Unprintable content'
     
     # Extract just the readable text from the preheader
     # This strips out invisible characters used for email client spacing/preview control
@@ -481,7 +519,7 @@ def check_http_status(url, timeout=None):
 def check_for_product_tables(url, timeout=None):
     """
     Check if a URL's HTML contains product table classes with improved error handling.
-    Enhanced with retry logic for more robust checking and bot detection.
+    Enhanced with hybrid detection using both HTTP checks and browser automation.
     
     Args:
         url: The URL to check for product tables
@@ -493,15 +531,66 @@ def check_for_product_tables(url, timeout=None):
     if timeout is None:
         timeout = config.product_table_timeout
     
-    # Set higher in production mode for reliability
-    max_retries = config.max_retries * 2 if config.is_production else config.max_retries
-    retry_delay = 1  # seconds between retries
-    
     # Special case for test domains - if this is a test domain, be more permissive
-    is_test_domain = urlparse(url).netloc in config.test_domains
+    parsed_url = urlparse(url)
+    is_test_domain = parsed_url.netloc in config.test_domains
     
     # Log the URL we're checking
     logger.info(f"Checking product showcase URL: {url}")
+    
+    # For test domains, simulate success to aid in testing
+    if is_test_domain and config.enable_test_redirects:
+        logger.info(f"Test domain detected - simulating product table for {url}")
+        return {
+            'found': True,
+            'class_name': 'simulated-product-table',
+            'detection_method': 'simulated',
+            'is_test_domain': True,
+            'is_simulated': True
+        }
+    
+    # Try with Selenium first if available (more reliable for JavaScript-rendered content and bot protection)
+    use_http_fallback = True  # Default to using HTTP fallback
+    selenium_error = None
+    
+    if SELENIUM_AVAILABLE and config.is_production:
+        try:
+            logger.info(f"Attempting to check {url} using Selenium browser automation")
+            from selenium_automation import check_for_product_tables_selenium_sync
+            selenium_result = check_for_product_tables_selenium_sync(url, timeout)
+            
+            # If Selenium was successful or found a definitive answer, return it
+            if selenium_result.get('detection_method', '').startswith('selenium') and not selenium_result.get('error'):
+                logger.info(f"Selenium check successful for {url}: {selenium_result}")
+                
+                # Add test domain flag for consistency
+                selenium_result['is_test_domain'] = is_test_domain
+                
+                return selenium_result
+            
+            # If Selenium detected bot blocking, return that result
+            if selenium_result.get('bot_blocked', False):
+                logger.warning(f"Selenium detected bot blocking for {url}")
+                return selenium_result
+            
+            # If we had a serious error with Selenium, log it and fall back to HTTP checks
+            if selenium_result.get('error'):
+                selenium_error = selenium_result.get('error')
+                logger.warning(f"Selenium had an error for {url}: {selenium_error}, falling back to HTTP")
+        except Exception as e:
+            selenium_error = str(e)
+            logger.error(f"Exception during Selenium check for {url}: {selenium_error}")
+    else:
+        if not SELENIUM_AVAILABLE:
+            logger.info(f"Selenium automation not available for {url}, using HTTP check")
+        else:
+            logger.info(f"Not in production mode, using HTTP check for {url}")
+    
+    logger.info(f"Using HTTP method to check for product tables on {url}")
+    
+    # Set higher in production mode for reliability
+    max_retries = config.max_retries * 2 if config.is_production else config.max_retries
+    retry_delay = 1  # seconds between retries
     
     # Create a session with appropriate headers to appear more like a regular browser
     session = requests.Session()
@@ -645,11 +734,33 @@ def check_for_product_tables(url, timeout=None):
                 'detection_method': 'failed'
             }
     
+    # If we get here, both HTTP and browser checks have failed
+    # Try text analysis as a last resort if available
+    if TEXT_ANALYSIS_AVAILABLE:
+        logger.info(f"All standard detection methods failed for {url}, attempting text analysis")
+        try:
+            text_result = check_for_product_tables_with_text_analysis(url)
+            if text_result.get('found', False):
+                logger.info(f"Text analysis found product content on {url} with confidence: {text_result.get('confidence_score', 0)}%")
+                return text_result
+            else:
+                logger.warning(f"Text analysis also failed to find product tables on {url}")
+                # Append the text analysis information to the error result
+                return {
+                    'found': False,
+                    'error': 'All detection methods failed',
+                    'detection_method': 'text_analysis_fallback_failed',
+                    'text_analysis_attempted': True,
+                    'confidence_score': text_result.get('confidence_score', 0)
+                }
+        except Exception as text_error:
+            logger.error(f"Error during text analysis fallback: {str(text_error)}")
+            
     # This should never happen due to the return in the except block
     return {
         'found': False,
         'error': 'Connection failed after multiple attempts',
-        'detection_method': 'failed'
+        'detection_method': 'all_methods_failed'
     }
 
 def check_links(links, expected_utm, check_product_tables=False, product_table_timeout=None):

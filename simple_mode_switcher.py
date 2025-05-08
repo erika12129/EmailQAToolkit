@@ -27,11 +27,37 @@ def browser_check_fallback(url, timeout=None):
         'detection_method': 'unavailable'
     }
 
+# Check for text analysis availability
+TEXT_ANALYSIS_AVAILABLE = False
+try:
+    from web_scraper import check_for_product_tables_with_text_analysis
+    TEXT_ANALYSIS_AVAILABLE = True
+    logging.info("Text analysis module loaded successfully - enhanced detection available in mode switcher")
+except ImportError:
+    logging.warning("Text analysis module not available in mode switcher - some advanced detection features will be disabled")
+    
+    # Define a fallback function to prevent unbound errors
+    def check_for_product_tables_with_text_analysis(url):
+        logging.warning(f"Text analysis called but not available for {url}")
+        return {
+            'found': False,
+            'error': "Text analysis module not available",
+            'detection_method': 'text_analysis_unavailable',
+            'confidence_score': 0
+        }
+
 # Try to import the real browser check function
 try:
-    from browser_automation import check_for_product_tables_sync as browser_check
-    BROWSER_AUTOMATION_AVAILABLE = True
-    logging.info("Browser automation module loaded successfully")
+    # First try to import the Selenium implementation
+    try:
+        from selenium_automation import check_for_product_tables_selenium_sync as browser_check
+        BROWSER_AUTOMATION_AVAILABLE = True
+        logging.info("Selenium browser automation module loaded successfully")
+    except ImportError:
+        # Fall back to Playwright if Selenium is not available
+        from browser_automation import check_for_product_tables_sync as browser_check
+        BROWSER_AUTOMATION_AVAILABLE = True
+        logging.info("Playwright browser automation module loaded successfully")
 except ImportError:
     browser_check = browser_check_fallback  # Use the fallback function
     BROWSER_AUTOMATION_AVAILABLE = False
@@ -194,30 +220,42 @@ async def check_product_tables(
                         'is_test_domain': True
                     }
                 else:
-                    # Use hybrid approach for better detection
+                    # Use hybrid approach for better detection - try browser automation first with fallback to HTTP
                     if BROWSER_AUTOMATION_AVAILABLE:
                         # Try browser automation first
                         logger.info(f"Attempting browser-based check for {url}")
                         try:
                             result = browser_check(url, timeout=timeout)
+                            logger.info(f"Browser check completed for {url} with result: {result}")
+                            
                             # If browser check fails but it's not a timeout (which is a real result),
                             # we should try the HTTP method as fallback
                             error_msg = result.get('error', '')
-                            if not result.get('found', False) and error_msg and not (isinstance(error_msg, str) and 'timeout' in error_msg.lower()):
-                                logger.info(f"Browser check failed for {url}, falling back to HTTP method: {result}")
+                            if (not result.get('found', False) and 
+                                error_msg and 
+                                not (isinstance(error_msg, str) and 'timeout' in error_msg.lower())):
+                                logger.info(f"Browser check didn't find product tables for {url}, trying HTTP fallback")
                                 http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
-                                # If HTTP method finds something, use that result
+                                
+                                # If HTTP method finds something or gives more specific details, use that result
                                 if http_result.get('found', False):
+                                    logger.info(f"HTTP fallback found product tables for {url}")
+                                    http_result['detection_method'] = 'http_fallback_after_selenium'
                                     result = http_result
-                                    result['detection_method'] = 'http_fallback'
                         except Exception as browser_error:
-                            logger.warning(f"Browser automation failed for {url}: {str(browser_error)}")
+                            # Handle exceptions during browser automation
+                            logger.warning(f"Browser automation error for {url}: {str(browser_error)}")
+                            logger.info(f"Using HTTP fallback due to browser automation error")
                             result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
-                            result['detection_method'] = 'http_fallback'
+                            result['detection_method'] = 'http_fallback_after_error'
                     else:
-                        # Fall back to regular HTTP check if browser automation is not available
-                        logger.info(f"Browser automation not available, using HTTP check for {url}")
+                        # Browser automation is not available, use direct HTTP check
+                        logger.info(f"Browser automation not available, using direct HTTP check for {url}")
                         result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                        
+                        # Add additional context to the result to show we used direct HTTP
+                        if 'detection_method' not in result:
+                            result['detection_method'] = 'direct_http'
                     
                     logger.info(f"Product table check result for {url}: {result}")
                     results[url] = result
@@ -308,13 +346,63 @@ async def compare_detection_methods(
                             'detection_method': 'unavailable'
                         }
                     
-                    # Compare the results
-                    results[url] = {
-                        'http': http_result,
-                        'browser': browser_result,
-                        'agreement': http_result.get('found') == browser_result.get('found'),
-                        'recommended': 'browser' if browser_result.get('found') else ('http' if http_result.get('found') else None)
-                    }
+                    # If text analysis is available, include it in the comparison
+                    if TEXT_ANALYSIS_AVAILABLE:
+                        try:
+                            text_result = check_for_product_tables_with_text_analysis(url)
+                        except Exception as text_error:
+                            text_result = {
+                                'found': False,
+                                'error': f"Text analysis error: {str(text_error)}",
+                                'detection_method': 'text_analysis_error'
+                            }
+                            
+                        # Add text analysis result to the comparison
+                        comparison_result = {
+                            'http': http_result,
+                            'browser': browser_result,
+                            'text_analysis': text_result,
+                            'agreement': {
+                                'http_browser': http_result.get('found') == browser_result.get('found'),
+                                'http_text': http_result.get('found') == text_result.get('found'),
+                                'browser_text': browser_result.get('found') == text_result.get('found'),
+                                'all_agree': (http_result.get('found') == browser_result.get('found') == text_result.get('found'))
+                            }
+                        }
+                        
+                        # Determine recommended method based on majority vote
+                        detection_count = sum([
+                            1 if http_result.get('found') else 0,
+                            1 if browser_result.get('found') else 0,
+                            1 if text_result.get('found') else 0
+                        ])
+                        
+                        if detection_count >= 2:
+                            # At least 2 methods found a product table - positive result
+                            comparison_result['recommended'] = 'majority_vote_positive'
+                        elif detection_count == 0:
+                            # No method found a product table - negative result
+                            comparison_result['recommended'] = 'majority_vote_negative'
+                        else:
+                            # Only one method found a product table - use the most reliable method
+                            if browser_result.get('found'):
+                                comparison_result['recommended'] = 'browser_only'
+                            elif http_result.get('found'):
+                                comparison_result['recommended'] = 'http_only'
+                            elif text_result.get('found'):
+                                comparison_result['recommended'] = 'text_analysis_only'
+                            else:
+                                comparison_result['recommended'] = None
+                    else:
+                        # Just HTTP and browser comparison if text analysis isn't available
+                        comparison_result = {
+                            'http': http_result,
+                            'browser': browser_result,
+                            'agreement': http_result.get('found') == browser_result.get('found'),
+                            'recommended': 'browser' if browser_result.get('found') else ('http' if http_result.get('found') else None)
+                        }
+                        
+                    results[url] = comparison_result
             
             except Exception as url_error:
                 logger.error(f"Error comparing methods for URL {url}: {str(url_error)}")
