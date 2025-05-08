@@ -6,7 +6,7 @@
     "preheader": "Get your time back", 
     "country": "US", 
     "language": "en", 
-    "campaign_code": "ABC2505",
+    "footer_campaign_code": "ABC2505 - US",
     "domain": "https://partly-products-showcase.lovable.app/", 
     "utm_parameters": {
         "utm_source": "abc", 

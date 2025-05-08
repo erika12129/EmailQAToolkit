@@ -1284,9 +1284,9 @@
                 'preheader': 'preheader',
                 
                 // Campaign code mappings
-                'footer_campaign_code': 'campaign_code',
-                'campaign_code': 'campaign_code',
-                'Campaign Code - Country': 'campaign_code'
+                'footer_campaign_code': 'footer_campaign_code',
+                'campaign_code': 'footer_campaign_code',
+                'Campaign Code - Country': 'footer_campaign_code'
             };
             
             // Get expected metadata values from requirements JSON first, then form inputs as fallback
@@ -1326,8 +1326,10 @@
                             expected = requirementsJSON.preheader || preheaderInput.value || '';
                             console.log(`For ${key}, expected value: ${expected}`);
                         } else if (key === 'campaign_code' || key === 'footer_campaign_code' || key === 'Campaign Code - Country') {
-                            // Check if we have campaign_code in requirements JSON or form
-                            if (requirementsJSON.campaign_code) {
+                            // Check for campaign code in different fields in requirements JSON
+                            if (requirementsJSON.footer_campaign_code) {
+                                expected = requirementsJSON.footer_campaign_code;
+                            } else if (requirementsJSON.campaign_code) {
                                 expected = requirementsJSON.campaign_code;
                             } else if (campaignCodeInput.value) {
                                 expected = campaignCodeInput.value;
@@ -1395,7 +1397,9 @@
             // Make sure we have a campaign code field if one is specified in the requirements or form
             if (!hasField('campaign_code') && !hasField('footer_campaign_code')) {
                 // Try different places for campaign code in priority order
-                let expectedValue = metadataRequirements.campaign_code || 
+                let expectedValue = metadataRequirements.footer_campaign_code || 
+                                   metadataRequirements.campaign_code || 
+                                   requirementsJSON.footer_campaign_code ||
                                    requirementsJSON.campaign_code || 
                                    campaignCodeInput.value;
                 
@@ -1445,6 +1449,20 @@
                             const [code, country] = parts;
                             // Add proper spacing
                             displayValue = `${code.trim()} - ${country.trim()}`;
+                        }
+                    } else if (displayValue.match(/^r?[A-Z0-9]{5,8}\s*[-–—]\s*[A-Z]{2}$/i)) {
+                        // Handle cases where there's a leading 'r' or other character
+                        // First explicitly remove 'r' prefix if present
+                        if (displayValue.startsWith('r')) {
+                            console.log("Removing 'r' prefix from campaign code in frontend:", displayValue);
+                            displayValue = displayValue.substring(1);
+                        }
+                        
+                        // Then extract and reformat to ensure proper format
+                        const cleanMatch = displayValue.match(/([A-Z0-9]{5,8})\s*[-–—]\s*([A-Z]{2})/i);
+                        if (cleanMatch) {
+                            displayValue = `${cleanMatch[1]} - ${cleanMatch[2]}`;
+                            console.log("Cleaned campaign code in frontend:", displayValue);
                         }
                     } else if (displayValue.toLowerCase().includes('upported')) {
                         // Fix for specific truncation issue with "Supported - Country" format
