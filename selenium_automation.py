@@ -82,6 +82,11 @@ def _check_browser_availability():
             options.add_argument("--disable-gpu")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-setuid-sandbox")
+            
+            # Set binary location for Chrome in deployment
+            if os.environ.get('DEPLOYMENT_ENVIRONMENT') == 'True':
+                options.binary_location = "/usr/bin/google-chrome-stable"
             
             # First try with webdriver_manager
             if CHROME_WDM_AVAILABLE:
