@@ -23,13 +23,16 @@ logger = logging.getLogger(__name__)
 # Create FastAPI app
 app = FastAPI(title="Email QA Automation API")
 
-# Configure CORS
+# Configure CORS with more aggressive settings for deployment environments
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 # Mount static files
@@ -122,8 +125,10 @@ async def set_mode(mode: str):
             status_code=500
         )
 
+# Multiple formats of the same endpoint to handle various deployment scenarios
 @app.post("/api/check-product-tables")
-@app.post("/api/check_product_tables") # Adding an alternative endpoint with underscores
+@app.post("/api/check_product_tables") 
+@app.get("/api/check_simple") # Simple GET endpoint for testing connectivity
 async def check_product_tables(
     urls: list = Body(..., description="List of URLs to check for product tables"),
     timeout: Optional[int] = Body(None, description="Timeout for product table checks in seconds")
