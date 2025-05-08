@@ -128,7 +128,11 @@ def extract_email_metadata(soup):
         preheader_text = preheader
     elif hasattr(preheader, 'get_text') and callable(getattr(preheader, 'get_text', None)):
         # BeautifulSoup elements have get_text method
-        preheader_text = preheader.get_text(strip=True)
+        try:
+            preheader_text = preheader.get_text(strip=True)
+        except Exception as e:
+            logger.warning(f"Failed to extract preheader text: {e}")
+            preheader_text = str(preheader)
     elif isinstance(preheader, dict):
         # Handle dictionary type objects
         if 'text' in preheader:
