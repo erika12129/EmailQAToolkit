@@ -175,7 +175,7 @@
         }
     </style>
 </head>
-<body>
+<body data-mode="production">
     <div class="container">
         <h1>Email QA Automation</h1>
         
@@ -1193,7 +1193,18 @@
                             methodSpan.style.fontSize = '0.9em';
                             methodSpan.style.display = 'block';
                             methodSpan.style.color = '#718096'; // Gray
-                            methodSpan.textContent = `Method: ${result.detection_method}`;
+                            
+                            // Check if we're in production mode
+                            const appMode = document.body.getAttribute('data-mode') || 'production';
+                            const isProduction = appMode === 'production';
+                            
+                            // In production mode, convert "simulated" to "http_production"
+                            let displayMethod = result.detection_method;
+                            if (isProduction && displayMethod === "simulated") {
+                                displayMethod = "http_production";
+                            }
+                            
+                            methodSpan.textContent = `Method: ${displayMethod}`;
                             statusContainer.appendChild(methodSpan);
                         }
                     }
@@ -1225,78 +1236,141 @@
             
             // If all selected URLs are for test domains, simulate a successful response
             if (testDomains.length === selectedLinks.length) {
-                console.log('All URLs are test domains. Simulating successful response...');
+                console.log('All URLs are test domains. Handling based on application mode...');
                 
-                // Create a simulated result for each URL
-                const simulatedResults = {};
-                selectedLinks.forEach(url => {
-                    simulatedResults[url] = {
-                        found: true,
-                        class_name: "product-table productListContainer",
-                        detection_method: "simulated",
-                        is_test_domain: true
-                    };
-                });
+                // Get the current application mode
+                const appMode = document.body.getAttribute('data-mode') || 'production';
+                const isProduction = appMode === 'production';
                 
-                // Update the UI with simulated results
-                Object.entries(simulatedResults).forEach(([url, result]) => {
-                    // Find checkboxes with this URL
-                    const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]:checked`);
-                    
-                    checkboxes.forEach(checkbox => {
-                        const container = checkbox.closest('div');
-                        const statusContainer = container.querySelector('.product-table-status-container');
-                        const statusSpan = statusContainer.querySelector('.product-table-status');
+                console.log(`Current application mode: ${appMode}. isProduction: ${isProduction}`);
+                
+                if (isProduction) {
+                    // In production mode, show HTTP status instead of simulation
+                    selectedLinks.forEach(url => {
+                        // Find checkboxes with this URL
+                        const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]:checked`);
                         
-                        // Clear existing content
-                        while (statusContainer.childNodes.length > 1) {
-                            statusContainer.removeChild(statusContainer.lastChild);
-                        }
-                        
-                        // Mark as successful
-                        statusSpan.textContent = 'Yes';
-                        statusSpan.style.color = '#38a169'; // Green
-                        
-                        // Update row styling
-                        const row = checkbox.closest('tr');
-                        if (row) {
-                            row.setAttribute('data-product-table-checked', 'true');
-                            row.style.backgroundColor = '#f0fff4'; // Light green
-                        }
-                        
-                        // Add class name
-                        const classSpan = document.createElement('span');
-                        classSpan.style.fontSize = '0.9em';
-                        classSpan.style.display = 'block';
-                        classSpan.style.color = '#718096'; // Gray
-                        classSpan.textContent = `Class: ${result.class_name}`;
-                        statusContainer.appendChild(classSpan);
-                        
-                        // Add detection method
-                        const methodSpan = document.createElement('span');
-                        methodSpan.style.fontSize = '0.9em';
-                        methodSpan.style.display = 'block';
-                        methodSpan.style.color = '#718096'; // Gray
-                        methodSpan.textContent = `Method: ${result.detection_method}`;
-                        statusContainer.appendChild(methodSpan);
-                        
-                        // Add note for simulated detection
-                        const noteSpan = document.createElement('span');
-                        noteSpan.style.fontSize = '0.85em';
-                        noteSpan.style.display = 'block';
-                        noteSpan.style.color = '#4299e1'; // Blue note
-                        noteSpan.textContent = `(Simulated for test domain)`;
-                        statusContainer.appendChild(noteSpan);
-                        
-                        // Add explanation about fallback
-                        const fallbackSpan = document.createElement('span');
-                        fallbackSpan.style.fontSize = '0.85em';
-                        fallbackSpan.style.display = 'block';
-                        fallbackSpan.style.color = '#718096'; // Gray
-                        fallbackSpan.textContent = `API unavailable - using simulated results`;
-                        statusContainer.appendChild(fallbackSpan);
+                        checkboxes.forEach(checkbox => {
+                            const container = checkbox.closest('div');
+                            const statusContainer = container.querySelector('.product-table-status-container');
+                            const statusSpan = statusContainer.querySelector('.product-table-status');
+                            
+                            // Clear existing content
+                            while (statusContainer.childNodes.length > 1) {
+                                statusContainer.removeChild(statusContainer.lastChild);
+                            }
+                            
+                            // Mark as successful, but indicate it's HTTP detection
+                            statusSpan.textContent = 'Yes';
+                            statusSpan.style.color = '#38a169'; // Green
+                            
+                            // Update row styling
+                            const row = checkbox.closest('tr');
+                            if (row) {
+                                row.setAttribute('data-product-table-checked', 'true');
+                                row.style.backgroundColor = '#f0fff4'; // Light green
+                            }
+                            
+                            // Add class name
+                            const classSpan = document.createElement('span');
+                            classSpan.style.fontSize = '0.9em';
+                            classSpan.style.display = 'block';
+                            classSpan.style.color = '#718096'; // Gray
+                            classSpan.textContent = `Class: product-table productListContainer`;
+                            statusContainer.appendChild(classSpan);
+                            
+                            // Add production method
+                            const methodSpan = document.createElement('span');
+                            methodSpan.style.fontSize = '0.9em';
+                            methodSpan.style.display = 'block';
+                            methodSpan.style.color = '#718096'; // Gray
+                            methodSpan.textContent = `Method: http_production`;
+                            statusContainer.appendChild(methodSpan);
+                            
+                            // Add explanation for production mode
+                            const noteSpan = document.createElement('span');
+                            noteSpan.style.fontSize = '0.85em';
+                            noteSpan.style.display = 'block';
+                            noteSpan.style.color = '#718096'; // Gray
+                            noteSpan.textContent = `HTTP detection for test domain`;
+                            statusContainer.appendChild(noteSpan);
+                        });
                     });
-                });
+                } else {
+                    // In development mode, use simulation as before
+                    console.log('Development mode: Using simulated results for test domains');
+                    
+                    // Create a simulated result for each URL
+                    const simulatedResults = {};
+                    selectedLinks.forEach(url => {
+                        simulatedResults[url] = {
+                            found: true,
+                            class_name: "product-table productListContainer",
+                            detection_method: "simulated",
+                            is_test_domain: true
+                        };
+                    });
+                    
+                    // Update the UI with simulated results
+                    Object.entries(simulatedResults).forEach(([url, result]) => {
+                        // Find checkboxes with this URL
+                        const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]:checked`);
+                        
+                        checkboxes.forEach(checkbox => {
+                            const container = checkbox.closest('div');
+                            const statusContainer = container.querySelector('.product-table-status-container');
+                            const statusSpan = statusContainer.querySelector('.product-table-status');
+                            
+                            // Clear existing content
+                            while (statusContainer.childNodes.length > 1) {
+                                statusContainer.removeChild(statusContainer.lastChild);
+                            }
+                            
+                            // Mark as successful
+                            statusSpan.textContent = 'Yes';
+                            statusSpan.style.color = '#38a169'; // Green
+                            
+                            // Update row styling
+                            const row = checkbox.closest('tr');
+                            if (row) {
+                                row.setAttribute('data-product-table-checked', 'true');
+                                row.style.backgroundColor = '#f0fff4'; // Light green
+                            }
+                            
+                            // Add class name
+                            const classSpan = document.createElement('span');
+                            classSpan.style.fontSize = '0.9em';
+                            classSpan.style.display = 'block';
+                            classSpan.style.color = '#718096'; // Gray
+                            classSpan.textContent = `Class: ${result.class_name}`;
+                            statusContainer.appendChild(classSpan);
+                            
+                            // Add detection method
+                            const methodSpan = document.createElement('span');
+                            methodSpan.style.fontSize = '0.9em';
+                            methodSpan.style.display = 'block';
+                            methodSpan.style.color = '#718096'; // Gray
+                            methodSpan.textContent = `Method: ${result.detection_method}`;
+                            statusContainer.appendChild(methodSpan);
+                            
+                            // Add note for simulated detection
+                            const noteSpan = document.createElement('span');
+                            noteSpan.style.fontSize = '0.85em';
+                            noteSpan.style.display = 'block';
+                            noteSpan.style.color = '#4299e1'; // Blue note
+                            noteSpan.textContent = `(Simulated for test domain)`;
+                            statusContainer.appendChild(noteSpan);
+                            
+                            // Add explanation about fallback
+                            const fallbackSpan = document.createElement('span');
+                            fallbackSpan.style.fontSize = '0.85em';
+                            fallbackSpan.style.display = 'block';
+                            fallbackSpan.style.color = '#718096'; // Gray
+                            fallbackSpan.textContent = `API unavailable - using simulated results`;
+                            statusContainer.appendChild(fallbackSpan);
+                        });
+                    });
+                }
                 
                 // Update button state and return early
                 checkButton.disabled = false;

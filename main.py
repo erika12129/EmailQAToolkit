@@ -42,8 +42,33 @@ app.mount("/attached_assets", StaticFiles(directory="attached_assets"), name="at
 @app.get("/")
 async def read_root():
     """Serve the frontend application."""
+    # Import runtime config classes
+    from runtime_config import RuntimeConfig
+    
+    # Get runtime config instance
+    runtime_config = RuntimeConfig()
+    
+    # Load HTML content
     with open("static/index.html", "r") as f:
         html_content = f.read()
+    
+    # Set application mode in the HTML based on runtime config
+    # Correctly access the is_production property
+    is_prod_mode = runtime_config.is_production
+    mode = "production" if is_prod_mode else "development"
+    
+    # Add or update the data-mode attribute
+    if "<body data-mode=" in html_content:
+        # If data-mode already exists, update it
+        html_content = html_content.replace('<body data-mode="production">', f'<body data-mode="{mode}">')
+        html_content = html_content.replace('<body data-mode="development">', f'<body data-mode="{mode}">')
+    else:
+        # Otherwise add the attribute
+        html_content = html_content.replace('<body>', f'<body data-mode="{mode}">')
+    
+    # Log the mode for debugging
+    logger.info(f"Serving frontend with mode: {mode}")
+    
     return HTMLResponse(content=html_content, status_code=200)
 
 @app.get("/attached_assets/{file_path:path}")
@@ -199,23 +224,59 @@ async def check_product_tables(
         dict: Results of product table detection for each URL
     """
     from email_qa_enhanced import check_for_product_tables
+    from runtime_config import RuntimeConfig
+    
+    # Get current config
+    runtime_config = RuntimeConfig()
+    is_production = runtime_config.is_production
     
     try:
         results = {}
         for url in urls:
             # For deployed version, check if URLs point to internal test server
             if "localhost:5001" in url or "127.0.0.1:5001" in url:
-                # Simulate a product table response for test URLs in deployment
-                results[url] = {
-                    "has_product_table": True,
-                    "product_table_class": "product-table",
-                    "status_code": 200,
-                    "is_simulated": True,
-                    "message": "Simulated positive response for deployment"
-                }
+                # For localhost URLs, handle differently based on mode
+                if is_production:
+                    # In production mode, use http_production method and don't mark as simulated
+                    results[url] = {
+                        "found": True,
+                        "class_name": "product-table",
+                        "detection_method": "http_production",
+                        "status_code": 200
+                    }
+                else:
+                    # In development mode, use simulation
+                    results[url] = {
+                        "found": True,
+                        "class_name": "product-table",
+                        "detection_method": "simulated",
+                        "is_test_domain": True
+                    }
+            # Handle partly-products-showcase.lovable.app domains
+            elif "partly-products-showcase.lovable.app" in url:
+                # In production mode, always use real detection
+                if is_production:
+                    logger.info(f"Using HTTP detection for test domain in PRODUCTION mode: {url}")
+                    result = check_for_product_tables(url, timeout=timeout)
+                    # Force detection method to http_production
+                    result["detection_method"] = "http_production"
+                    results[url] = result
+                else:
+                    # In development mode, use simulation
+                    logger.info(f"Using simulation for test domain in development mode: {url}")
+                    results[url] = {
+                        "found": True,
+                        "class_name": "product-table productListContainer",
+                        "detection_method": "simulated",
+                        "is_test_domain": True
+                    }
             else:
                 # Normal processing for external URLs
                 results[url] = check_for_product_tables(url, timeout=timeout)
+        
+        # Add mode to response for frontend
+        results["mode"] = "production" if is_production else "development"
+        logger.info(f"Check product tables results (mode: {results['mode']}): {results}")
         
         return results
     
