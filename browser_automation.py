@@ -115,56 +115,54 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
                 
                 # Check for product tables using JavaScript in the browser context
                 has_product_table = await page.evaluate("""() => {
-                    // Look for product tables by class names
-                    const selectors = [
-                        '.product-table', 
-                        '.productListContainer',
-                        '[class*="product-list"]',
-                        '[class*="product-grid"]',
-                        '[class*="product_list"]',
-                        '[class*="products-container"]'
-                    ];
+                    // IMPORTANT: Only look for the specific class names as requested
                     
-                    // Check each selector
-                    for (const selector of selectors) {
-                        const elements = document.querySelectorAll(selector);
-                        if (elements.length > 0) {
-                            return {
-                                found: true,
-                                class_name: selector.replace('.', '').replace('[class*="', '').replace('"]', ''),
-                                elements_count: elements.length
-                            };
-                        }
+                    // 1. Check for product-table* class pattern
+                    const productTableElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
+                        if (!div.className) return false;
+                        const classNames = div.className.split(/\\s+/);
+                        return classNames.some(cls => cls.startsWith('product-table'));
+                    });
+                    
+                    if (productTableElements.length > 0) {
+                        // Find the actual matching class name
+                        const matchingClass = productTableElements[0].className.split(/\\s+/).find(cls => 
+                            cls.startsWith('product-table')
+                        );
+                        
+                        return {
+                            found: true,
+                            class_name: matchingClass || 'product-table',
+                            class_pattern: 'product-table*',
+                            elements_count: productTableElements.length
+                        };
                     }
                     
-                    // Also check for product tables by ID
-                    const idSelectors = [
-                        '#products',
-                        '#product-list',
-                        '#product-grid'
-                    ];
+                    // 2. Check for *productListContainer class pattern
+                    const productListElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
+                        if (!div.className) return false;
+                        const classNames = div.className.split(/\\s+/);
+                        return classNames.some(cls => cls.endsWith('productListContainer'));
+                    });
                     
-                    // Check each ID selector
-                    for (const selector of idSelectors) {
-                        if (document.querySelector(selector)) {
-                            return {
-                                found: true,
-                                id_name: selector.replace('#', ''),
-                                is_id: true
-                            };
-                        }
+                    if (productListElements.length > 0) {
+                        // Find the actual matching class name
+                        const matchingClass = productListElements[0].className.split(/\\s+/).find(cls => 
+                            cls.endsWith('productListContainer')
+                        );
+                        
+                        return {
+                            found: true,
+                            class_name: matchingClass || 'productListContainer',
+                            class_pattern: '*productListContainer',
+                            elements_count: productListElements.length
+                        };
                     }
                     
-                    // Check for product-related HTML content
-                    const productWords = ['product', 'item', 'SKU', 'price'];
-                    let textContent = document.body.textContent.toLowerCase();
-                    let hasProductContent = productWords.some(word => 
-                        textContent.includes(word.toLowerCase())
-                    );
-                    
+                    // No matching class found
                     return {
                         found: false,
-                        has_product_content: hasProductContent
+                        message: 'No product-table* or *productListContainer class found'
                     };
                 }""")
                 
@@ -245,19 +243,24 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
         parsed_url = urlparse(url)
         domain = parsed_url.netloc
         
-        # Handle test domains with simulated responses
-        if (
+        # Only use simulated responses in development mode
+        from runtime_config import config
+        if (config.mode == 'development' and (
             'partly-products-showcase.lovable.app' in domain or 
             'localhost:5001' in domain or 
             '127.0.0.1:5001' in domain
-        ):
-            logger.info(f"Using simulated success response for test domain: {url}")
+        )):
+            logger.info(f"Using simulated success response in development mode for test domain: {url}")
             return {
                 'found': True,
                 'class_name': 'product-table productListContainer',
                 'detection_method': 'simulated',
                 'is_test_domain': True
             }
+        
+        # In production mode, always use the real browser detection
+        if 'partly-products-showcase.lovable.app' in domain:
+            logger.info(f"Using REAL browser detection in production mode for: {url}")
             
         # We can't use asyncio.run() inside FastAPI because it's already running an event loop
         # Use a thread-based approach instead

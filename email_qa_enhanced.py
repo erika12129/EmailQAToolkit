@@ -542,9 +542,9 @@ def check_for_product_tables(url, timeout=None):
     # Log the URL we're checking
     logger.info(f"Checking product showcase URL: {url}")
     
-    # For test domains, simulate success to aid in testing
-    if is_test_domain and config.enable_test_redirects:
-        logger.info(f"Test domain detected - simulating product table for {url}")
+    # For test domains, simulate success ONLY in development mode
+    if is_test_domain and config.enable_test_redirects and not config.is_production:
+        logger.info(f"Test domain detected - simulating product table for {url} (only in development mode)")
         return {
             'found': True,
             'class_name': 'simulated-product-table',
@@ -552,6 +552,11 @@ def check_for_product_tables(url, timeout=None):
             'is_test_domain': True,
             'is_simulated': True
         }
+        
+    # In production mode, we NEVER use simulated results
+    if config.is_production and 'partly-products-showcase.lovable.app' in url:
+        logger.info(f"Production mode - using REAL detection for test domain: {url}")
+        # Continue with real detection below...
     
     # Try with Selenium first if available (more reliable for JavaScript-rendered content and bot protection)
     use_http_fallback = True  # Default to using HTTP fallback

@@ -297,54 +297,84 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
         # Wait up to the timeout for the page to load completely
         time.sleep(min(2, timeout / 3))  # Give the page some time to render
         
-        # Check for product table classes
-        product_table_classes = [
-            "product-table", 
-            "productTable", 
-            "product_table", 
-            "productListContainer",
-            "product-list-container", 
-            "product-grid",
-            "productGrid"
-        ]
+        # IMPORTANT: Only check for these specific class patterns
+        # 1. "product-table*" (starts with "product-table")
+        # 2. "*productListContainer" (ends with "productListContainer")
+        # We'll use JavaScript to find elements with these class patterns
         
-        found_class = None
-        
-        # Try to find elements with product table classes
-        for class_name in product_table_classes:
-            try:
-                elements = driver.find_elements(By.CLASS_NAME, class_name)
-                if elements:
-                    found_class = class_name
-                    break
-            except Exception as e:
-                logger.debug(f"Error searching for class {class_name}: {e}")
-                continue
-        
-        # If we found a product table class
-        if found_class:
-            return {
-                "found": True,
-                "class_name": found_class,
-                "detection_method": f"selenium_{browser_used}"
-            }
-        
-        # Also check for elements with 'product' and 'table' in their class name
+        # We'll use JavaScript to find elements with the specific class patterns we need
         try:
-            # Use JavaScript to find elements with both 'product' and 'table' in their class
+            # Script to find divs with class names matching our specific patterns
             script = """
-            return Array.from(document.querySelectorAll('*')).filter(el => {
-                const classes = el.className.split(/\\s+/);
-                return classes.some(cls => cls.toLowerCase().includes('product')) && 
-                       classes.some(cls => cls.toLowerCase().includes('table') || cls.toLowerCase().includes('list') || cls.toLowerCase().includes('grid'));
-            }).map(el => el.className);
-            """
-            class_names = driver.execute_script(script)
+            // Function to check if a div has the specific class patterns we're looking for
+            function checkForProductTables() {
+                // Results container
+                const results = {
+                    found: false,
+                    class_name: null,
+                    pattern: null
+                };
+                
+                // 1. Look for product-table* pattern (starts with product-table)
+                const productTableElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
+                    if (!div.className) return false;
+                    const classNames = div.className.split(/\\s+/);
+                    return classNames.some(cls => cls.startsWith('product-table'));
+                });
+                
+                if (productTableElements.length > 0) {
+                    // Find the actual matching class name
+                    const matchingDiv = productTableElements[0];
+                    const matchingClass = matchingDiv.className.split(/\\s+/).find(cls => 
+                        cls.startsWith('product-table')
+                    );
+                    
+                    results.found = true;
+                    results.class_name = matchingClass || 'product-table';
+                    results.pattern = 'product-table*';
+                    results.elements_count = productTableElements.length;
+                    return results;
+                }
+                
+                // 2. Look for *productListContainer pattern (ends with productListContainer)
+                const productListElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
+                    if (!div.className) return false;
+                    const classNames = div.className.split(/\\s+/);
+                    return classNames.some(cls => cls.endsWith('productListContainer'));
+                });
+                
+                if (productListElements.length > 0) {
+                    // Find the actual matching class name
+                    const matchingDiv = productListElements[0];
+                    const matchingClass = matchingDiv.className.split(/\\s+/).find(cls => 
+                        cls.endsWith('productListContainer')
+                    );
+                    
+                    results.found = true;
+                    results.class_name = matchingClass || 'productListContainer';
+                    results.pattern = '*productListContainer';
+                    results.elements_count = productListElements.length;
+                    return results;
+                }
+                
+                // Nothing found
+                return results;
+            }
             
-            if class_names and len(class_names) > 0:
+            // Run the check and return results
+            return checkForProductTables();
+            """
+            
+            # Execute the script
+            result = driver.execute_script(script)
+            
+            if result and result.get('found', False):
+                logger.info(f"Found product table via JavaScript: {result}")
                 return {
                     "found": True,
-                    "class_name": class_names[0],
+                    "class_name": result.get('class_name', 'unknown'),
+                    "pattern": result.get('pattern', 'unknown'),
+                    "elements_count": result.get('elements_count', 1),
                     "detection_method": f"selenium_{browser_used}_js"
                 }
         except Exception as e:
