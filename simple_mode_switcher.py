@@ -210,9 +210,14 @@ async def check_product_tables(
                 logger.info(f"Processing product table check for URL: {url}")
                 
                 # Handle test domains differently depending on mode
-                is_test_domain = ('partly-products-showcase.lovable.app' in url or 
-                                'localhost:5001' in url or 
-                                '127.0.0.1:5001' in url)
+                # In production, partly-products-showcase.lovable.app should NOT be considered a test domain
+                if config.mode == 'production':
+                    is_test_domain = ('localhost:5001' in url or '127.0.0.1:5001' in url)
+                else:
+                    # In development mode, also treat partly-products-showcase.lovable.app as a test domain
+                    is_test_domain = ('partly-products-showcase.lovable.app' in url or 
+                                    'localhost:5001' in url or 
+                                    '127.0.0.1:5001' in url)
                 
                 # In development mode, use simulated results for test domains
                 if (config.mode == 'development' and is_test_domain):
@@ -224,9 +229,9 @@ async def check_product_tables(
                         'detection_method': 'simulated',
                         'is_test_domain': True
                     }
-                # In production mode for partly-products-showcase.lovable.app, use real detection
+                # In production mode for partly-products-showcase.lovable.app, use REAL detection
                 elif ('partly-products-showcase.lovable.app' in url):
-                    logger.info(f"Using real detection for partly-products-showcase domain in production mode: {url}")
+                    logger.info(f"Using REAL detection for partly-products-showcase domain in production mode: {url}")
                     
                     # Check if browser automation is actually available with real browsers
                     browsers_actually_available = False
@@ -240,21 +245,25 @@ async def check_product_tables(
                         logger.warning(f"Could not verify browser availability: {str(browser_check_error)}")
                         browsers_actually_available = False
                     
-                    # Try HTTP detection method first - it's more reliable in production
-                    logger.info(f"Using HTTP detection method first for {url} in production")
+                    # Use HTTP detection first - treating this as a REAL production domain
+                    logger.info(f"Using HTTP detection method for {url} in production")
                     http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
                     http_result['detection_method'] = 'http_production'
                     
-                    # If HTTP method found product tables, use that result
+                    # If product tables are found, use that result
                     if http_result.get('found', False):
-                        logger.info(f"HTTP method found product tables for {url} in production")
+                        logger.info(f"HTTP method found product tables for {url} in production mode")
                         results[url] = http_result
-                        continue  # Skip to next URL
+                    else:
+                        # Even if bot blocking detected, don't simulate - handle it like any other site
+                        # This ensures it behaves like a real production site
+                        results[url] = http_result
                         
-                    # Only attempt browser automation if we know browsers are actually installed
-                    if browsers_actually_available:
+                    # Try browser automation as a fallback if needed
+                    # We already verified browser availability above
+                    if not results[url].get('found', False) and BROWSER_AUTOMATION_AVAILABLE:
+                        logger.info(f"HTTP method did not find product tables, trying browser automation for {url}")
                         try:
-                            logger.info(f"Performing browser automation detection for {url} in production")
                             browser_result = browser_check(url, timeout=timeout)
                             browser_result['detection_method'] = 'browser_production'
                             
@@ -262,18 +271,8 @@ async def check_product_tables(
                             if browser_result.get('found', False):
                                 logger.info(f"Browser automation found product tables for {url} in production")
                                 results[url] = browser_result
-                            else:
-                                # If neither method found anything, use HTTP result anyway
-                                logger.info(f"Neither HTTP nor browser found product tables for {url}")
-                                results[url] = http_result
                         except Exception as e:
                             logger.warning(f"Browser automation failed in production mode for {url}: {str(e)}")
-                            # Use HTTP result we already have
-                            results[url] = http_result
-                    else:
-                        # Use HTTP result we already have
-                        logger.info(f"Browsers not actually available, using HTTP result for {url}")
-                        results[url] = http_result
                         
                     # Try text analysis as a last resort if nothing was found
                     if not results[url].get('found', False) and TEXT_ANALYSIS_AVAILABLE:
@@ -376,10 +375,15 @@ async def compare_detection_methods(
                 # Log the URL we're checking
                 logger.info(f"Comparing detection methods for URL: {url}")
                 
-                # For test domains, use simulated results only in development mode
-                is_test_domain = ('partly-products-showcase.lovable.app' in url or 
-                               'localhost:5001' in url or 
-                               '127.0.0.1:5001' in url)
+                # Handle test domains differently depending on mode
+                # In production, partly-products-showcase.lovable.app should NOT be considered a test domain
+                if config.mode == 'production':
+                    is_test_domain = ('localhost:5001' in url or '127.0.0.1:5001' in url)
+                else:
+                    # In development mode, also treat partly-products-showcase.lovable.app as a test domain
+                    is_test_domain = ('partly-products-showcase.lovable.app' in url or 
+                                    'localhost:5001' in url or 
+                                    '127.0.0.1:5001' in url)
                                
                 if (config.mode == 'development' and is_test_domain):
                     
