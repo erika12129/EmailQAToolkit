@@ -233,9 +233,13 @@ async def check_product_tables(
     try:
         results = {}
         for url in urls:
-            # For deployed version, check if URLs point to internal test server
-            if "localhost:5001" in url or "127.0.0.1:5001" in url:
-                # For localhost URLs, handle differently based on mode
+            # For deployed version, check if URLs point to test domains
+            is_test_domain = ("localhost:5001" in url or 
+                             "127.0.0.1:5001" in url or
+                             "partly-products-showcase.lovable.app" in url)
+                             
+            # For localhost URLs, handle differently based on mode
+            if ("localhost:5001" in url or "127.0.0.1:5001" in url):
                 if is_production:
                     # In production mode, use http_production method and don't mark as simulated
                     results[url] = {
@@ -274,11 +278,14 @@ async def check_product_tables(
                 # Normal processing for external URLs
                 results[url] = check_for_product_tables(url, timeout=timeout)
         
-        # Add mode to response for frontend
-        results["mode"] = "production" if is_production else "development"
-        logger.info(f"Check product tables results (mode: {results['mode']}): {results}")
+        # Format response correctly with results wrapper for frontend
+        response = {
+            "results": results,
+            "mode": "production" if is_production else "development"
+        }
+        logger.info(f"Check product tables results (mode: {response['mode']}): {response}")
         
-        return results
+        return JSONResponse(content=response)
     
     except Exception as e:
         logger.error(f"Product table check error: {str(e)}")

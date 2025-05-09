@@ -209,11 +209,13 @@ async def check_product_tables(
                 # Log the URL we're checking
                 logger.info(f"Processing product table check for URL: {url}")
                 
-                # Special handling for known test domains (but only in development mode)
-                if ((config.mode == 'development' and 
-                    ('partly-products-showcase.lovable.app' in url or 
-                     'localhost:5001' in url or 
-                     '127.0.0.1:5001' in url))):
+                # Handle test domains differently depending on mode
+                is_test_domain = ('partly-products-showcase.lovable.app' in url or 
+                                'localhost:5001' in url or 
+                                '127.0.0.1:5001' in url)
+                
+                # In development mode, use simulated results for test domains
+                if (config.mode == 'development' and is_test_domain):
                     logger.info(f"Using simulated success response for test domain in development mode: {url}")
                     # For test domains in development mode, return a simulated positive result
                     results[url] = {
@@ -222,7 +224,7 @@ async def check_product_tables(
                         'detection_method': 'simulated',
                         'is_test_domain': True
                     }
-                # In production mode, always use the real detection methods
+                # In production mode for partly-products-showcase.lovable.app, use real detection
                 elif ('partly-products-showcase.lovable.app' in url):
                     logger.info(f"Using real detection for partly-products-showcase domain in production mode: {url}")
                     
@@ -375,10 +377,11 @@ async def compare_detection_methods(
                 logger.info(f"Comparing detection methods for URL: {url}")
                 
                 # For test domains, use simulated results only in development mode
-                if (config.mode == 'development' and
-                    ('partly-products-showcase.lovable.app' in url or 
-                     'localhost:5001' in url or 
-                     '127.0.0.1:5001' in url)):
+                is_test_domain = ('partly-products-showcase.lovable.app' in url or 
+                               'localhost:5001' in url or 
+                               '127.0.0.1:5001' in url)
+                               
+                if (config.mode == 'development' and is_test_domain):
                     
                     simulated_result = {
                         'found': True, 

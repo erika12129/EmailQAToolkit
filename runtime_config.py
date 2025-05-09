@@ -43,14 +43,16 @@ class RuntimeConfig:
         """Update settings based on current mode."""
         if self.is_production:
             # In production mode, we should NOT use test redirects or simulated results
-            self.enable_test_redirects = False  # CRITICAL FIX: Changed from True to False
+            self.enable_test_redirects = False  # CRITICAL FIX: Must be False in production
             self.product_table_timeout = 15     # Increased timeout for production
             self.request_timeout = 15
+            logger.info("Production mode settings applied: test redirects disabled")
         else:
             # In development mode, enable test redirects for testing
             self.enable_test_redirects = True
             self.product_table_timeout = 5
             self.request_timeout = 5
+            logger.info("Development mode settings applied: test redirects enabled")
     
     @property
     def is_development(self):
