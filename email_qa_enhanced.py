@@ -939,6 +939,8 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             'product_table_class': product_table_class,
             'product_table_error': product_table_error,
             'product_table_checked': product_table_checked,
+            # Include bot blocking information in the response if present
+            'bot_blocked': product_table_result.get('bot_blocked', False) if product_table_checked and product_table_result else False,
             # Override logic - only show redirects in development mode, hide them completely in production mode
             # This ensures product tables are correctly detected but not shown in the UI
             'redirected_to': processed_url if (

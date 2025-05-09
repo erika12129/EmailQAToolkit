@@ -1123,8 +1123,20 @@
                     const appMode = data.mode || 'production';  // Default to production if not specified
                     const isProduction = appMode === 'production';
                     
-                    // Process the result
-                    if (result.found === true || (!isProduction && result.detection_method === "simulated")) {
+                    // Process the result - first check if bot blocking was detected
+                    if (result.bot_blocked === true) {
+                        statusSpan.textContent = 'Blocked';
+                        statusSpan.style.color = '#e53e3e'; // Red
+                        
+                        const errorDiv = document.createElement('div');
+                        errorDiv.style.fontSize = '12px';
+                        errorDiv.style.marginTop = '4px';
+                        errorDiv.style.color = '#e53e3e'; // Red
+                        errorDiv.textContent = 'Bot detection triggered - site is blocking automated checks';
+                        statusContainer.appendChild(errorDiv);
+                    }
+                    // If not bot blocked, proceed with normal flow
+                    else if (result.found === true || (!isProduction && result.detection_method === "simulated")) {
                         statusSpan.textContent = 'Yes';
                         statusSpan.style.color = '#38a169'; // Green
                         
@@ -1172,17 +1184,8 @@
                         statusSpan.textContent = 'No';
                         statusSpan.style.color = '#4a5568'; // Gray
                         
-                        // Check for bot blocking specifically
-                        if (result.bot_blocked === true) {
-                            const errorDiv = document.createElement('div');
-                            errorDiv.style.fontSize = '12px';
-                            errorDiv.style.marginTop = '4px';
-                            errorDiv.style.color = '#e53e3e'; // Red
-                            errorDiv.textContent = 'Error: Bot detection triggered - site is blocking automated checks';
-                            statusContainer.appendChild(errorDiv);
-                        } 
                         // Add error if available
-                        else if (result.error) {
+                        if (result.error) {
                             const errorDiv = document.createElement('div');
                             errorDiv.style.fontSize = '12px';
                             errorDiv.style.marginTop = '4px';
