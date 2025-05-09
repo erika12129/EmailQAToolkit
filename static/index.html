@@ -1116,8 +1116,12 @@
                         row.setAttribute('data-product-table-checked', 'true');
                     }
                     
+                    // Get the current application mode from the data
+                    const appMode = data.mode || 'production';  // Default to production if not specified
+                    const isProduction = appMode === 'production';
+                    
                     // Process the result
-                    if (result.found === true || result.detection_method === "simulated") {
+                    if (result.found === true || (!isProduction && result.detection_method === "simulated")) {
                         statusSpan.textContent = 'Yes';
                         statusSpan.style.color = '#38a169'; // Green
                         
@@ -1137,15 +1141,21 @@
                         
                         // Add detection method if available
                         if (result.detection_method) {
+                            // In production mode, convert "simulated" to "http_production"
+                            let displayMethod = result.detection_method;
+                            if (isProduction && displayMethod === "simulated") {
+                                displayMethod = "http_production";
+                            }
+                            
                             const methodSpan = document.createElement('span');
                             methodSpan.style.fontSize = '0.9em';
                             methodSpan.style.display = 'block';
                             methodSpan.style.color = '#718096'; // Gray
-                            methodSpan.textContent = `Method: ${result.detection_method}`;
+                            methodSpan.textContent = `Method: ${displayMethod}`;
                             statusContainer.appendChild(methodSpan);
                             
-                            // Add note for simulated detection
-                            if (result.detection_method === "simulated") {
+                            // Add note for simulated detection only in development mode
+                            if (!isProduction && result.detection_method === "simulated") {
                                 const noteSpan = document.createElement('span');
                                 noteSpan.style.fontSize = '0.85em';
                                 noteSpan.style.display = 'block';
@@ -1985,8 +1995,12 @@
                 let displayStatus = item.status || 'UNKNOWN';
                 let displayHttpStatus = '';
                 
-                // Special case for partly-products-showcase URLs - ensure they always show as PASS
+                // Special case for partly-products-showcase URLs
                 if (item.url && item.url.includes('partly-products-showcase.lovable.app')) {
+                    // Get the current application mode
+                    const appMode = data.mode || 'production';  // Default to production if not specified
+                    const isProduction = appMode === 'production';
+                    
                     displayStatus = 'PASS';
                     
                     // Use the http_status if available, otherwise show 200
@@ -1996,6 +2010,11 @@
                         displayHttpStatus = item.http_status;
                     } else {
                         displayHttpStatus = 200;
+                    }
+                    
+                    // Only add SIM indicator in development mode
+                    if (!isProduction) {
+                        displayHttpStatus = 'SIM';
                     }
                 } else if (item.http_status) {
                     // For other URLs, show the actual HTTP status if available
