@@ -61,6 +61,25 @@ logger = logging.getLogger(__name__)
 _browser_check_complete = False
 _browser_check_lock = threading.Lock()
 
+# Add a public function to check if any browsers are available
+def check_browser_availability():
+    """
+    Check if any browsers are actually available and installed.
+    This is different from importing the Selenium library - it checks if
+    Chrome or Firefox are actually installed on the system.
+    
+    Returns:
+        bool: True if at least one browser is available, False otherwise
+    """
+    global CHROME_AVAILABLE, FIREFOX_AVAILABLE
+    
+    if not _browser_check_complete:
+        # Try to detect browsers
+        _check_browser_availability()
+    
+    # Return True if any browser is available
+    return CHROME_AVAILABLE or FIREFOX_AVAILABLE
+
 def _check_browser_availability():
     """Check which browsers are available and set global availability flags."""
     global CHROME_AVAILABLE, FIREFOX_AVAILABLE, _browser_check_complete

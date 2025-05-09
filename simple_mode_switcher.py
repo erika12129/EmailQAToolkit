@@ -222,33 +222,67 @@ async def check_product_tables(
                 # In production mode, always use the real detection methods
                 elif ('partly-products-showcase.lovable.app' in url):
                     logger.info(f"Using real detection for partly-products-showcase domain in production mode: {url}")
-                    # Use our improved detection in production mode
-                    if BROWSER_AUTOMATION_AVAILABLE:
+                    
+                    # Check if browser automation is actually available with real browsers
+                    browsers_actually_available = False
+                    try:
+                        # Check if browsers are actually installed (not just the automation library)
+                        if BROWSER_AUTOMATION_AVAILABLE:
+                            from selenium_automation import check_browser_availability
+                            browsers_actually_available = check_browser_availability()
+                            logger.info(f"Browser availability check result: {browsers_actually_available}")
+                    except Exception as browser_check_error:
+                        logger.warning(f"Could not verify browser availability: {str(browser_check_error)}")
+                        browsers_actually_available = False
+                    
+                    # Try HTTP detection method first - it's more reliable in production
+                    logger.info(f"Using HTTP detection method first for {url} in production")
+                    http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                    http_result['detection_method'] = 'http_production'
+                    
+                    # If HTTP method found product tables, use that result
+                    if http_result.get('found', False):
+                        logger.info(f"HTTP method found product tables for {url} in production")
+                        results[url] = http_result
+                        continue  # Skip to next URL
+                        
+                    # Only attempt browser automation if we know browsers are actually installed
+                    if browsers_actually_available:
                         try:
                             logger.info(f"Performing browser automation detection for {url} in production")
-                            result = browser_check(url, timeout=timeout)
-                            result['detection_method'] = 'browser_production'
-                            results[url] = result
+                            browser_result = browser_check(url, timeout=timeout)
+                            browser_result['detection_method'] = 'browser_production'
+                            
+                            # If browser found something, use that result
+                            if browser_result.get('found', False):
+                                logger.info(f"Browser automation found product tables for {url} in production")
+                                results[url] = browser_result
+                            else:
+                                # If neither method found anything, use HTTP result anyway
+                                logger.info(f"Neither HTTP nor browser found product tables for {url}")
+                                results[url] = http_result
                         except Exception as e:
                             logger.warning(f"Browser automation failed in production mode for {url}: {str(e)}")
-                            # Use web_scraper's text analysis detection as fallback
-                            if TEXT_ANALYSIS_AVAILABLE:
-                                logger.info(f"Using text analysis fallback for {url}")
-                                result = check_for_product_tables_with_text_analysis(url)
-                                result['detection_method'] = 'text_analysis_production'
-                                results[url] = result
-                            else:
-                                # Direct HTTP check as final fallback
-                                logger.info(f"Using HTTP fallback for {url}")
-                                result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
-                                result['detection_method'] = 'http_production'
-                                results[url] = result
+                            # Use HTTP result we already have
+                            results[url] = http_result
                     else:
-                        # Use HTTP method if browser automation not available
-                        logger.info(f"Browser not available, using HTTP detection for {url} in production")
-                        result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
-                        result['detection_method'] = 'http_production'
-                        results[url] = result
+                        # Use HTTP result we already have
+                        logger.info(f"Browsers not actually available, using HTTP result for {url}")
+                        results[url] = http_result
+                        
+                    # Try text analysis as a last resort if nothing was found
+                    if not results[url].get('found', False) and TEXT_ANALYSIS_AVAILABLE:
+                        try:
+                            logger.info(f"Trying text analysis as last resort for {url}")
+                            text_result = check_for_product_tables_with_text_analysis(url)
+                            text_result['detection_method'] = 'text_analysis_production'
+                            
+                            # Only use text analysis if it found something
+                            if text_result.get('found', False):
+                                logger.info(f"Text analysis found product tables for {url}")
+                                results[url] = text_result
+                        except Exception as text_error:
+                            logger.warning(f"Text analysis failed for {url}: {str(text_error)}")
                 else:
                     # Use hybrid approach for better detection - try browser automation first with fallback to HTTP
                     if BROWSER_AUTOMATION_AVAILABLE:
