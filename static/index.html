@@ -558,6 +558,9 @@
                 .then(data => {
                     const appMode = data.mode || 'production';  // Default to production if not specified
                     
+                    // Set data-mode attribute on body element
+                    document.body.setAttribute('data-mode', appMode);
+                    
                     // Apply mode class to container
                     if (appMode === 'production') {
                         document.querySelector('.container').classList.add('production-mode');
@@ -1143,6 +1146,7 @@
                         if (result.detection_method) {
                             // In production mode, convert "simulated" to "http_production"
                             let displayMethod = result.detection_method;
+                            // Always convert simulated to http_production in production mode
                             if (isProduction && displayMethod === "simulated") {
                                 displayMethod = "http_production";
                             }
@@ -1200,6 +1204,7 @@
                             
                             // In production mode, convert "simulated" to "http_production"
                             let displayMethod = result.detection_method;
+                            // Always convert simulated to http_production in production mode
                             if (isProduction && displayMethod === "simulated") {
                                 displayMethod = "http_production";
                             }

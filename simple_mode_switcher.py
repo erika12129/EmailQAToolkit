@@ -111,6 +111,9 @@ async def read_root():
     </div>
     """
     
+    # Add data-mode attribute to the body tag for JavaScript detection
+    html_content = html_content.replace("<body", f"<body data-mode=\"{mode}\"")
+    
     # Insert the mode indicator before the closing body tag
     html_content = html_content.replace("</body>", f"{mode_indicator}</body>")
     

@@ -32,7 +32,7 @@ def run_servers(initial_mode=None):
     # Use a consistent import path regardless of environment
     server_cmd = ["python", "-c", 
                  "import uvicorn; import simple_mode_switcher; "
-                 "print('Running in DEPLOYMENT mode' if '{}' else 'Running in local mode'); "
+                 "print('Running in DEPLOYMENT mode' if {} else 'Running in local mode'); "
                  "uvicorn.run(simple_mode_switcher.app, host='0.0.0.0', port=5000)".format(is_deployment)]
     
     fastapi_process = subprocess.Popen(
