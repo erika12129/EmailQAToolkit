@@ -71,14 +71,14 @@ def get_html_content(url: str, timeout: Optional[int] = 10) -> Optional[str]:
 
 def analyze_html_structure(url: str) -> Dict[str, Any]:
     """
-    Analyze HTML structure for product table indicators using BeautifulSoup.
-    Looks for common HTML structures found in product tables.
+    Analyze HTML structure for product table classes using BeautifulSoup.
+    Specifically looks for "product-table*" or "*productListContainer" in div classes.
     
     Args:
         url: The URL to analyze
         
     Returns:
-        dict: Analysis results
+        dict: Analysis results with found class name
     """
     try:
         html_content = get_html_content(url)
@@ -92,120 +92,81 @@ def analyze_html_structure(url: str) -> Dict[str, Any]:
         # Parse HTML with BeautifulSoup
         soup = BeautifulSoup(html_content, 'html.parser')
         
-        # Product table structure indicators
-        structure_indicators = {
-            'product_grid': ['product-grid', 'products-grid', 'grid-view', 'grid-container'],
-            'product_list': ['product-list', 'products-list', 'list-view', 'listing'],
-            'product_table': ['product-table', 'products-table', 'table-view'],
-            'product_container': ['product-container', 'products-container', 'item-container'],
-            'product_card': ['product-card', 'product-item', 'product-box', 'item-card'],
-            'product_row': ['product-row', 'row-item', 'item-row'],
-            'product_pricing': ['price-container', 'product-price', 'price-box', 'price-wrapper']
-        }
+        # Target specific class patterns
+        product_table_pattern = re.compile(r'product-table.*', re.IGNORECASE)
+        product_list_container_pattern = re.compile(r'.*productListContainer.*', re.IGNORECASE)
         
-        # Results tracking
-        found_indicators = {}
-        total_structures = 0
-        
-        # Check class names in various elements for product table indicators
-        for element_type in ['div', 'ul', 'table', 'section', 'article']:
-            elements = soup.find_all(element_type, class_=True)
-            
-            for element in elements:
-                # Handle element class attribute safely
-                try:
-                    class_attr = element.get('class', [])
-                    if class_attr is None:
-                        class_attr = []
-                    elif isinstance(class_attr, str):
-                        class_attr = [class_attr]
-                    
-                    # Convert list to string
-                    element_classes = ' '.join([str(c) for c in class_attr if c]).lower()
-                except Exception as e:
-                    logger.warning(f"Error processing class attribute: {e}")
-                    element_classes = ""
-                
-                # Check against structure indicators
-                for indicator_type, indicator_patterns in structure_indicators.items():
-                    for pattern in indicator_patterns:
-                        if pattern.lower() in element_classes:
-                            if indicator_type not in found_indicators:
-                                found_indicators[indicator_type] = []
-                            
-                            # Record details about the found structure safely
-                            element_details = {
-                                'class': element_classes,
-                                'pattern': pattern
-                            }
-                            
-                            # Add element name if available
-                            try:
-                                if hasattr(element, 'name'):
-                                    element_details['element'] = element.name
-                            except Exception:
-                                element_details['element'] = 'unknown'
-                                
-                            # Get child count safely
-                            try:
-                                if hasattr(element, 'find_all'):
-                                    element_details['child_count'] = len(element.find_all())
-                                else:
-                                    element_details['child_count'] = 0
-                            except Exception:
-                                element_details['child_count'] = 0
-                                
-                            found_indicators[indicator_type].append(element_details)
-                            
-                            total_structures += 1
-        
-        # Calculate confidence based on the number and types of structures found
-        confidence_score = min(100, total_structures * 10)  # 10 points per structure found
-        
-        # Check for specific product indicators in the content
-        price_regex = r'[\$€£]\s*\d+(\.\d{2})?'
-        price_elements = soup.find_all(text=re.compile(price_regex))
-        
-        # Add pricing to the confidence score
-        if price_elements:
-            confidence_score = min(100, confidence_score + 20)
-            found_indicators['price_elements'] = len(price_elements)
-        
-        # Look for product images
-        product_images = 0
-        for img in soup.find_all('img'):
-            # Get attributes safely
+        # Look for divs with the specific class patterns we need
+        for div in soup.find_all('div', class_=True):
             try:
-                img_src = ""
-                if hasattr(img, 'get'):
-                    src_attr = img.get('src')
-                    if src_attr is not None:
-                        img_src = str(src_attr)
-                    
-                img_alt = ""
-                if hasattr(img, 'get'):
-                    alt_attr = img.get('alt')
-                    if alt_attr is not None:
-                        img_alt = str(alt_attr)
+                # Safely extract class attributes
+                try:
+                    # Try to get the class attribute
+                    if hasattr(div, 'attrs') and isinstance(div.attrs, dict) and 'class' in div.attrs:
+                        classes = div.attrs['class']
+                    elif hasattr(div, 'get'):
+                        # Try to use the get method if it exists
+                        classes = div.get('class')
+                    else:
+                        # Skip if we can't get the classes
+                        continue
+                        
+                    # Skip if no classes found
+                    if not classes:
+                        continue
+                        
+                    # Handle if class is already a string
+                    if isinstance(classes, str):
+                        class_str = classes
+                    elif isinstance(classes, list):
+                        # Join classes into a string
+                        class_str = ' '.join([str(c) for c in classes if c])
+                    else:
+                        # Convert unknown type to string
+                        class_str = str(classes)
+                except Exception as e:
+                    logger.warning(f"Error getting class attribute: {e}")
+                    continue
                 
-                # Safely check for product-related terms in attributes
-                if ('product' in img_src.lower() if img_src else False) or \
-                   ('product' in img_alt.lower() if img_alt else False):
-                    product_images += 1
+                # Check for product-table pattern first
+                match_product_table = product_table_pattern.search(class_str)
+                if match_product_table:
+                    try:
+                        found_class = match_product_table.group(0)
+                        logger.info(f"Found product-table class: {found_class}")
+                        
+                        return {
+                            'found': True,
+                            'class_name': found_class,
+                            'element_type': 'div',
+                            'detection_method': 'html_structure_analysis'
+                        }
+                    except Exception as e:
+                        logger.warning(f"Error extracting product-table match: {e}")
+                
+                # Check for productListContainer pattern
+                match_product_list = product_list_container_pattern.search(class_str)
+                if match_product_list:
+                    try:
+                        found_class = match_product_list.group(0)
+                        logger.info(f"Found productListContainer class: {found_class}")
+                        
+                        return {
+                            'found': True,
+                            'class_name': found_class,
+                            'element_type': 'div',
+                            'detection_method': 'html_structure_analysis'
+                        }
+                    except Exception as e:
+                        logger.warning(f"Error extracting productListContainer match: {e}")
             except Exception as e:
-                logger.warning(f"Error processing image element: {e}")
+                logger.warning(f"Error processing div classes: {e}")
+                continue
         
-        if product_images > 0:
-            found_indicators['product_images'] = product_images
-            confidence_score = min(100, confidence_score + (10 if product_images > 5 else 5))
-        
-        # Product table likely exists if confidence score above threshold
-        found = confidence_score >= 30  # 30% threshold
-        
+        # If we got here, no matching classes were found
+        logger.info("No product table classes found in HTML")
         return {
-            'found': found,
-            'confidence_score': confidence_score,
-            'found_indicators': found_indicators,
+            'found': False,
             'detection_method': 'html_structure_analysis'
         }
     except Exception as e:
@@ -218,84 +179,60 @@ def analyze_html_structure(url: str) -> Dict[str, Any]:
 
 def check_for_product_tables_with_text_analysis(url: str) -> Dict[str, Any]:
     """
-    This function analyzes the extracted text content and HTML structure to detect product listings
-    using semantic analysis and common product listing patterns.
-    Uses a dual-approach strategy combining text analysis and HTML structure.
+    This function primarily uses HTML structure analysis to find product table classes.
+    Falls back to text analysis only if HTML structure analysis fails.
     
     Args:
         url: The URL to check for product tables
         
     Returns:
-        dict: Detection results including confidence score
+        dict: Detection results
     """
     try:
-        # Strategy 1: Text-based analysis
+        # Primary method: HTML structure analysis to find specific class names
+        html_result = analyze_html_structure(url)
+        
+        # If we found a matching class, return the result directly
+        if html_result.get('found', False):
+            logger.info(f"Found product table class via HTML analysis: {html_result.get('class_name')}")
+            return html_result
+        
+        # Fallback method: Check the text content for product indicators
         text_content = get_website_text_content(url)
         if not text_content:
-            logger.warning(f"Text-based analysis failed for {url}, falling back to HTML structure analysis only")
-            return analyze_html_structure(url)
-            
-        # Product indicators - common text patterns in product listing pages
-        product_indicators = [
-            r'product(s)?(\s+list(ing)?)?',
-            r'item(s)?(\s+list(ing)?)?',
-            r'price',
-            r'\$\d+(\.\d{2})?',
-            r'add to cart',
-            r'buy now',
-            r'in stock',
-            r'out of stock',
-            r'quantity',
-            r'product description',
-            r'specifications',
-            r'features',
-            r'reviews',
-            r'related products',
-            r'more details',
-            r'shipping',
-            r'delivery',
-            r'return policy'
+            logger.warning(f"Text analysis fallback failed for {url} - no content extracted")
+            return {
+                'found': False,
+                'detection_method': 'text_analysis_failed'
+            }
+        
+        # Look for product table related keywords in the text
+        product_keywords = [
+            'product table', 
+            'product list', 
+            'product grid', 
+            'productListContainer',
+            'product-table'
         ]
         
-        # Count how many product indicators appear in the text
-        indicator_count = 0
-        matched_indicators = []
+        for keyword in product_keywords:
+            if keyword.lower() in text_content.lower():
+                logger.info(f"Found product table keyword in text: {keyword}")
+                return {
+                    'found': True,
+                    'keyword': keyword,
+                    'detection_method': 'text_analysis'
+                }
         
-        for pattern in product_indicators:
-            matches = re.findall(pattern, text_content.lower())
-            if matches:
-                indicator_count += len(matches)
-                matched_indicators.append(pattern)
-                
-        # Calculate confidence score (0-100) based on indicators found
-        # More indicators = higher confidence
-        max_indicators = len(product_indicators) * 2  # Allow multiple matches
-        text_confidence = min(100, int((indicator_count / max_indicators) * 100))
-        
-        # Strategy 2: HTML structure analysis
-        html_result = analyze_html_structure(url)
-        html_confidence = html_result.get('confidence_score', 0)
-        
-        # Combined analysis with weighted approach
-        # Text analysis is 40%, structure analysis is 60% of final score
-        combined_confidence = (text_confidence * 0.4) + (html_confidence * 0.6)
-        
-        # Product table likely exists if combined confidence score above threshold
-        found = combined_confidence >= 35  # 35% threshold
-        
-        return {
-            'found': found,
-            'confidence_score': int(combined_confidence),
-            'text_confidence': text_confidence,
-            'html_confidence': html_confidence,
-            'text_indicators': matched_indicators,
-            'html_indicators': html_result.get('found_indicators', {}),
-            'detection_method': 'combined_text_html_analysis'
-        }
-    except Exception as e:
-        logger.error(f"Error in combined text/HTML analysis for {url}: {str(e)}")
+        # If we got here, no product tables were detected by any method
         return {
             'found': False,
-            'error': f"Combined analysis error: {str(e)}",
-            'detection_method': 'combined_analysis_error'
+            'detection_method': 'combined_analysis'
+        }
+    except Exception as e:
+        logger.error(f"Error in product table detection for {url}: {str(e)}")
+        return {
+            'found': False,
+            'error': f"Detection error: {str(e)}",
+            'detection_method': 'error'
         }
