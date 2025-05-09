@@ -20,11 +20,45 @@ from runtime_config import config
 # Import browser automation module
 # Define a fallback function in case the real one isn't available
 def browser_check_fallback(url, timeout=None):
-    """Fallback function when browser automation is not available."""
+    """
+    Fallback function when browser automation is not available.
+    Preserves the bot_blocked flag when falling back from HTTP checks.
+    """
+    # If we're in development mode and this is a test domain, we can simulate responses
+    from urllib.parse import urlparse
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc
+    
+    if config.mode == 'development' and (
+        'partly-products-showcase.lovable.app' in domain or 
+        'localhost:5001' in domain or 
+        '127.0.0.1:5001' in domain
+    ):
+        # Simulate bot blocked if requested in URL params
+        if 'simulate=bot_blocked' in url or 'bot_blocked=true' in url:
+            logging.info(f"Simulating bot blocked in fallback for: {url}")
+            return {
+                'found': False,
+                'error': "Simulated bot protection (development mode)",
+                'detection_method': 'simulated',
+                'bot_blocked': True
+            }
+        else:
+            # Simulate success for test domains in development mode
+            logging.info(f"Simulating product table found in fallback for: {url}")
+            return {
+                'found': True,
+                'class_name': 'product-table',
+                'detection_method': 'simulated',
+                'bot_blocked': False
+            }
+    
+    # For all other cases, return standard fallback
     return {
         'found': False,
         'error': "Browser automation not available",
-        'detection_method': 'unavailable'
+        'detection_method': 'unavailable',
+        'bot_blocked': False
     }
 
 # Check for text analysis availability
@@ -221,14 +255,27 @@ async def check_product_tables(
                 
                 # In development mode, use simulated results for test domains
                 if (config.mode == 'development' and is_test_domain):
-                    logger.info(f"Using simulated success response for test domain in development mode: {url}")
-                    # For test domains in development mode, return a simulated positive result
-                    results[url] = {
-                        'found': True, 
-                        'class_name': 'product-table productListContainer',
-                        'detection_method': 'simulated',
-                        'is_test_domain': True
-                    }
+                    # Check if we should simulate bot protection instead
+                    if 'simulate=bot_blocked' in url or 'bot_blocked=true' in url:
+                        logger.info(f"Using simulated BOT BLOCKED response for test domain in development mode: {url}")
+                        results[url] = {
+                            'found': False,
+                            'error': 'Simulated bot protection (development mode)',
+                            'detection_method': 'simulated',
+                            'is_test_domain': True,
+                            'bot_blocked': True
+                        }
+                    else:
+                        # Standard simulated success
+                        logger.info(f"Using simulated success response for test domain in development mode: {url}")
+                        # For test domains in development mode, return a simulated positive result
+                        results[url] = {
+                            'found': True, 
+                            'class_name': 'product-table productListContainer',
+                            'detection_method': 'simulated',
+                            'is_test_domain': True,
+                            'bot_blocked': False
+                        }
                 # In production mode for partly-products-showcase.lovable.app, use REAL detection
                 elif ('partly-products-showcase.lovable.app' in url):
                     logger.info(f"Using REAL detection for partly-products-showcase domain in production mode: {url}")
@@ -316,6 +363,10 @@ async def check_product_tables(
                             logger.info(f"Using HTTP fallback due to browser automation error")
                             result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
                             result['detection_method'] = 'http_fallback_after_error'
+                            
+                            # Make sure bot_blocked flag is preserved (very important!)
+                            if result.get('bot_blocked', False):
+                                logger.warning(f"Bot blocking detected for {url} during fallback - will report this in the response")
                     else:
                         # Browser automation is not available, use direct HTTP check
                         logger.info(f"Browser automation not available, using direct HTTP check for {url}")
@@ -324,17 +375,32 @@ async def check_product_tables(
                         # Add additional context to the result to show we used direct HTTP
                         if 'detection_method' not in result:
                             result['detection_method'] = 'direct_http'
+                            
+                        # Make sure bot_blocked flag is preserved (very important!)
+                        if result.get('bot_blocked', False):
+                            logger.warning(f"Bot blocking detected for {url} - will report this in the response")
                     
                     logger.info(f"Product table check result for {url}: {result}")
                     results[url] = result
             except Exception as url_error:
                 # Handle errors for individual URLs separately
                 logger.error(f"Error checking product table for URL {url}: {str(url_error)}")
-                results[url] = {
-                    'found': False,
-                    'error': f"Error processing URL: {str(url_error)}",
-                    'detection_method': 'error'
-                }
+                
+                # For Cloudflare domains or other known bot protection, add bot_blocked flag
+                if 'cloudflare' in url.lower() or 'captcha' in str(url_error).lower() or 'bot' in str(url_error).lower():
+                    logger.warning(f"Likely bot protection detected from error handling for {url}")
+                    results[url] = {
+                        'found': False,
+                        'error': f"Error processing URL: {str(url_error)}",
+                        'detection_method': 'error',
+                        'bot_blocked': True
+                    }
+                else:
+                    results[url] = {
+                        'found': False,
+                        'error': f"Error processing URL: {str(url_error)}",
+                        'detection_method': 'error'
+                    }
             
         return JSONResponse(content={"results": results})
         
@@ -342,7 +408,11 @@ async def check_product_tables(
         logger.error(f"Error checking product tables: {e}")
         return JSONResponse(
             status_code=500,
-            content={"error": f"Failed to check product tables: {str(e)}"}
+            content={"results": {
+                "error": f"Failed to check product tables: {str(e)}",
+                "success": False,
+                "bot_blocked": False
+            }}
         )
 
 # Add a new endpoint to compare HTTP vs browser checking methods
@@ -391,7 +461,8 @@ async def compare_detection_methods(
                         'found': True, 
                         'class_name': 'product-table productListContainer',
                         'detection_method': 'simulated',
-                        'is_test_domain': True
+                        'is_test_domain': True,
+                        'bot_blocked': False  # Always false for simulated results
                     }
                     
                     results[url] = {
@@ -409,16 +480,30 @@ async def compare_detection_methods(
                         try:
                             browser_result = browser_check(url, timeout=timeout)
                         except Exception as browser_error:
+                            # Check for bot protection indicators in error message
+                            error_message = str(browser_error).lower()
+                            bot_protection_indicators = [
+                                'captcha', 'security', 'cloudflare', 'challenge', 'blocked', 
+                                'denied', 'bot', 'protection', 'automated', 'detection'
+                            ]
+                            
+                            bot_detected = any(indicator in error_message for indicator in bot_protection_indicators)
+                            
+                            if bot_detected:
+                                logger.warning(f"Possible bot protection detected in browser error: {error_message}")
+                            
                             browser_result = {
                                 'found': False,
                                 'error': f"Browser automation error: {str(browser_error)}",
-                                'detection_method': 'browser_error'
+                                'detection_method': 'browser_error',
+                                'bot_blocked': bot_detected
                             }
                     else:
                         browser_result = {
                             'found': False,
                             'error': "Browser automation not available",
-                            'detection_method': 'unavailable'
+                            'detection_method': 'unavailable',
+                            'bot_blocked': False  # No bot blocking since browser automation isn't even attempted
                         }
                     
                     # If text analysis is available, include it in the comparison
@@ -426,10 +511,23 @@ async def compare_detection_methods(
                         try:
                             text_result = check_for_product_tables_with_text_analysis(url)
                         except Exception as text_error:
+                            # Check for bot protection indicators in error message
+                            error_message = str(text_error).lower()
+                            bot_protection_indicators = [
+                                'captcha', 'security', 'cloudflare', 'challenge', 'blocked', 
+                                'denied', 'bot', 'protection', 'automated', 'detection'
+                            ]
+                            
+                            bot_detected = any(indicator in error_message for indicator in bot_protection_indicators)
+                            
+                            if bot_detected:
+                                logger.warning(f"Possible bot protection detected in text analysis error: {error_message}")
+                            
                             text_result = {
                                 'found': False,
                                 'error': f"Text analysis error: {str(text_error)}",
-                                'detection_method': 'text_analysis_error'
+                                'detection_method': 'text_analysis_error',
+                                'bot_blocked': bot_detected
                             }
                             
                         # Add text analysis result to the comparison
@@ -481,8 +579,22 @@ async def compare_detection_methods(
             
             except Exception as url_error:
                 logger.error(f"Error comparing methods for URL {url}: {str(url_error)}")
+                # Check for bot protection indicators in error message
+                error_message = str(url_error).lower()
+                bot_protection_indicators = [
+                    'captcha', 'security', 'cloudflare', 'challenge', 'blocked', 
+                    'denied', 'bot', 'protection', 'automated', 'detection'
+                ]
+                
+                bot_detected = any(indicator in error_message for indicator in bot_protection_indicators)
+                
+                if bot_detected:
+                    logger.warning(f"Possible bot protection detected in URL error: {error_message}")
+                
                 results[url] = {
-                    'error': f"Error processing URL: {str(url_error)}"
+                    'error': f"Error processing URL: {str(url_error)}",
+                    'success': False,
+                    'bot_blocked': bot_detected
                 }
                 
         return JSONResponse(content={"results": results})
@@ -491,7 +603,11 @@ async def compare_detection_methods(
         logger.error(f"Error comparing detection methods: {str(e)}")
         return JSONResponse(
             status_code=500,
-            content={"error": f"Failed to compare detection methods: {str(e)}"}
+            content={"results": {
+                "error": f"Failed to compare detection methods: {str(e)}",
+                "success": False,
+                "bot_blocked": False
+            }}
         )
 
 @app.post("/run-qa")
@@ -529,7 +645,11 @@ async def run_qa(
         if force_production and force_development:
             return JSONResponse(
                 status_code=400,
-                content={"error": "Cannot force both production and development modes simultaneously"}
+                content={"results": {
+                    "error": "Cannot force both production and development modes simultaneously",
+                    "success": False,
+                    "bot_blocked": False
+                }}
             )
         elif force_production:
             logger.info("Forcing production mode for this request")
@@ -579,15 +699,16 @@ async def run_qa(
         if product_table_timeout:
             results["product_table_timeout"] = product_table_timeout
         
-        # Explicitly return as JSON with appropriate headers
-        return JSONResponse(content=results)
+        # Standardize response format with results wrapper for consistency
+        # This ensures all API responses have the same structure, which makes frontend handling easier
+        return JSONResponse(content={"results": results})
     
     except Exception as e:
         error_detail = f"QA validation failed: {str(e)}"
         logger.error(error_detail)
         return JSONResponse(
             status_code=500,
-            content={"detail": error_detail}
+            content={"results": {"error": error_detail, "success": False, "bot_blocked": False}}
         )
     
     finally:

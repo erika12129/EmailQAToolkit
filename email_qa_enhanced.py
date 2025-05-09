@@ -699,7 +699,7 @@ def check_for_product_tables(url, timeout=None):
                     'found': False,
                     'error': error_message,
                     'detection_method': 'failed',
-                    'bot_blocked': True
+                    'bot_blocked': True  # Explicit flag for bot protection detection
                 }
             else:
                 # Only retry on 5xx server errors or if it's a test domain
@@ -710,6 +710,29 @@ def check_for_product_tables(url, timeout=None):
                     
                 error_message = f"Failed to get content, status code: {response.status_code}"
                 logger.error(error_message)
+                
+                # For certain status codes like 400, 401, 404, 502, it might be bot protection in disguise
+                if response.status_code in [400, 401, 404, 502]:
+                    # Check response content for bot-protection indicators
+                    try:
+                        response_text = response.text.lower()
+                        # Common bot detection phrases, same as defined above
+                        bot_detection_phrases = [
+                            'captcha', 'security check', 'access denied', 'blocked', 
+                            'suspicious activity', 'unusual traffic', 'automated request',
+                            'too many requests', 'rate limit', 'please verify', 'cloudflare'
+                        ]
+                        if any(bot_term in response_text for bot_term in bot_detection_phrases):
+                            logger.warning(f"Possible bot protection disguised as {response.status_code} status code")
+                            return {
+                                'found': False,
+                                'error': f"{error_message} (likely bot protection)",
+                                'detection_method': 'failed',
+                                'bot_blocked': True
+                            }
+                    except:
+                        pass  # If we can't read response content, just proceed normally
+                
                 return {
                     'found': False,
                     'error': error_message,
@@ -729,6 +752,17 @@ def check_for_product_tables(url, timeout=None):
                 error_type = type(e).__name__
                 error_message = f"{error_type} connecting to {url}: {str(e)}"
                 logger.error(error_message)
+                
+                # For Cloudflare domains, assume bot protection is likely the reason for connection issues
+                if 'cloudflare' in url.lower() or 'cloudflare' in str(e).lower():
+                    logger.warning(f"Connection issues with Cloudflare domain - likely bot protection")
+                    return {
+                        'found': False,
+                        'error': f"{error_message} (likely Cloudflare bot protection)",
+                        'detection_method': 'failed',
+                        'bot_blocked': True
+                    }
+                
                 return {
                     'found': False,
                     'error': error_message,
@@ -737,6 +771,17 @@ def check_for_product_tables(url, timeout=None):
         except Exception as e:
             error_message = f"Error checking for product tables: {str(e)}"
             logger.error(error_message)
+            
+            # Check for bot detection indicators in the error message
+            if 'captcha' in str(e).lower() or 'bot' in str(e).lower() or 'cloudflare' in str(e).lower() or 'security' in str(e).lower():
+                logger.warning(f"Generic error contains bot detection indicators: {str(e)}")
+                return {
+                    'found': False,
+                    'error': error_message,
+                    'detection_method': 'failed',
+                    'bot_blocked': True
+                }
+                
             return {
                 'found': False,
                 'error': error_message,

@@ -113,6 +113,59 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
                 # Wait a bit for any lazy-loaded content
                 await page.wait_for_timeout(2000)
                 
+                # First check for bot protection indicators
+                bot_protection_result = await page.evaluate("""() => {
+                    // Check for common bot protection indicators in the page
+                    const botDetectionElements = [
+                        // Cloudflare elements
+                        document.querySelector('#cf-error-details'),
+                        document.querySelector('.cf-error-code'),
+                        document.querySelector('#challenge-running'),
+                        document.querySelector('#challenge-spinner'),
+                        document.querySelector('.cf-browser-verification'), 
+                        // General captcha and security elements
+                        document.querySelector('[id*="captcha"]'),
+                        document.querySelector('[class*="captcha"]'),
+                        document.querySelector('[id*="security"]'),
+                        document.querySelector('[class*="security"]'),
+                        document.querySelector('[id*="robot"]'),
+                        document.querySelector('[class*="robot"]')
+                    ];
+                    
+                    // Check if any bot protection elements are present
+                    const hasBotProtection = botDetectionElements.some(el => el !== null);
+                    
+                    // Check for common bot protection phrases in the page text
+                    const pageText = document.body.innerText.toLowerCase();
+                    const botPhrases = [
+                        'captcha', 'security check', 'access denied', 'blocked', 
+                        'suspicious activity', 'unusual traffic', 'automated request',
+                        'too many requests', 'rate limit', 'please verify', 'cloudflare',
+                        'browser check', 'check your browser', 'robot', 'bot'
+                    ];
+                    
+                    const hasBlockingText = botPhrases.some(phrase => pageText.includes(phrase));
+                    
+                    return {
+                        bot_blocked: hasBotProtection || hasBlockingText,
+                        protection_elements: hasBotProtection,
+                        protection_text: hasBlockingText
+                    };
+                }""");
+                
+                # If bot protection is detected, return immediately
+                if bot_protection_result.get('bot_blocked', False):
+                    await browser.close()
+                    logger.warning(f"Bot protection detected on {url} through browser automation")
+                    return {
+                        'found': False,
+                        'error': 'Bot protection detected',
+                        'detection_method': 'browser_automation',
+                        'bot_blocked': True,
+                        'protection_elements': bot_protection_result.get('protection_elements', False),
+                        'protection_text': bot_protection_result.get('protection_text', False)
+                    }
+                
                 # Check for product tables using JavaScript in the browser context
                 has_product_table = await page.evaluate("""() => {
                     // IMPORTANT: Only look for the specific class names as requested
@@ -186,17 +239,33 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
                     
             except PlaywrightTimeoutError:
                 await browser.close()
+                logger.warning(f"Navigation timeout for {url} - possible bot protection")
                 return {
                     'found': False,
                     'error': 'Navigation timeout',
-                    'detection_method': 'browser_automation_timeout'
+                    'detection_method': 'browser_automation_timeout',
+                    'bot_blocked': 'cloudflare' in url.lower() or '.cf.' in url.lower() # Assume Cloudflare timeouts are likely bot protection
                 }
             except Exception as e:
                 await browser.close()
+                error_message = str(e).lower()
+                
+                # Check for bot protection indicators in error message
+                bot_protection_indicators = [
+                    'captcha', 'security', 'cloudflare', 'challenge', 'blocked', 
+                    'denied', 'bot', 'protection', 'automated', 'detection'
+                ]
+                
+                bot_detected = any(indicator in error_message for indicator in bot_protection_indicators)
+                
+                if bot_detected:
+                    logger.warning(f"Likely bot protection detected in error for {url}: {error_message}")
+                
                 return {
                     'found': False,
                     'error': str(e),
-                    'detection_method': 'browser_automation_error'
+                    'detection_method': 'browser_automation_error',
+                    'bot_blocked': bot_detected
                 }
     
     except ImportError:
@@ -250,13 +319,26 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
             'localhost:5001' in domain or 
             '127.0.0.1:5001' in domain
         )):
-            logger.info(f"Using simulated success response in development mode for test domain: {url}")
-            return {
-                'found': True,
-                'class_name': 'product-table productListContainer',
-                'detection_method': 'simulated',
-                'is_test_domain': True
-            }
+            # Handle test domains with special simulation parameters
+            # Check URL for simulation type parameters
+            if 'simulate=bot_blocked' in url or 'bot_blocked=true' in url:
+                logger.info(f"Using simulated BOT BLOCKED response in development mode for test domain: {url}")
+                return {
+                    'found': False,
+                    'error': 'Simulated bot protection (development mode)',
+                    'detection_method': 'simulated',
+                    'is_test_domain': True,
+                    'bot_blocked': True
+                }
+            else:
+                logger.info(f"Using simulated SUCCESS response in development mode for test domain: {url}")
+                return {
+                    'found': True,
+                    'class_name': 'product-table productListContainer',
+                    'detection_method': 'simulated',
+                    'is_test_domain': True,
+                    'bot_blocked': False
+                }
         
         # In production mode, always use the real browser detection
         if 'partly-products-showcase.lovable.app' in domain:
@@ -277,10 +359,20 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
                 loop.close()
             except Exception as thread_e:
                 logger.error(f"Thread error: {str(thread_e)}")
+                # Check for bot protection indicators in error message
+                error_message = str(thread_e).lower()
+                bot_protection_indicators = [
+                    'captcha', 'security', 'cloudflare', 'challenge', 'blocked', 
+                    'denied', 'bot', 'protection', 'automated', 'detection'
+                ]
+                
+                bot_detected = any(indicator in error_message for indicator in bot_protection_indicators)
+                
                 result_container.append({
                     'found': False,
                     'error': f'Thread error: {str(thread_e)}',
-                    'detection_method': 'thread_error'
+                    'detection_method': 'thread_error',
+                    'bot_blocked': bot_detected
                 })
         
         # Start a new thread
@@ -290,11 +382,17 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
         
         if thread.is_alive():
             # Thread is still running after timeout
-            logger.warning(f"Browser check thread timed out for {url}")
+            # For timeouts, assume possible bot protection especially for Cloudflare domains
+            is_likely_bot_protection = 'cloudflare' in url.lower() or '.cf.' in url.lower()
+            
+            logger.warning(f"Browser check thread timed out for {url}" + 
+                         (", likely bot protection" if is_likely_bot_protection else ""))
+            
             return {
                 'found': False,
-                'error': 'Browser check thread timeout',
-                'detection_method': 'thread_timeout'
+                'error': 'Browser check thread timeout' + (', likely bot protection' if is_likely_bot_protection else ''),
+                'detection_method': 'thread_timeout',
+                'bot_blocked': is_likely_bot_protection
             }
         
         # Return the result if available
@@ -305,15 +403,29 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
             return {
                 'found': False,
                 'error': 'No result from browser check thread',
-                'detection_method': 'thread_no_result'
+                'detection_method': 'thread_no_result',
+                'bot_blocked': False
             }
             
     except Exception as e:
         logger.error(f"Error in synchronous wrapper: {str(e)}")
+        # Check for bot protection indicators in error
+        error_message = str(e).lower()
+        bot_protection_indicators = [
+            'captcha', 'security', 'cloudflare', 'challenge', 'blocked', 
+            'denied', 'bot', 'protection', 'automated', 'detection'
+        ]
+        
+        bot_detected = any(indicator in error_message for indicator in bot_protection_indicators)
+        
+        if bot_detected:
+            logger.warning(f"Possible bot protection detected in sync wrapper error: {error_message}")
+        
         return {
             'found': False,
             'error': f'Synchronous wrapper error: {str(e)}',
-            'detection_method': 'sync_wrapper_error'
+            'detection_method': 'sync_wrapper_error',
+            'bot_blocked': bot_detected
         }
 
 # For testing
