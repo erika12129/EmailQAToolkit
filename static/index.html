@@ -1535,12 +1535,13 @@
                                 row.style.backgroundColor = '#f0fff4'; // Light green
                             }
                             
-                            // Add class name
+                            // Add class name - display the actual class name found
                             const classSpan = document.createElement('span');
                             classSpan.style.fontSize = '0.9em';
                             classSpan.style.display = 'block';
                             classSpan.style.color = '#718096'; // Gray
-                            classSpan.textContent = `Class: product-table productListContainer`;
+                            // Display the actual class name from the API result if available
+                            classSpan.textContent = result.class_name ? `Class: ${result.class_name}` : 'Class: unknown';
                             statusContainer.appendChild(classSpan);
                             
                             // Add production method
@@ -1564,12 +1565,43 @@
                     // In development mode, use simulation as before
                     console.log('Development mode: Using simulated results for test domains');
                     
-                    // Create a simulated result for each URL
+                    // Create a simulated result for each URL with a realistic class name based on the domain
                     const simulatedResults = {};
                     selectedLinks.forEach(url => {
+                        // Extract domain name to create realistic class names based on URL
+                        let domain = "";
+                        try {
+                            const urlObj = new URL(url);
+                            domain = urlObj.hostname.split('.')[0]; // Get first part of hostname
+                        } catch(e) {
+                            console.error("Error parsing URL:", e);
+                            domain = "unknown";
+                        }
+                        
+                        // Create different class names based on domain to simulate variety
+                        let className = "";
+                        if (domain.includes("product")) {
+                            className = "product-table";
+                        } else if (domain.includes("shop")) {
+                            className = "product-list-container";
+                        } else if (url.includes("showcase")) {
+                            className = "showcase-product-grid";
+                        } else if (url.includes("lovable")) {
+                            className = "productListContainer";
+                        } else {
+                            // Default class names with random variations
+                            const classOptions = [
+                                "product-grid-item",
+                                "productListContainer",
+                                "product-showcase",
+                                "product-list-wrapper"
+                            ];
+                            className = classOptions[Math.floor(Math.random() * classOptions.length)];
+                        }
+                        
                         simulatedResults[url] = {
                             found: true,
-                            class_name: "product-table productListContainer",
+                            class_name: className,
                             detection_method: "simulated",
                             is_test_domain: true
                         };
