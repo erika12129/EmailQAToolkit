@@ -1221,7 +1221,7 @@
                     // Process the result - first check if bot blocking was detected
                     if (result.bot_blocked === true) {
                         statusSpan.textContent = 'Check blocked';
-                        statusSpan.style.color = '#f6ad55'; // Orange
+                        statusSpan.style.color = '#e53e3e'; // Red (changed from orange)
                         
                         const errorDiv = document.createElement('div');
                         errorDiv.style.fontSize = '12px';
@@ -1296,7 +1296,7 @@
                         if (result.bot_blocked === true) {
                             // This is bot protection, display as a warning, not an error
                             statusSpan.textContent = 'Check blocked';
-                            statusSpan.style.color = '#f6ad55'; // Orange
+                            statusSpan.style.color = '#e53e3e'; // Red (changed from orange)
                             
                             // Make partly-products-showcase.lovable.app stand out as an example of proper bot protection
                             const isPartlyShowcase = url.includes('partly-products-showcase.lovable.app');
@@ -1435,9 +1435,9 @@
                         statusContainer.removeChild(statusContainer.lastChild);
                     }
                     
-                    // Update with bot protection message (orange warning instead of red error)
+                    // Update with bot protection message (now red for better visibility)
                     statusSpan.textContent = 'Check blocked';
-                    statusSpan.style.color = '#f6ad55'; // Orange
+                    statusSpan.style.color = '#e53e3e'; // Red (changed from orange)
                     
                     // Make partly-products-showcase.lovable.app stand out as an example of proper bot protection
                     if (isPartlyProductsShowcase) {
