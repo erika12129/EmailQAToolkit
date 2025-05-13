@@ -389,26 +389,53 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
                     return results;
                 }
                 
-                // 2. Look for *productListContainer pattern and other product-related classes
-                // - More comprehensive search to handle React apps
+                // 2. Look for product-related patterns across various web technologies
+                // - More comprehensive search to handle any web technology, not just React
                 const productListElements = allElementsWithClass.filter(element => {
+                    // Skip elements without className or non-string classNames
                     if (!element.className || typeof element.className !== 'string') return false;
+                    
                     const classNames = element.className.split(/\\s+/);
+                    
+                    // Check for product-related classes - very broad patterns to catch most implementations
                     return classNames.some(cls => 
                         cls.endsWith('productListContainer') || 
-                        cls.includes('productList') ||
-                        cls.includes('product-list') ||
-                        cls.includes('product_list') ||
-                        cls.includes('productContainer') ||
-                        cls.includes('product-container') ||
-                        cls.includes('product_container') ||
-                        cls.includes('productGrid') ||
-                        cls.includes('product-grid') ||
-                        cls.includes('product_grid') ||
-                        cls.includes('product-card') ||
-                        cls.includes('productCard')
+                        cls.includes('product') ||
+                        cls.includes('item-list') ||
+                        cls.includes('catalog') ||
+                        cls.includes('shop-items') ||
+                        cls.includes('store-products') ||
+                        cls.includes('merchandise') ||
+                        cls.includes('goods-display') ||
+                        cls.includes('listing-grid') ||
+                        cls.includes('carousel-products') ||
+                        cls.includes('selling-items') ||
+                        cls.includes('ecommerce') ||
+                        cls.includes('shop')
                     );
                 });
+                
+                // Also check for product-related elements by ID
+                if (productListElements.length === 0) {
+                    const elementsWithId = Array.from(document.querySelectorAll('*[id]'));
+                    const productElementsById = elementsWithId.filter(el => {
+                        if (!el.id) return false;
+                        return (
+                            el.id.includes('product') ||
+                            el.id.includes('catalog') ||
+                            el.id.includes('shop')
+                        );
+                    });
+                    
+                    if (productElementsById.length > 0) {
+                        return {
+                            found: true,
+                            class_name: `id:${productElementsById[0].id}`,
+                            class_pattern: 'product-id-detection',
+                            elements_count: productElementsById.length
+                        };
+                    }
+                }
                 
                 if (productListElements.length > 0) {
                     // Find the actual matching class name with more flexibility

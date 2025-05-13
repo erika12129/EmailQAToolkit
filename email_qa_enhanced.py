@@ -661,8 +661,8 @@ def check_for_product_tables(url, timeout=None):
                         'bot_blocked': True
                     }
                 
-                # Enhanced pattern to detect various forms of product-related class names
-                # React apps often use different formats for class attributes, so we need more flexible patterns
+                # Enhanced pattern to detect various forms of product-related patterns
+                # Supporting different web technologies (standard HTML, React, Vue, etc.)
                 product_class_patterns = [
                     # Standard HTML class attribute formats
                     r'class=["\']([^"\']*?product-table[^"\']*?)["\']',
@@ -670,29 +670,38 @@ def check_for_product_tables(url, timeout=None):
                     r'class=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
                     r'class=["\']([^"\']*?product[_\-\s]grid[^"\']*?)["\']',
                     r'class=["\']([^"\']*?products[_\-\s]container[^"\']*?)["\']',
-                    # Common eCommerce specific patterns
                     r'class=["\']([^"\']*?product[_\-\s]catalog[^"\']*?)["\']',
                     r'class=["\']([^"\']*?shop[_\-\s]products[^"\']*?)["\']',
                     r'class=["\']([^"\']*?product[_\-\s]showcase[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?products-list[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?products-grid[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?catalog-products[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?product-slider[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?product-carousel[^"\']*?)["\']',
                     
-                    # React/JSX className attribute formats
-                    r'className=["\']([^"\']*?product-table[^"\']*?)["\']',
-                    r'className=["\']([^"\']*?productListContainer[^"\']*?)["\']',
-                    r'className=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
-                    r'className=["\']([^"\']*?product[_\-\s]grid[^"\']*?)["\']',
-                    r'className=["\']([^"\']*?products[_\-\s]container[^"\']*?)["\']',
-                    r'className=["\']([^"\']*?product[_\-\s]catalog[^"\']*?)["\']',
-                    r'className=["\']([^"\']*?shop[_\-\s]products[^"\']*?)["\']',
-                    r'className=["\']([^"\']*?product[_\-\s]showcase[^"\']*?)["\']',
+                    # Modern JS frameworks (React/Vue/Angular) className formats
+                    r'className=["\']([^"\']*?product[^"\']*?)["\']',
+                    r':class=["\']([^"\']*?product[^"\']*?)["\']',  # Vue.js
+                    r'v-bind:class=["\']([^"\']*?product[^"\']*?)["\']',  # Vue.js
+                    r'ng-class=["\']([^"\']*?product[^"\']*?)["\']',  # Angular
+                    r'data-bind=["\']class:[^"\']*?product[^"\']*?["\']',  # Knockout.js
                     
-                    # Component/data identifiers that might indicate products
+                    # HTML5 data attributes (common in all modern websites)
+                    r'data-[^=]*?=["\']([^"\']*?product[^"\']*?)["\']',
                     r'data-testid=["\']([^"\']*?product[^"\']*?)["\']',
+                    r'data-component=["\']([^"\']*?product[^"\']*?)["\']',
+                    r'data-cy=["\']([^"\']*?product[^"\']*?)["\']',  # Cypress
+                    
+                    # ID-based patterns (common across all technologies)
                     r'id=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
                     r'id=["\']([^"\']*?productListContainer[^"\']*?)["\']',
+                    r'id=["\']([^"\']*?product[_\-\s]grid[^"\']*?)["\']',
+                    r'id=["\']([^"\']*?product[_\-\s]container[^"\']*?)["\']',
                     
-                    # React component props
-                    r'data-component=["\']([^"\']*?product[^"\']*?)["\']',
-                    r'data-component-name=["\']([^"\']*?product[^"\']*?)["\']'
+                    # Common product-related content in text (more general approach)
+                    r'<div[^>]*?>[^<]*?product\s+list[^<]*?</div>',
+                    r'<div[^>]*?>[^<]*?product\s+catalog[^<]*?</div>',
+                    r'<span[^>]*?>[^<]*?shop\s+products[^<]*?</span>'
                 ]
                 
                 # Check each pattern
@@ -731,15 +740,47 @@ def check_for_product_tables(url, timeout=None):
                     'detection_method': 'direct_html'
                 }
             elif response.status_code == 403:
-                # 403 is access forbidden
-                error_message = f"Access forbidden, status code: 403"
-                logger.error(error_message)
-                return {
-                    'found': False,
-                    'error': error_message,
-                    'detection_method': 'failed',
-                    'bot_blocked': True  # This might be a form of access control
-                }
+                # 403 is access forbidden, but not always bot protection
+                # We need to check response content for actual bot protection indicators
+                try:
+                    response_text = response.text.lower()
+                    # Check for common bot protection terms
+                    bot_protection_terms = [
+                        'captcha', 'security check', 'suspicious activity', 
+                        'unusual traffic', 'automated request', 'bot', 'cloudflare'
+                    ]
+                    
+                    if any(term in response_text for term in bot_protection_terms):
+                        # This is likely an actual bot protection
+                        error_message = f"Bot protection detected, status code: 403"
+                        logger.error(error_message)
+                        return {
+                            'found': False,
+                            'error': error_message,
+                            'detection_method': 'content_analysis',
+                            'bot_blocked': True
+                        }
+                    else:
+                        # Regular 403 error - not necessarily bot protection
+                        error_message = f"Access forbidden, status code: 403"
+                        logger.error(error_message)
+                        return {
+                            'found': False,
+                            'error': error_message,
+                            'detection_method': 'failed',
+                            'bot_blocked': False  # Not assuming all 403s are bot protection
+                        }
+                except Exception as e:
+                    # If we can't analyze the content, be conservative
+                    error_message = f"Access forbidden, status code: 403"
+                    logger.error(f"{error_message} (content analysis failed: {str(e)})")
+                    return {
+                        'found': False,
+                        'error': error_message,
+                        'detection_method': 'failed',
+                        'bot_blocked': False  # Conservative approach
+                    }
+                
             elif response.status_code == 429:
                 # 429 is rate limiting
                 error_message = f"Rate limited, status code: 429"
@@ -772,26 +813,43 @@ def check_for_product_tables(url, timeout=None):
                     }
                 
                 # For certain status codes like 400, 401, 502, check for actual bot protection
-                if response.status_code in [400, 401, 403, 502]:
+                if response.status_code in [400, 401, 502]:
                     # Only check response content for real bot-protection indicators
                     try:
                         response_text = response.text.lower()
                         # Common bot detection phrases, same as defined above
                         bot_detection_phrases = [
-                            'captcha', 'security check', 'access denied', 'blocked', 
-                            'suspicious activity', 'unusual traffic', 'automated request',
+                            'captcha', 'security check', 'suspicious activity', 
+                            'unusual traffic', 'automated request', 'bot detection',
                             'too many requests', 'rate limit', 'please verify', 'cloudflare'
                         ]
                         if any(bot_term in response_text for bot_term in bot_detection_phrases):
-                            logger.warning(f"Possible bot protection detected in response with status code {response.status_code}")
+                            # Actual indicators of bot protection found
+                            logger.warning(f"Confirmed bot protection detected in response with status code {response.status_code}")
                             return {
                                 'found': False,
-                                'error': f"{error_message} (contains bot protection indicators)",
-                                'detection_method': 'failed',
+                                'error': f"Bot protection detected, status code: {response.status_code}",
+                                'detection_method': 'content_analysis',
                                 'bot_blocked': True
                             }
-                    except:
-                        pass  # If we can't read response content, just proceed normally
+                        else:
+                            # No bot protection indicators found, treat as regular error
+                            logger.warning(f"No bot protection indicators in response with status code {response.status_code}")
+                            return {
+                                'found': False,
+                                'error': f"HTTP error, status code: {response.status_code}",
+                                'detection_method': 'failed',
+                                'bot_blocked': False
+                            }
+                    except Exception as e:
+                        # If we can't analyze content, proceed with a generic error
+                        logger.warning(f"Failed to analyze response content: {str(e)}")
+                        return {
+                            'found': False,
+                            'error': f"HTTP error, status code: {response.status_code}",
+                            'detection_method': 'failed',
+                            'bot_blocked': False
+                        }
                 
                 return {
                     'found': False,

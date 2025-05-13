@@ -29,11 +29,11 @@ def run_servers(initial_mode=None):
     is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
     
     # Start the FastAPI server (main application) on port 5000
-    # Use a consistent import path regardless of environment
+    # Use simple_app.py for basic functionality
     server_cmd = ["python", "-c", 
-                 "import uvicorn; import simple_mode_switcher; "
+                 "import uvicorn; import simple_app; "
                  "print('Running in DEPLOYMENT mode' if {} else 'Running in local mode'); "
-                 "uvicorn.run(simple_mode_switcher.app, host='0.0.0.0', port=5000)".format(is_deployment)]
+                 "uvicorn.run(simple_app.app, host='0.0.0.0', port=5000)".format(is_deployment)]
     
     fastapi_process = subprocess.Popen(
         server_cmd,

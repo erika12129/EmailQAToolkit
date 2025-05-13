@@ -16,6 +16,14 @@ author = "agent"
 task = "workflow.run"
 args = "Email QA System"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Email QA Direct"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Direct Web Server"
+
 [[workflows.workflow]]
 name = "Email QA System"
 author = "agent"
@@ -26,6 +34,24 @@ agentRequireRestartOnSave = false
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python run_servers.py"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Email QA Direct"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uvicorn main:app --host 0.0.0.0 --port 5000"
+waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Direct Web Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python simple_app.py"
 waitForPort = 5000
 
 [deployment]

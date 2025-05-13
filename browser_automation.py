@@ -206,20 +206,88 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
                     // First get all elements with any class
                     const allElementsWithClass = Array.from(document.querySelectorAll('*[class]'));
                     
-                    // More robust search for product-related classes
+                    // More comprehensive search for product-related patterns
+                    // Works with any web technology (React, Vue, Angular, standard HTML, etc.)
                     const productListElements = allElementsWithClass.filter(element => {
                         if (!element.className || typeof element.className !== 'string') return false;
                         const classNames = element.className.split(/\\s+/);
+                        
+                        // Broad product-related patterns to capture most implementations
                         return classNames.some(cls => 
-                            cls.includes('productListContainer') || 
-                            cls.includes('product-list') ||
-                            cls.includes('productList') ||
-                            cls.includes('product-grid') ||
-                            cls.includes('productGrid') ||
-                            cls.includes('products-container') ||
-                            cls.includes('product-container')
+                            cls.includes('product') ||
+                            cls.includes('item-list') ||
+                            cls.includes('catalog') || 
+                            cls.includes('shop-items') ||
+                            cls.includes('store-products') ||
+                            cls.includes('merchandise') ||
+                            cls.includes('goods-display') ||
+                            cls.includes('listing-grid') ||
+                            cls.includes('carousel-products') ||
+                            cls.includes('e-commerce') ||
+                            cls.includes('shop') ||
+                            cls.includes('cart-item') ||
+                            cls.includes('buy-now')
                         );
                     });
+                    
+                    // Also check for products by data attributes or IDs if classes don't match
+                    if (productListElements.length === 0) {
+                        // Try by data attributes (common in modern web apps)
+                        const dataAttributeElements = Array.from(document.querySelectorAll('*[data-*]'));
+                        const productDataElements = dataAttributeElements.filter(el => {
+                            const attrs = el.getAttributeNames();
+                            return attrs.some(attr => 
+                                attr.startsWith('data-') && 
+                                (el.getAttribute(attr).includes('product') || 
+                                 el.getAttribute(attr).includes('catalog'))
+                            );
+                        });
+                        
+                        if (productDataElements.length > 0) {
+                            return {
+                                found: true,
+                                class_name: 'data-attribute-product',
+                                class_pattern: 'data-attribute-detection',
+                                elements_count: productDataElements.length
+                            };
+                        }
+                        
+                        // Try by element IDs
+                        const productIdElements = Array.from(document.querySelectorAll('*[id]')).filter(el => 
+                            el.id.includes('product') || 
+                            el.id.includes('catalog') ||
+                            el.id.includes('shop')
+                        );
+                        
+                        if (productIdElements.length > 0) {
+                            return {
+                                found: true,
+                                class_name: `id:${productIdElements[0].id}`,
+                                class_pattern: 'id-based-detection',
+                                elements_count: productIdElements.length
+                            };
+                        }
+                        
+                        // Try by content text patterns (most flexible approach)
+                        const possibleProductElements = Array.from(document.querySelectorAll('div, section, article'));
+                        const productContentElements = possibleProductElements.filter(el => {
+                            const text = el.textContent?.toLowerCase() || '';
+                            return (
+                                text.includes('product') && 
+                                (text.includes('price') || text.includes('buy') || 
+                                 text.includes('add to cart') || text.includes('shop'))
+                            );
+                        });
+                        
+                        if (productContentElements.length > 0) {
+                            return {
+                                found: true,
+                                class_name: 'content-based-product',
+                                class_pattern: 'content-detection',
+                                elements_count: productContentElements.length
+                            };
+                        }
+                    }
                     
                     if (productListElements.length > 0) {
                         // Find the actual matching class name with more flexibility
