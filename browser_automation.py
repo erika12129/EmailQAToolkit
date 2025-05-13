@@ -108,7 +108,18 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
             
             try:
                 # Navigate with timeout
-                await page.goto(url, timeout=actual_timeout, wait_until='networkidle')
+                response = await page.goto(url, timeout=actual_timeout, wait_until='networkidle')
+                
+                # Check if we got a 404 response
+                if response is not None and response.status == 404:
+                    await browser.close()
+                    return {
+                        'found': False,
+                        'error': 'Page not found (HTTP 404)',
+                        'detection_method': 'playwright',
+                        'bot_blocked': False,  # Important: 404 is not bot protection
+                        'http_status': 404
+                    }
                 
                 # Wait a bit for any lazy-loaded content
                 await page.wait_for_timeout(2000)
@@ -191,23 +202,43 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
                         };
                     }
                     
-                    // 2. Check for *productListContainer class pattern
-                    const productListElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
-                        if (!div.className) return false;
-                        const classNames = div.className.split(/\\s+/);
-                        return classNames.some(cls => cls.endsWith('productListContainer'));
+                    // 2. Check for *productListContainer class pattern - more flexible for React apps
+                    // First get all elements with any class
+                    const allElementsWithClass = Array.from(document.querySelectorAll('*[class]'));
+                    
+                    // More robust search for product-related classes
+                    const productListElements = allElementsWithClass.filter(element => {
+                        if (!element.className || typeof element.className !== 'string') return false;
+                        const classNames = element.className.split(/\\s+/);
+                        return classNames.some(cls => 
+                            cls.includes('productListContainer') || 
+                            cls.includes('product-list') ||
+                            cls.includes('productList') ||
+                            cls.includes('product-grid') ||
+                            cls.includes('productGrid') ||
+                            cls.includes('products-container') ||
+                            cls.includes('product-container')
+                        );
                     });
                     
                     if (productListElements.length > 0) {
-                        // Find the actual matching class name
-                        const matchingClass = productListElements[0].className.split(/\\s+/).find(cls => 
-                            cls.endsWith('productListContainer')
-                        );
+                        // Find the actual matching class name with more flexibility
+                        const classStr = productListElements[0].className;
+                        let matchingClass = '';
+                        
+                        // Check for various product-related classes
+                        const classArr = classStr.split(/\\s+/);
+                        for (const cls of classArr) {
+                            if (cls.includes('product')) {
+                                matchingClass = cls;
+                                break;
+                            }
+                        }
                         
                         return {
                             found: true,
-                            class_name: matchingClass || 'productListContainer',
-                            class_pattern: '*productListContainer',
+                            class_name: matchingClass || productListElements[0].className || 'product-related-class',
+                            class_pattern: 'product-related-class',
                             elements_count: productListElements.length
                         };
                     }

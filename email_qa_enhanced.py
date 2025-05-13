@@ -106,45 +106,41 @@ def extract_email_metadata(soup):
     
     # Try various common preheader class names
     preheader_classes = ['preheader', 'preview-text', 'preview', 'hidden-preheader']
-    preheader = None
+    preheader = None  # Initialize as None (will become BeautifulSoup element or dictionary)
     attempted_classes = []
     
     for cls in preheader_classes:
         attempted_classes.append(cls)
         element = soup.find('div', {'class': cls}) or soup.find('span', {'class': cls})
         if element:
-            preheader = element
+            preheader = element  # BeautifulSoup element
             break
     
-    if not preheader:
-        preheader = {}
+    if not preheader:  # If still None
         logger.warning(f"Preheader not found. Attempted classes: {', '.join(attempted_classes)}")
+        # Use a string instead of an empty dict to avoid type confusion
+        preheader = "Not found"
     
     # Clean up preheader text by removing hidden characters
     # Extract preheader text safely based on the object type
-    if preheader is None:
-        preheader_text = 'Not found'
-    elif isinstance(preheader, str):
-        preheader_text = preheader
-    elif hasattr(preheader, 'get_text') and callable(getattr(preheader, 'get_text', None)):
-        # BeautifulSoup elements have get_text method
-        try:
-            preheader_text = preheader.get_text(strip=True)
-        except Exception as e:
-            logger.warning(f"Failed to extract preheader text: {e}")
-            preheader_text = str(preheader)
-    elif isinstance(preheader, dict):
-        # Handle dictionary type objects
-        if 'text' in preheader:
-            preheader_text = str(preheader['text'])
+    try:
+        if preheader is None:
+            preheader_text = 'Not found'
+        elif isinstance(preheader, str):
+            preheader_text = preheader
+        elif hasattr(preheader, 'get_text') and callable(getattr(preheader, 'get_text', None)):
+            # BeautifulSoup elements have get_text method
+            try:
+                preheader_text = preheader.get_text(strip=True)
+            except Exception as e:
+                logger.warning(f"Failed to extract preheader text: {e}")
+                preheader_text = str(preheader)
         else:
+            # For any other type, convert to string safely
             preheader_text = str(preheader)
-    else:
-        # In case of any other type, convert to string safely
-        try:
-            preheader_text = str(preheader)
-        except:
-            preheader_text = 'Unprintable content'
+    except Exception as e:
+        logger.error(f"Error processing preheader: {e}")
+        preheader_text = 'Error extracting preheader'
     
     # Extract just the readable text from the preheader
     # This strips out invisible characters used for email client spacing/preview control
@@ -553,10 +549,35 @@ def check_for_product_tables(url, timeout=None):
             'is_simulated': True
         }
         
-    # In production mode, we NEVER use simulated results
+    # In production mode, treat partly-products-showcase.lovable.app as a real domain
+    # BUT with special handling to ensure we get the most reliable results
     if config.is_production and 'partly-products-showcase.lovable.app' in url:
-        logger.info(f"Production mode - using REAL detection for test domain: {url}")
-        # Continue with real detection below...
+        logger.info(f"Production mode - using REAL detection for domain: {url}")
+        # Use extended retry logic for this specific domain
+        max_attempts = 3
+        for attempt in range(max_attempts):
+            try:
+                logger.info(f"Attempt {attempt+1}/{max_attempts} for partly-products-showcase.lovable.app")
+                # Try HTTP check first with increased timeout
+                response = requests.get(url, timeout=10, 
+                                      headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124'})
+                
+                if response.status_code == 404:
+                    logger.info(f"Got 404 for partly-products-showcase.lovable.app - this is the expected result")
+                    return {
+                        'found': False,
+                        'error': 'Page not found (HTTP 404)',
+                        'detection_method': 'http_production_direct',
+                        'bot_blocked': False,
+                        'http_status': 404
+                    }
+            except Exception as e:
+                logger.warning(f"Attempt {attempt+1} failed: {str(e)}")
+                if attempt < max_attempts - 1:
+                    time.sleep(1)  # Short delay between attempts
+        
+        # If we've tried multiple times and still failed, continue with normal process
+        logger.info(f"Multiple attempts for partly-products-showcase.lovable.app failed, using standard detection")
     
     # Try with Selenium first if available (more reliable for JavaScript-rendered content and bot protection)
     use_http_fallback = True  # Default to using HTTP fallback
@@ -641,19 +662,37 @@ def check_for_product_tables(url, timeout=None):
                     }
                 
                 # Enhanced pattern to detect various forms of product-related class names
+                # React apps often use different formats for class attributes, so we need more flexible patterns
                 product_class_patterns = [
-                    # Standard product table class
+                    # Standard HTML class attribute formats
                     r'class=["\']([^"\']*?product-table[^"\']*?)["\']',
-                    # Product list container
                     r'class=["\']([^"\']*?productListContainer[^"\']*?)["\']',
-                    # More flexible patterns
                     r'class=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
                     r'class=["\']([^"\']*?product[_\-\s]grid[^"\']*?)["\']',
                     r'class=["\']([^"\']*?products[_\-\s]container[^"\']*?)["\']',
                     # Common eCommerce specific patterns
                     r'class=["\']([^"\']*?product[_\-\s]catalog[^"\']*?)["\']',
                     r'class=["\']([^"\']*?shop[_\-\s]products[^"\']*?)["\']',
-                    r'class=["\']([^"\']*?product[_\-\s]showcase[^"\']*?)["\']'
+                    r'class=["\']([^"\']*?product[_\-\s]showcase[^"\']*?)["\']',
+                    
+                    # React/JSX className attribute formats
+                    r'className=["\']([^"\']*?product-table[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?productListContainer[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?product[_\-\s]grid[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?products[_\-\s]container[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?product[_\-\s]catalog[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?shop[_\-\s]products[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?product[_\-\s]showcase[^"\']*?)["\']',
+                    
+                    # Component/data identifiers that might indicate products
+                    r'data-testid=["\']([^"\']*?product[^"\']*?)["\']',
+                    r'id=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
+                    r'id=["\']([^"\']*?productListContainer[^"\']*?)["\']',
+                    
+                    # React component props
+                    r'data-component=["\']([^"\']*?product[^"\']*?)["\']',
+                    r'data-component-name=["\']([^"\']*?product[^"\']*?)["\']'
                 ]
                 
                 # Check each pattern
@@ -691,15 +730,25 @@ def check_for_product_tables(url, timeout=None):
                     'found': False,
                     'detection_method': 'direct_html'
                 }
-            elif response.status_code == 403 or response.status_code == 429:
-                # These status codes often indicate bot detection/blocking
-                error_message = f"Likely bot detection/blocking, status code: {response.status_code}"
+            elif response.status_code == 403:
+                # 403 is access forbidden
+                error_message = f"Access forbidden, status code: 403"
                 logger.error(error_message)
                 return {
                     'found': False,
                     'error': error_message,
                     'detection_method': 'failed',
-                    'bot_blocked': True  # Explicit flag for bot protection detection
+                    'bot_blocked': True  # This might be a form of access control
+                }
+            elif response.status_code == 429:
+                # 429 is rate limiting
+                error_message = f"Rate limited, status code: 429"
+                logger.error(error_message)
+                return {
+                    'found': False,
+                    'error': error_message,
+                    'detection_method': 'failed',
+                    'bot_blocked': True  # Rate limiting is a form of bot protection
                 }
             else:
                 # Only retry on 5xx server errors or if it's a test domain
@@ -711,9 +760,20 @@ def check_for_product_tables(url, timeout=None):
                 error_message = f"Failed to get content, status code: {response.status_code}"
                 logger.error(error_message)
                 
-                # For certain status codes like 400, 401, 404, 502, it might be bot protection in disguise
-                if response.status_code in [400, 401, 404, 502]:
-                    # Check response content for bot-protection indicators
+                # Handle error codes with more specific messages
+                if response.status_code == 404:
+                    # 404 is simply "not found" - don't assume it's bot protection
+                    logger.warning(f"404 Not Found - The URL does not exist: {url}")
+                    return {
+                        'found': False,
+                        'error': f"Error 404: Page not found - The URL does not exist",
+                        'detection_method': 'failed',
+                        'bot_blocked': False  # Not bot blocking, just a missing page
+                    }
+                
+                # For certain status codes like 400, 401, 502, check for actual bot protection
+                if response.status_code in [400, 401, 403, 502]:
+                    # Only check response content for real bot-protection indicators
                     try:
                         response_text = response.text.lower()
                         # Common bot detection phrases, same as defined above
@@ -723,10 +783,10 @@ def check_for_product_tables(url, timeout=None):
                             'too many requests', 'rate limit', 'please verify', 'cloudflare'
                         ]
                         if any(bot_term in response_text for bot_term in bot_detection_phrases):
-                            logger.warning(f"Possible bot protection disguised as {response.status_code} status code")
+                            logger.warning(f"Possible bot protection detected in response with status code {response.status_code}")
                             return {
                                 'found': False,
-                                'error': f"{error_message} (likely bot protection)",
+                                'error': f"{error_message} (contains bot protection indicators)",
                                 'detection_method': 'failed',
                                 'bot_blocked': True
                             }
@@ -973,11 +1033,28 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
         # Preserve the utm_content value from the original link object
         utm_content = link.get('utm_content') if isinstance(link, dict) else None
         
+        # Generate a more accurate error message for the UI based on the HTTP status code
+        error_message = None
+        if isinstance(status_code, int):
+            if status_code == 404:
+                error_message = "Page not found (404). The URL does not exist."
+            elif status_code == 403:
+                error_message = "Access forbidden (403). Authentication may be required."
+            elif status_code == 429:
+                error_message = "Too many requests (429). Rate limit exceeded."
+            elif status_code >= 500:
+                error_message = f"Server error ({status_code}). The server encountered an error."
+            elif status_code != 200:
+                error_message = f"HTTP error ({status_code})."
+        elif isinstance(status_code, str):
+            error_message = status_code  # Use the error string directly
+        
         result = {
             'source': link_source,
             'url': original_url,
             'status': result_status,
             'http_status': status_code,  # Keep the actual HTTP status code
+            'error_message': error_message,  # Add a user-friendly error message
             'utm_issues': utm_issues,
             'utm_content': utm_content,  # Add utm_content to the result
             'has_product_table': product_table_found,
@@ -985,7 +1062,9 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             'product_table_error': product_table_error,
             'product_table_checked': product_table_checked,
             # Include bot blocking information in the response if present
-            'bot_blocked': product_table_result.get('bot_blocked', False) if product_table_checked and product_table_result else False,
+            # Important: For 404 errors, explicitly set bot_blocked to False
+            'bot_blocked': False if (isinstance(status_code, int) and status_code == 404) else 
+                          (product_table_result.get('bot_blocked', False) if product_table_checked and product_table_result else False),
             # Override logic - only show redirects in development mode, hide them completely in production mode
             # This ensures product tables are correctly detected but not shown in the UI
             'redirected_to': processed_url if (

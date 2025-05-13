@@ -2,7 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["geckodriver", "gitFull", "jq", "libxcrypt", "playwright-driver", "chromium"]
+packages = ["chromium", "geckodriver", "gitFull", "jq", "libxcrypt", "playwright-driver"]
 
 [workflows]
 runButton = "Project"
