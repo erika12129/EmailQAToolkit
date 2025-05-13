@@ -296,6 +296,7 @@ async def check_product_tables(
                     logger.info(f"Using HTTP detection method for {url} in production")
                     http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
                     http_result['detection_method'] = 'http_production'
+                    http_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                     
                     # If product tables are found, use that result
                     if http_result.get('found', False):
@@ -313,6 +314,7 @@ async def check_product_tables(
                         try:
                             browser_result = browser_check(url, timeout=timeout)
                             browser_result['detection_method'] = 'browser_production'
+                            browser_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                             
                             # If browser found something, use that result
                             if browser_result.get('found', False):
@@ -327,6 +329,7 @@ async def check_product_tables(
                             logger.info(f"Trying text analysis as last resort for {url}")
                             text_result = check_for_product_tables_with_text_analysis(url)
                             text_result['detection_method'] = 'text_analysis_production'
+                            text_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                             
                             # Only use text analysis if it found something
                             if text_result.get('found', False):

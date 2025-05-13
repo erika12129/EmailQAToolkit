@@ -1142,15 +1142,31 @@
                     
                     // Process the result - first check if bot blocking was detected
                     if (result.bot_blocked === true) {
-                        statusSpan.textContent = 'Blocked';
-                        statusSpan.style.color = '#e53e3e'; // Red
+                        statusSpan.textContent = 'Check blocked';
+                        statusSpan.style.color = '#f6ad55'; // Orange
                         
                         const errorDiv = document.createElement('div');
                         errorDiv.style.fontSize = '12px';
                         errorDiv.style.marginTop = '4px';
-                        errorDiv.style.color = '#e53e3e'; // Red
-                        errorDiv.textContent = 'Bot detection triggered - site is blocking automated checks';
+                        errorDiv.style.color = '#f6ad55'; // Orange
+                        errorDiv.textContent = 'Bot protection detected - site is blocking automated checks';
                         statusContainer.appendChild(errorDiv);
+                        
+                        // Add info about detection method
+                        const methodSpan = document.createElement('span');
+                        methodSpan.style.fontSize = '0.9em';
+                        methodSpan.style.display = 'block';
+                        methodSpan.style.color = '#718096'; // Gray
+                        methodSpan.textContent = `Method: ${result.detection_method || 'http'}`;
+                        statusContainer.appendChild(methodSpan);
+                        
+                        // Add a note about what this means
+                        const noteSpan = document.createElement('span');
+                        noteSpan.style.fontSize = '0.85em';
+                        noteSpan.style.display = 'block';
+                        noteSpan.style.color = '#4299e1'; // Blue note
+                        noteSpan.textContent = `This is normal for many production sites`;
+                        statusContainer.appendChild(noteSpan);
                     }
                     // If not bot blocked, proceed with normal flow
                     else if (result.found === true || (!isProduction && result.detection_method === "simulated")) {

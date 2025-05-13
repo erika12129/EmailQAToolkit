@@ -39,6 +39,23 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Mount attached assets
 app.mount("/attached_assets", StaticFiles(directory="attached_assets"), name="attached_assets")
 
+# Import the runtime configuration
+from runtime_config import config
+
+# Add config endpoint for frontend usage
+@app.get("/config")
+async def get_config():
+    """Get current configuration settings for frontend."""
+    logger.info(f"Serving config endpoint, mode={config.mode}")
+    return JSONResponse(content={
+        "mode": config.mode,
+        "enable_test_redirects": config.enable_test_redirects,
+        "product_table_timeout": config.product_table_timeout,
+        "request_timeout": config.request_timeout,
+        "max_retries": config.max_retries,
+        "test_domains": config.test_domains
+    })
+
 @app.get("/")
 async def read_root():
     """Serve the frontend application."""
@@ -233,13 +250,22 @@ async def check_product_tables(
     try:
         results = {}
         for url in urls:
-            # For deployed version, check if URLs point to test domains
-            is_test_domain = ("localhost:5001" in url or 
-                             "127.0.0.1:5001" in url or
-                             "partly-products-showcase.lovable.app" in url)
-                             
+            # Get runtime config test domains (instead of hardcoding them)
+            # This ensures consistency with our runtime_config.py changes
+            base_test_domains = ["localhost:5001", "127.0.0.1:5001", "localtest.me"]
+            
+            # In production mode, partly-products-showcase.lovable.app should NOT be considered a test domain
+            if runtime_config.is_production:
+                test_domains = base_test_domains
+            else:
+                # In development mode, also treat partly-products-showcase.lovable.app as a test domain
+                test_domains = base_test_domains + ["partly-products-showcase.lovable.app"]
+                
+            # Check if URL is in the appropriate test_domains list
+            is_test_domain = any(domain in url for domain in test_domains)
+            
             # For localhost URLs, handle differently based on mode
-            if ("localhost:5001" in url or "127.0.0.1:5001" in url):
+            if any(domain in url for domain in ["localhost:5001", "127.0.0.1:5001"]):
                 if is_production:
                     # In production mode, use http_production method and don't mark as simulated
                     results[url] = {
@@ -260,10 +286,11 @@ async def check_product_tables(
             elif "partly-products-showcase.lovable.app" in url:
                 # In production mode, always use real detection
                 if is_production:
-                    logger.info(f"Using HTTP detection for test domain in PRODUCTION mode: {url}")
+                    logger.info(f"Using HTTP detection for domain in PRODUCTION mode: {url}")
                     result = check_for_product_tables(url, timeout=timeout)
-                    # Force detection method to http_production
+                    # Force detection method to http_production and mark as a real domain
                     result["detection_method"] = "http_production"
+                    result["is_test_domain"] = False  # Explicitly mark as NOT a test domain
                     results[url] = result
                 else:
                     # In development mode, use simulation

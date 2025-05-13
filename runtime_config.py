@@ -25,33 +25,38 @@ class RuntimeConfig:
             self.mode = "development"
             logger.info("Preview environment detected, forcing development mode")
             
-        self.enable_test_redirects = True   # Always enable test redirects for reliability
-        self.product_table_timeout = 10     # Longer timeout for production
+        # Set default values (will be overridden by _update_settings_for_mode)
+        self.enable_test_redirects = True
+        self.product_table_timeout = 10
         self.request_timeout = 10
         self.max_retries = 2
-        self.test_domains = [
-            "localhost:5001", 
-            "partly-products-showcase.lovable.app",
-            "localtest.me"
-        ]
+        self.test_domains = []
         
-        # Initialize settings based on initial mode
+        # Initialize settings based on the mode
         self._update_settings_for_mode()
         logger.info(f"Initialized in {self.mode} mode - Deployment environment: {self.is_deployment_env}")
     
     def _update_settings_for_mode(self):
         """Update settings based on current mode."""
+        # Make sure test_domains is always properly maintained based on mode
+        base_test_domains = ["localhost:5001", "localtest.me"]
+        
         if self.is_production:
             # In production mode, we should NOT use test redirects or simulated results
             self.enable_test_redirects = False  # CRITICAL FIX: Must be False in production
             self.product_table_timeout = 15     # Increased timeout for production
             self.request_timeout = 15
+            # Ensure partly-products-showcase.lovable.app is NOT in test_domains in production
+            self.test_domains = base_test_domains.copy()
             logger.info("Production mode settings applied: test redirects disabled")
         else:
             # In development mode, enable test redirects for testing
             self.enable_test_redirects = True
             self.product_table_timeout = 5
             self.request_timeout = 5
+            # Add partly-products-showcase.lovable.app to test_domains in development
+            self.test_domains = base_test_domains.copy()
+            self.test_domains.append("partly-products-showcase.lovable.app")
             logger.info("Development mode settings applied: test redirects enabled")
     
     @property
