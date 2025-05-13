@@ -1226,7 +1226,7 @@
                         const errorDiv = document.createElement('div');
                         errorDiv.style.fontSize = '12px';
                         errorDiv.style.marginTop = '4px';
-                        errorDiv.style.color = '#f6ad55'; // Orange
+                        errorDiv.style.color = '#e53e3e'; // Red (changed from orange)
                         errorDiv.textContent = 'Bot protection detected - site is blocking automated checks';
                         statusContainer.appendChild(errorDiv);
                         
@@ -1242,7 +1242,7 @@
                         const noteSpan = document.createElement('span');
                         noteSpan.style.fontSize = '0.85em';
                         noteSpan.style.display = 'block';
-                        noteSpan.style.color = '#4299e1'; // Blue note
+                        noteSpan.style.color = '#718096'; // Gray (changed from blue)
                         noteSpan.textContent = `This is normal for many production sites`;
                         statusContainer.appendChild(noteSpan);
                     }
@@ -1307,7 +1307,7 @@
                             const infoDiv = document.createElement('div');
                             infoDiv.style.fontSize = '12px';
                             infoDiv.style.marginTop = '4px';
-                            infoDiv.style.color = '#f6ad55'; // Orange
+                            infoDiv.style.color = '#e53e3e'; // Red (changed from orange)
                             infoDiv.textContent = 'Bot protection detected';
                             statusContainer.appendChild(infoDiv);
                             
@@ -1316,7 +1316,7 @@
                                 const noteSpan = document.createElement('span');
                                 noteSpan.style.fontSize = '0.85em';
                                 noteSpan.style.display = 'block';
-                                noteSpan.style.color = '#4299e1'; // Blue note
+                                noteSpan.style.color = '#718096'; // Gray (changed from blue)
                                 noteSpan.textContent = `This is normal for production domains`;
                                 statusContainer.appendChild(noteSpan);
                             }
@@ -1447,7 +1447,7 @@
                     const infoDiv = document.createElement('div');
                     infoDiv.style.fontSize = '12px';
                     infoDiv.style.marginTop = '4px';
-                    infoDiv.style.color = '#f6ad55'; // Orange
+                    infoDiv.style.color = '#e53e3e'; // Red (changed from orange)
                     // Different message for partly-products-showcase.lovable.app vs other domains
                     const isPartlyProductsShowcase = checkbox.dataset.url.includes('partly-products-showcase.lovable.app');
                     
@@ -1475,7 +1475,7 @@
                     const noteSpan = document.createElement('span');
                     noteSpan.style.fontSize = '0.85em';
                     noteSpan.style.display = 'block';
-                    noteSpan.style.color = '#4299e1'; // Blue note
+                    noteSpan.style.color = '#718096'; // Gray (changed from blue)
                     noteSpan.textContent = `This is normal for production domains`;
                     statusContainer.appendChild(noteSpan);
                 });
