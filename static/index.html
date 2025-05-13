@@ -1221,12 +1221,12 @@
                     // Process the result - first check if bot blocking was detected
                     if (result.bot_blocked === true) {
                         statusSpan.textContent = 'Check blocked';
-                        statusSpan.style.color = '#e53e3e'; // Red (changed from orange per user request)
+                        statusSpan.style.color = '#f6ad55'; // Orange
                         
                         const errorDiv = document.createElement('div');
                         errorDiv.style.fontSize = '12px';
                         errorDiv.style.marginTop = '4px';
-                        errorDiv.style.color = '#e53e3e'; // Red (changed from orange per user request)
+                        errorDiv.style.color = '#f6ad55'; // Orange
                         errorDiv.textContent = 'Bot protection detected - site is blocking automated checks';
                         statusContainer.appendChild(errorDiv);
                         
@@ -1292,29 +1292,23 @@
                             }
                         }
                     } else {
-                        // Special handling for different error cases
+                        // Special handling for bot protection cases
                         if (result.bot_blocked === true) {
-                            // This is bot protection - use red color per user request
+                            // This is bot protection, display as a warning, not an error
                             statusSpan.textContent = 'Check blocked';
-                            statusSpan.style.color = '#e53e3e'; // Red
+                            statusSpan.style.color = '#f6ad55'; // Orange
+                            
+                            // Make partly-products-showcase.lovable.app stand out as an example of proper bot protection
+                            const isPartlyShowcase = url.includes('partly-products-showcase.lovable.app');
+                            if (isPartlyShowcase) {
+                                statusSpan.style.fontWeight = 'bold';
+                            }
                             
                             const infoDiv = document.createElement('div');
                             infoDiv.style.fontSize = '12px';
                             infoDiv.style.marginTop = '4px';
-                            infoDiv.style.color = '#e53e3e'; // Red (changed from orange per user request)
+                            infoDiv.style.color = '#f6ad55'; // Orange
                             infoDiv.textContent = 'Bot protection detected';
-                            statusContainer.appendChild(infoDiv);
-                        } 
-                        // Display proper error message for 404 errors
-                        else if (result.error_message && result.error_message.includes('404')) {
-                            statusSpan.textContent = 'Failed';
-                            statusSpan.style.color = '#e53e3e'; // Red
-                            
-                            const infoDiv = document.createElement('div');
-                            infoDiv.style.fontSize = '12px';
-                            infoDiv.style.marginTop = '4px';
-                            infoDiv.style.color = '#e53e3e'; // Red
-                            infoDiv.textContent = result.error_message || 'Page not found (404)';
                             statusContainer.appendChild(infoDiv);
                             
                             // Add info on whether this is a test domain
@@ -1327,40 +1321,18 @@
                                 statusContainer.appendChild(noteSpan);
                             }
                         } else {
-                            // Improved error handling - check for error_message first (added by our enhanced code)
-                            if (result.error_message) {
-                                statusSpan.textContent = 'Failed';
-                                statusSpan.style.color = '#e53e3e'; // Red
-                                
+                            // Regular "No" response
+                            statusSpan.textContent = 'No';
+                            statusSpan.style.color = '#4a5568'; // Gray
+                            
+                            // Add error if available
+                            if (result.error) {
                                 const errorDiv = document.createElement('div');
                                 errorDiv.style.fontSize = '12px';
                                 errorDiv.style.marginTop = '4px';
                                 errorDiv.style.color = '#e53e3e'; // Red
-                                errorDiv.textContent = result.error_message;
+                                errorDiv.textContent = `Error: ${result.error}`;
                                 statusContainer.appendChild(errorDiv);
-                            }
-                            // Legacy error handling
-                            else if (result.error) {
-                                statusSpan.textContent = 'Failed';
-                                statusSpan.style.color = '#e53e3e'; // Red
-                                
-                                const errorDiv = document.createElement('div');
-                                errorDiv.style.fontSize = '12px';
-                                errorDiv.style.marginTop = '4px';
-                                errorDiv.style.color = '#e53e3e'; // Red
-                                
-                                // If error contains "404", it's a page not found error
-                                if (result.error.includes('404')) {
-                                    errorDiv.textContent = `Page not found (404)`;
-                                } else {
-                                    errorDiv.textContent = `Error: ${result.error}`;
-                                }
-                                statusContainer.appendChild(errorDiv);
-                            }
-                            // Regular "No" response (no errors)
-                            else {
-                                statusSpan.textContent = 'No';
-                                statusSpan.style.color = '#4a5568'; // Gray
                             }
                         }
                         
@@ -1465,7 +1437,7 @@
                     
                     // Update with bot protection message (orange warning instead of red error)
                     statusSpan.textContent = 'Check blocked';
-                    statusSpan.style.color = '#e53e3e'; // Red
+                    statusSpan.style.color = '#f6ad55'; // Orange
                     
                     // Make partly-products-showcase.lovable.app stand out as an example of proper bot protection
                     if (isPartlyProductsShowcase) {
@@ -1475,7 +1447,7 @@
                     const infoDiv = document.createElement('div');
                     infoDiv.style.fontSize = '12px';
                     infoDiv.style.marginTop = '4px';
-                    infoDiv.style.color = '#e53e3e'; // Red (changed from orange per user request)
+                    infoDiv.style.color = '#f6ad55'; // Orange
                     // Different message for partly-products-showcase.lovable.app vs other domains
                     const isPartlyProductsShowcase = checkbox.dataset.url.includes('partly-products-showcase.lovable.app');
                     

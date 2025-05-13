@@ -310,34 +310,8 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
         # Set page load timeout
         driver.set_page_load_timeout(timeout)
         
-        try:
-            # Navigate to the URL
-            driver.get(url)
-            
-            # Check for 404 errors in common ways
-            if "404" in driver.title or "not found" in driver.title.lower():
-                driver.quit()
-                return {
-                    "found": False,
-                    "error": "Page not found (HTTP 404)",
-                    "detection_method": "selenium",
-                    "bot_blocked": False,  # Important: 404 is not bot protection
-                    "http_status": 404
-                }
-        except Exception as e:
-            # Check for specific error messages that indicate a 404
-            error_msg = str(e).lower()
-            if "404" in error_msg or "not found" in error_msg:
-                driver.quit()
-                return {
-                    "found": False,
-                    "error": "Page not found (HTTP 404)",
-                    "detection_method": "selenium",
-                    "bot_blocked": False,  # Important: 404 is not bot protection
-                    "http_status": 404
-                }
-            # For other errors, we'll just continue and let the regular error handling deal with it
-            logger.warning(f"Navigation error (attempting to continue): {e}")
+        # Navigate to the URL
+        driver.get(url)
         
         # Wait up to the timeout for the page to load completely
         time.sleep(min(2, timeout / 3))  # Give the page some time to render
@@ -361,18 +335,10 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
                 };
                 
                 // 1. Look for product-table* pattern (starts with product-table)
-                // Get all elements with any class attribute
-                const allElementsWithClass = Array.from(document.querySelectorAll('*[class]'));
-                
-                // Filter for product-table pattern
-                const productTableElements = allElementsWithClass.filter(element => {
-                    if (!element.className || typeof element.className !== 'string') return false;
-                    const classNames = element.className.split(/\\s+/);
-                    return classNames.some(cls => 
-                        cls.startsWith('product-table') || 
-                        cls.includes('product-table') ||
-                        cls.includes('product_table')
-                    );
+                const productTableElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
+                    if (!div.className) return false;
+                    const classNames = div.className.split(/\\s+/);
+                    return classNames.some(cls => cls.startsWith('product-table'));
                 });
                 
                 if (productTableElements.length > 0) {
@@ -389,68 +355,19 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
                     return results;
                 }
                 
-                // 2. Look for product-related patterns across various web technologies
-                // - More comprehensive search to handle any web technology, not just React
-                const productListElements = allElementsWithClass.filter(element => {
-                    // Skip elements without className or non-string classNames
-                    if (!element.className || typeof element.className !== 'string') return false;
-                    
-                    const classNames = element.className.split(/\\s+/);
-                    
-                    // Check for product-related classes - very broad patterns to catch most implementations
-                    return classNames.some(cls => 
-                        cls.endsWith('productListContainer') || 
-                        cls.includes('product') ||
-                        cls.includes('item-list') ||
-                        cls.includes('catalog') ||
-                        cls.includes('shop-items') ||
-                        cls.includes('store-products') ||
-                        cls.includes('merchandise') ||
-                        cls.includes('goods-display') ||
-                        cls.includes('listing-grid') ||
-                        cls.includes('carousel-products') ||
-                        cls.includes('selling-items') ||
-                        cls.includes('ecommerce') ||
-                        cls.includes('shop')
-                    );
+                // 2. Look for *productListContainer pattern (ends with productListContainer)
+                const productListElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
+                    if (!div.className) return false;
+                    const classNames = div.className.split(/\\s+/);
+                    return classNames.some(cls => cls.endsWith('productListContainer'));
                 });
                 
-                // Also check for product-related elements by ID
-                if (productListElements.length === 0) {
-                    const elementsWithId = Array.from(document.querySelectorAll('*[id]'));
-                    const productElementsById = elementsWithId.filter(el => {
-                        if (!el.id) return false;
-                        return (
-                            el.id.includes('product') ||
-                            el.id.includes('catalog') ||
-                            el.id.includes('shop')
-                        );
-                    });
-                    
-                    if (productElementsById.length > 0) {
-                        return {
-                            found: true,
-                            class_name: `id:${productElementsById[0].id}`,
-                            class_pattern: 'product-id-detection',
-                            elements_count: productElementsById.length
-                        };
-                    }
-                }
-                
                 if (productListElements.length > 0) {
-                    // Find the actual matching class name with more flexibility
+                    // Find the actual matching class name
                     const matchingDiv = productListElements[0];
-                    const classStr = matchingDiv.className;
-                    let matchingClass = '';
-                    
-                    // Check for various product-related classes
-                    const classArr = classStr.split(/\\s+/);
-                    for (const cls of classArr) {
-                        if (cls.includes('product')) {
-                            matchingClass = cls;
-                            break;
-                        }
-                    }
+                    const matchingClass = matchingDiv.className.split(/\\s+/).find(cls => 
+                        cls.endsWith('productListContainer')
+                    );
                     
                     results.found = true;
                     results.class_name = matchingClass || 'productListContainer';

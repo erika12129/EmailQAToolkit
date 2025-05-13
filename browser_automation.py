@@ -108,18 +108,7 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
             
             try:
                 # Navigate with timeout
-                response = await page.goto(url, timeout=actual_timeout, wait_until='networkidle')
-                
-                # Check if we got a 404 response
-                if response is not None and response.status == 404:
-                    await browser.close()
-                    return {
-                        'found': False,
-                        'error': 'Page not found (HTTP 404)',
-                        'detection_method': 'playwright',
-                        'bot_blocked': False,  # Important: 404 is not bot protection
-                        'http_status': 404
-                    }
+                await page.goto(url, timeout=actual_timeout, wait_until='networkidle')
                 
                 # Wait a bit for any lazy-loaded content
                 await page.wait_for_timeout(2000)
@@ -202,111 +191,23 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
                         };
                     }
                     
-                    // 2. Check for *productListContainer class pattern - more flexible for React apps
-                    // First get all elements with any class
-                    const allElementsWithClass = Array.from(document.querySelectorAll('*[class]'));
-                    
-                    // More comprehensive search for product-related patterns
-                    // Works with any web technology (React, Vue, Angular, standard HTML, etc.)
-                    const productListElements = allElementsWithClass.filter(element => {
-                        if (!element.className || typeof element.className !== 'string') return false;
-                        const classNames = element.className.split(/\\s+/);
-                        
-                        // Broad product-related patterns to capture most implementations
-                        return classNames.some(cls => 
-                            cls.includes('product') ||
-                            cls.includes('item-list') ||
-                            cls.includes('catalog') || 
-                            cls.includes('shop-items') ||
-                            cls.includes('store-products') ||
-                            cls.includes('merchandise') ||
-                            cls.includes('goods-display') ||
-                            cls.includes('listing-grid') ||
-                            cls.includes('carousel-products') ||
-                            cls.includes('e-commerce') ||
-                            cls.includes('shop') ||
-                            cls.includes('cart-item') ||
-                            cls.includes('buy-now')
-                        );
+                    // 2. Check for *productListContainer class pattern
+                    const productListElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
+                        if (!div.className) return false;
+                        const classNames = div.className.split(/\\s+/);
+                        return classNames.some(cls => cls.endsWith('productListContainer'));
                     });
                     
-                    // Also check for products by data attributes or IDs if classes don't match
-                    if (productListElements.length === 0) {
-                        // Try by data attributes (common in modern web apps)
-                        const dataAttributeElements = Array.from(document.querySelectorAll('*[data-*]'));
-                        const productDataElements = dataAttributeElements.filter(el => {
-                            const attrs = el.getAttributeNames();
-                            return attrs.some(attr => 
-                                attr.startsWith('data-') && 
-                                (el.getAttribute(attr).includes('product') || 
-                                 el.getAttribute(attr).includes('catalog'))
-                            );
-                        });
-                        
-                        if (productDataElements.length > 0) {
-                            return {
-                                found: true,
-                                class_name: 'data-attribute-product',
-                                class_pattern: 'data-attribute-detection',
-                                elements_count: productDataElements.length
-                            };
-                        }
-                        
-                        // Try by element IDs
-                        const productIdElements = Array.from(document.querySelectorAll('*[id]')).filter(el => 
-                            el.id.includes('product') || 
-                            el.id.includes('catalog') ||
-                            el.id.includes('shop')
-                        );
-                        
-                        if (productIdElements.length > 0) {
-                            return {
-                                found: true,
-                                class_name: `id:${productIdElements[0].id}`,
-                                class_pattern: 'id-based-detection',
-                                elements_count: productIdElements.length
-                            };
-                        }
-                        
-                        // Try by content text patterns (most flexible approach)
-                        const possibleProductElements = Array.from(document.querySelectorAll('div, section, article'));
-                        const productContentElements = possibleProductElements.filter(el => {
-                            const text = el.textContent?.toLowerCase() || '';
-                            return (
-                                text.includes('product') && 
-                                (text.includes('price') || text.includes('buy') || 
-                                 text.includes('add to cart') || text.includes('shop'))
-                            );
-                        });
-                        
-                        if (productContentElements.length > 0) {
-                            return {
-                                found: true,
-                                class_name: 'content-based-product',
-                                class_pattern: 'content-detection',
-                                elements_count: productContentElements.length
-                            };
-                        }
-                    }
-                    
                     if (productListElements.length > 0) {
-                        // Find the actual matching class name with more flexibility
-                        const classStr = productListElements[0].className;
-                        let matchingClass = '';
-                        
-                        // Check for various product-related classes
-                        const classArr = classStr.split(/\\s+/);
-                        for (const cls of classArr) {
-                            if (cls.includes('product')) {
-                                matchingClass = cls;
-                                break;
-                            }
-                        }
+                        // Find the actual matching class name
+                        const matchingClass = productListElements[0].className.split(/\\s+/).find(cls => 
+                            cls.endsWith('productListContainer')
+                        );
                         
                         return {
                             found: true,
-                            class_name: matchingClass || productListElements[0].className || 'product-related-class',
-                            class_pattern: 'product-related-class',
+                            class_name: matchingClass || 'productListContainer',
+                            class_pattern: '*productListContainer',
                             elements_count: productListElements.length
                         };
                     }
