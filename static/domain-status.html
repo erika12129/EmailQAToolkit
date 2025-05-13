@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Domain Status</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f7fafc;
+            color: #2d3748;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #2b6cb0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        .status-box {
+            margin-top: 20px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 15px;
+            background-color: #f5f7fa;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #edf2f7;
+        }
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        .status-key {
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .status-value {
+            color: #2d3748;
+        }
+        .true-value {
+            color: #48bb78;
+            font-weight: 600;
+        }
+        .false-value {
+            color: #f56565;
+            font-weight: 600;
+        }
+        .production-value {
+            color: #2b6cb0;
+            font-weight: 600;
+        }
+        .development-value {
+            color: #d69e2e;
+            font-weight: 600;
+        }
+        .status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            background-color: #ebf8ff;
+            border-left: 4px solid #4299e1;
+        }
+        .refresh-btn {
+            background-color: #4299e1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+        .refresh-btn:hover {
+            background-color: #3182ce;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Production Domain Status</h1>
+        <p>This page shows diagnostic information for production domains in the Email QA System.</p>
+        
+        <div class="status-box" id="status-container">
+            <div class="status-item">
+                <span class="status-key">Status:</span>
+                <span class="status-value">Loading...</span>
+            </div>
+        </div>
+        
+        <div class="status-message">
+            <p><strong>Note:</strong> This information is used to diagnose how the application handles real production domains like <code>partly-products-showcase.lovable.app</code> in different environments.</p>
+            <p>In production mode, these domains should be treated as non-test domains with bot protection detected.</p>
+        </div>
+        
+        <button id="refresh-btn" class="refresh-btn">Refresh Status</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStatus();
+            
+            document.getElementById('refresh-btn').addEventListener('click', function() {
+                loadStatus();
+            });
+        });
+        
+        function loadStatus() {
+            const statusContainer = document.getElementById('status-container');
+            statusContainer.innerHTML = '<div class="status-item"><span class="status-key">Status:</span><span class="status-value">Loading...</span></div>';
+            
+            fetch('/api/production-domain-status')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load status: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Clear container
+                    statusContainer.innerHTML = '';
+                    
+                    // Add all status items
+                    for (const [key, value] of Object.entries(data)) {
+                        const item = document.createElement('div');
+                        item.className = 'status-item';
+                        
+                        const keySpan = document.createElement('span');
+                        keySpan.className = 'status-key';
+                        keySpan.textContent = formatKey(key) + ':';
+                        
+                        const valueSpan = document.createElement('span');
+                        valueSpan.className = 'status-value';
+                        
+                        // Format the value based on its type and key
+                        if (typeof value === 'boolean') {
+                            valueSpan.className += value ? ' true-value' : ' false-value';
+                            valueSpan.textContent = value.toString();
+                        } else if (key === 'mode') {
+                            valueSpan.className += value === 'production' ? ' production-value' : ' development-value';
+                            valueSpan.textContent = value;
+                        } else if (key === 'timestamp') {
+                            valueSpan.textContent = new Date(value).toLocaleString();
+                        } else {
+                            valueSpan.textContent = JSON.stringify(value);
+                        }
+                        
+                        item.appendChild(keySpan);
+                        item.appendChild(valueSpan);
+                        statusContainer.appendChild(item);
+                    }
+                })
+                .catch(error => {
+                    statusContainer.innerHTML = `<div class="status-item"><span class="status-key">Error:</span><span class="status-value false-value">${error.message}</span></div>`;
+                });
+        }
+        
+        function formatKey(key) {
+            // Convert snake_case or camelCase to Title Case with spaces
+            return key
+                .replace(/_/g, ' ')
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/^./, str => str.toUpperCase());
+        }
+    </script>
+</body>
+</html>

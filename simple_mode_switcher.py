@@ -8,7 +8,7 @@ import shutil
 import tempfile
 import logging
 import json
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -172,6 +172,44 @@ async def get_config():
         "test_domains": config.test_domains
     })
 
+@app.get("/api/production-domain-status")
+@app.get("/production-domain-status")
+async def production_domain_status(request: Request):
+    """Special diagnostic endpoint for production domains."""
+    # Check if this is an HTML request (Accept header contains text/html)
+    accept_header = request.headers.get('accept', '')
+    if 'text/html' in accept_header:
+        # Return the HTML page
+        with open("static/domain-status.html", "r") as f:
+            html_content = f.read()
+        return HTMLResponse(content=html_content, status_code=200)
+    # This endpoint helps debug issues in the deployed environment
+    partly_showcase_url = "https://partly-products-showcase.lovable.app"
+    
+    # Check if we're in production mode
+    is_production = config.mode == 'production'
+    
+    # In production, partly-products-showcase.lovable.app should NOT be considered a test domain
+    if config.mode == 'production':
+        is_test_domain = False
+    else:
+        # In development mode, treat partly-products-showcase.lovable.app as a test domain
+        is_test_domain = True
+    
+    import datetime
+    
+    # Return comprehensive diagnostic info
+    return JSONResponse(content={
+        "mode": config.mode,
+        "is_production": is_production,
+        "partly_showcase_url": partly_showcase_url,
+        "is_test_domain": is_test_domain,
+        "test_redirects_enabled": config.enable_test_redirects,
+        "expect_bot_protection": is_production and not is_test_domain,
+        "should_display_as": "Check blocked (orange)" if (is_production and not is_test_domain) else "Yes (green)",
+        "timestamp": datetime.datetime.now().isoformat()
+    })
+
 @app.get("/set-mode/{mode}")
 async def set_mode(mode: str):
     """
@@ -213,7 +251,10 @@ async def set_mode(mode: str):
 @app.post("/api/check-product-tables")
 @app.post("/api/check_product_tables") 
 @app.post("/check_product_tables")  # Add non-API prefixed version 
+@app.post("/check-product-tables")  # Additional non-API endpoint for compatibility
+@app.post("/product-tables-check")  # Extra route to catch more variations
 @app.get("/api/check_simple") # Simple GET endpoint for testing connectivity
+@app.get("/api/check-product-tables/simple") # Additional test endpoint for production
 async def check_product_tables(
     urls: list = Body(..., description="List of URLs to check for product tables"),
     timeout: Optional[int] = Body(None, description="Timeout for product table checks in seconds")
@@ -278,7 +319,13 @@ async def check_product_tables(
                         }
                 # In production mode for partly-products-showcase.lovable.app, use REAL detection
                 elif ('partly-products-showcase.lovable.app' in url):
-                    logger.info(f"Using REAL detection for partly-products-showcase domain in production mode: {url}")
+                    logger.info(f"[PRODUCTION DOMAIN] Using REAL detection for partly-products-showcase domain: {url}")
+                    # Add extra debug logging for production troubleshooting
+                    print(f"[PRODUCTION DOMAIN] Processing URL: {url} with REAL detection")
+                    print(f"[PRODUCTION DOMAIN] Current mode: {config.mode}")
+                    # Output is_test_domain value for debugging
+                    is_test_domain = False
+                    print(f"[PRODUCTION DOMAIN] is_test_domain set to: {is_test_domain}")
                     
                     # Check if browser automation is actually available with real browsers
                     browsers_actually_available = False
