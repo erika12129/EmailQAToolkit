@@ -962,7 +962,15 @@
                 });
             })
             .then(data => {
-                displayResults(data);
+                // Check if the response is using the new standardized format with 'results' wrapper
+                if (data.results) {
+                    console.log('Detected standardized API response format with results wrapper');
+                    displayResults(data.results);
+                } else {
+                    // Backward compatibility for old response format
+                    console.log('Using legacy API response format');
+                    displayResults(data);
+                }
             })
             .catch(error => {
                 console.error('QA error:', error);
@@ -1092,9 +1100,18 @@
     .then(data => {
         console.log('Product table check succeeded, results:', data);
         
-        // Update UI with results
+        // Extract results data from standardized response format
+        let resultsData = data;
+        
+        // Check if the response is using the new standardized format with 'results' wrapper
         if (data.results) {
-            Object.entries(data.results).forEach(([url, result]) => {
+            console.log('Detected standardized API response format for product tables');
+            resultsData = data.results;
+        }
+        
+        // Update UI with results (handle both old and new formats)
+        if (resultsData) {
+            Object.entries(resultsData).forEach(([url, result]) => {
                 // Only find checked checkboxes with this URL
                 const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]:checked`);
                 
