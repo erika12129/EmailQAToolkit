@@ -636,35 +636,32 @@ def check_for_product_tables(url, timeout=None):
             browser_error = str(e)
             logger.error(f"Browser automation failed for client-side rendered site: {browser_error}")
             
-        # If browser automation isn't available, try text analysis as fallback
-        if TEXT_ANALYSIS_AVAILABLE:
-            logger.info(f"Using text analysis for client-side rendered site: {url}")
-            try:
-                text_result = check_for_product_tables_with_text_analysis(url)
-                
-                if text_result.get('found', False):
-                    logger.info(f"Text analysis found product content on {url}")
-                    text_result['is_test_domain'] = is_test_domain
-                    
-                    # If this is a URL with clear product indicators, boost confidence
-                    if '/products' in url or '/catalog' in url:
-                        confidence = text_result.get('confidence_score', 0)
-                        text_result['confidence_score'] = min(1.0, confidence + 0.2)
-                        
-                    return text_result
-            except Exception as e:
-                logger.error(f"Text analysis fallback failed: {str(e)}")
+        # Instead of text analysis fallback, show a clear message for marketers to manually check
+        logger.info(f"Browser automation failed - instructing user to manually check: {url}")
         
-        # Last resort: If all automations fail, use URL path heuristics
-        if '/products' in url or '/catalog' in url:
-            logger.info(f"Using URL path heuristics for known product page: {url}")
-            return {
-                'found': True,
-                'class_name': 'client-side-rendered-product-table',
-                'detection_method': 'url_path_heuristic',
-                'is_test_domain': is_test_domain,
-                'browser_error': browser_error
-            }
+        # Create a more informative error message based on the reason
+        error_message = 'Browser automation unavailable'
+        detection_method = 'browser_not_installed'
+        
+        if 'Playwright browsers not installed' in browser_error:
+            error_message = 'Playwright browsers not installed - check manually'
+        elif 'Browser automation not available' in browser_error:
+            error_message = 'Browser automation unavailable - check manually'
+        else:
+            error_message = f'Browser check failed - please manually visit the page'
+            detection_method = 'browser_automation_failed'
+            
+        return {
+            'found': False,
+            'error': error_message,
+            'manual_check_required': True,
+            'detection_method': detection_method,
+            'original_error': browser_error,
+            'is_test_domain': is_test_domain
+        }
+        
+        # We've already returned, so this code is unreachable
+        # URL path heuristics removed to avoid false positives
             
     # In production mode, we NEVER use simulated results
     if config.is_production and is_test_domain:

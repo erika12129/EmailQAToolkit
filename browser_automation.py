@@ -64,10 +64,13 @@ async def check_for_product_tables_with_browser(url: str, timeout: Optional[int]
         
         # Check if browsers are installed
         if not _check_playwright_browsers_installed():
+            logger.warning("Playwright browsers not installed - cannot perform browser automation")
             return {
                 'found': False,
                 'error': 'Playwright browsers not installed',
-                'detection_method': 'browser_not_installed'
+                'detection_method': 'browser_not_installed',
+                'manual_check_required': True,
+                'manual_check_message': 'Please visit this page in your browser and check for product tables with "Add to Cart" buttons'
             }
         
         # Set a reasonable timeout if not provided

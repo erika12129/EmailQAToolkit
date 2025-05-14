@@ -401,6 +401,14 @@
             
             <h3>Links</h3>
             <div id="product-table-controls" style="margin-bottom: 15px; display: none;">
+                <!-- Browser info message -->
+                <div id="browser-automation-status" style="margin-bottom: 15px; padding: 8px 12px; background-color: #ebf8ff; border-radius: 4px; border-left: 4px solid #4299e1; font-size: 0.9em;">
+                    <p style="margin: 0; padding: 0;">
+                        <strong>Note:</strong> Browser automation is currently unavailable. Product table detection will use HTTP requests only.
+                        <br>For client-side rendered websites, you may need to manually check for product tables.
+                    </p>
+                </div>
+                
                 <!-- Timeout dropdown in its own row -->
                 <div style="margin-bottom: 15px;">
                     <label for="selected-timeout">Product Table Detection Timeout:</label>
@@ -1331,7 +1339,31 @@
                                 errorDiv.style.fontSize = '12px';
                                 errorDiv.style.marginTop = '4px';
                                 errorDiv.style.color = '#e53e3e'; // Red
-                                errorDiv.textContent = `Error: ${result.error}`;
+                                
+                                // Handle specific browser automation errors with clearer messages
+                                if (result.error.includes('Playwright browsers not installed') || 
+                                    result.error.includes('Browser automation not available') ||
+                                    result.detection_method === 'browser_not_installed') {
+                                    errorDiv.textContent = 'Browser automation unavailable';
+                                    
+                                    // Add a guidance note for marketers
+                                    const guidanceDiv = document.createElement('div');
+                                    guidanceDiv.style.fontSize = '12px';
+                                    guidanceDiv.style.marginTop = '4px';
+                                    guidanceDiv.style.color = '#4299e1'; // Blue
+                                    
+                                    // Use custom message if available, otherwise use default
+                                    if (result.manual_check_message) {
+                                        guidanceDiv.innerHTML = result.manual_check_message;
+                                    } else {
+                                        guidanceDiv.innerHTML = 'Please check this page manually.<br>Look for product tables with "Add to Cart" buttons.';
+                                    }
+                                    
+                                    statusContainer.appendChild(guidanceDiv);
+                                } else {
+                                    errorDiv.textContent = `Error: ${result.error}`;
+                                }
+                                
                                 statusContainer.appendChild(errorDiv);
                             }
                         }
