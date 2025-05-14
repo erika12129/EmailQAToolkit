@@ -46,58 +46,23 @@ except ImportError:
     # Define a fallback function to prevent unbound errors
     def check_for_product_tables_with_text_analysis(url):
         """
-        Perform text-based analysis to detect product content on a page.
-        Uses the web_scraper module which includes URL pattern matching and text content analysis.
-        This serves as a fallback when browser automation isn't available.
+        Function that ALWAYS returns a standardized message about browser automation
+        being unavailable, and NEVER relies on text analysis fallbacks.
         
         Args:
             url: The URL to check
             
         Returns:
-            dict: Results including whether products were detected
+            dict: Standard response indicating browser automation is unavailable
         """
-        # In Replit environment, ALWAYS return the standard manual verification message
-        if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
-            logger.info(f"Running in Replit environment - returning manual verification message for {url}")
-            return {
-                'found': None,
-                'class_name': None,
-                'detection_method': 'browser_unavailable',
-                'message': 'Unknown - Browser automation unavailable - manual verification required',
-                'is_test_domain': False
-            }
-            
-        try:
-            # Only attempt text analysis in non-Replit environments
-            # Import here to avoid circular imports
-            from web_scraper import check_for_product_tables_with_text_analysis as analyze_text
-            
-            # Add production marker to the detection method
-            result = analyze_text(url)
-            if result and isinstance(result, dict):
-                if 'detection_method' in result:
-                    result['detection_method'] = f"{result['detection_method']}_production"
-            
-            logger.info(f"Text analysis module loaded successfully - enhanced detection available")
-            return result
-        except ImportError:
-            logger.warning(f"Text analysis module could not be imported for {url}")
-            return {
-                'found': None,
-                'class_name': None,
-                'detection_method': 'text_analysis_unavailable',
-                'message': 'Unknown - Browser automation unavailable - manual verification required',
-                'is_test_domain': False
-            }
-        except Exception as e:
-            logger.error(f"Error during text analysis for {url}: {str(e)}")
-            return {
-                'found': None,
-                'class_name': None,
-                'detection_method': 'text_analysis_error',
-                'message': 'Unknown - Browser automation unavailable - manual verification required',
-                'is_test_domain': False
-            }
+        logger.info(f"Browser automation unavailable - returning manual verification message for {url}")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'browser_unavailable',
+            'message': 'Unknown - Browser automation unavailable - manual verification required',
+            'is_test_domain': False
+        }
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -597,21 +562,22 @@ def check_for_product_tables(url, timeout=None):
     if timeout is None or timeout > 1:
         timeout = 1  # Very short timeout to avoid hanging in Replit environment
         
-    # In Replit environment, ALWAYS return the standard manual verification message
-    # This ensures we NEVER use text-based detection or any other fallbacks
+    # Always check if browser automation is available
+    # If it's not available (Replit or other environments without browsers), return standard message
     repl_id = os.environ.get('REPL_ID')
     replit_env = os.environ.get('REPLIT_ENVIRONMENT')
     is_replit = repl_id is not None or replit_env is not None
+    browser_unavailable = is_replit or not SELENIUM_AVAILABLE
     
-    # Log the environment variables for debugging
-    logger.info(f"EMAIL_QA_ENHANCED - ENVIRONMENT CHECK - REPL_ID: '{repl_id}', REPLIT_ENVIRONMENT: '{replit_env}'")
+    # Log the environment and browser availability for debugging
+    logger.info(f"Environment check - Replit: {is_replit}, Selenium available: {SELENIUM_AVAILABLE}")
     
-    if is_replit:
-        logger.info(f"EMAIL_QA_ENHANCED - Detected Replit environment - returning manual verification message for {url}")
+    if browser_unavailable:
+        logger.info(f"Browser automation unavailable - returning manual verification message for {url}")
         return {
             'found': None,
             'class_name': None,
-            'detection_method': 'browser_unavailable',  # Fixed: Don't expose Replit in production apps
+            'detection_method': 'browser_unavailable',
             'message': 'Unknown - Browser automation unavailable - manual verification required',
             'is_test_domain': False
         }
@@ -639,13 +605,13 @@ def check_for_product_tables(url, timeout=None):
         logger.info(f"Client-side rendered site detected: {url}")
         # For sites using React or similar frameworks, we need browser automation
         
-        # Skip browser automation entirely in Replit environment to prevent hanging
-        if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
-            logger.info(f"Running in Replit environment - returning manual verification message")
+        # Skip browser automation entirely in environments where it's not available
+        if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT') or not SELENIUM_AVAILABLE:
+            logger.info(f"Browser automation unavailable - returning manual verification message")
             return {
                 'found': None,
                 'class_name': None,
-                'detection_method': 'manual_check_required',
+                'detection_method': 'browser_unavailable',
                 'message': 'Unknown - Browser automation unavailable - manual verification required',
                 'is_test_domain': is_test_domain
             }
@@ -719,8 +685,17 @@ def check_for_product_tables(url, timeout=None):
             selenium_error = str(e)
             logger.error(f"Exception during Selenium check for {url}: {selenium_error}")
     else:
+        # Return standard message for unavailable browser automation if we tried to use it above
+        # This ensures consistent behavior with our earlier check
         if not SELENIUM_AVAILABLE:
-            logger.info(f"Selenium automation not available for {url}, using HTTP check")
+            logger.info(f"Selenium automation not available for {url}, returning browser unavailable message")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'browser_unavailable',
+                'message': 'Unknown - Browser automation unavailable - manual verification required',
+                'is_test_domain': is_test_domain
+            }
         else:
             logger.info(f"Not in production mode, using HTTP check for {url}")
     

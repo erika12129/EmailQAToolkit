@@ -47,13 +47,22 @@ from runtime_config import config
 async def get_config():
     """Get current configuration settings for frontend."""
     logger.info(f"Serving config endpoint, mode={config.mode}")
+    
+    # Import selenium_automation for browser availability check
+    from selenium_automation import check_browser_availability
+    
+    # Check if browser automation is available
+    browser_available = check_browser_availability()
+    logger.info(f"Browser automation available: {browser_available}")
+    
     return JSONResponse(content={
         "mode": config.mode,
         "enable_test_redirects": config.enable_test_redirects,
         "product_table_timeout": config.product_table_timeout,
         "request_timeout": config.request_timeout,
         "max_retries": config.max_retries,
-        "test_domains": config.test_domains
+        "test_domains": config.test_domains,
+        "browser_automation_available": browser_available
     })
 
 @app.get("/")

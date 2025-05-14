@@ -401,8 +401,8 @@
             
             <h3>Links</h3>
             <div id="product-table-controls" style="margin-bottom: 15px; display: none;">
-                <!-- Browser info message -->
-                <div id="browser-automation-status" style="margin-bottom: 15px; padding: 8px 12px; background-color: #ebf8ff; border-radius: 4px; border-left: 4px solid #4299e1; font-size: 0.9em;">
+                <!-- Browser info message - hidden by default and only shown when needed -->
+                <div id="browser-automation-status" style="margin-bottom: 15px; padding: 8px 12px; background-color: #ebf8ff; border-radius: 4px; border-left: 4px solid #4299e1; font-size: 0.9em; display: none;">
                     <p style="margin: 0; padding: 0;">
                         <strong>Note:</strong> Browser automation is currently unavailable.
                         <br>For product links, you'll see "Unknown - Browser automation unavailable - manual verification required".
@@ -566,6 +566,9 @@
                 .then(data => {
                     const appMode = data.mode || 'production';  // Default to production if not specified
                     
+                    // Store browser automation status in a global variable for later use
+                    window.browserAutomationAvailable = data.browser_automation_available || false;
+                    
                     // Set data-mode attribute on body element
                     document.body.setAttribute('data-mode', appMode);
                     
@@ -577,6 +580,7 @@
                     }
                     
                     console.log('Application running in ' + appMode + ' mode');
+                    console.log('Browser automation available: ' + window.browserAutomationAvailable);
                 })
                 .catch(err => {
                     console.error('Error fetching application config:', err);
@@ -1904,6 +1908,14 @@
             // Always show product table controls when we have links
             if (data.links && data.links.length > 0) {
                 productTableControls.style.display = 'block';
+                
+                // Show browser automation unavailable message only if browser automation is not available
+                const browserAutomationStatus = document.getElementById('browser-automation-status');
+                if (!window.browserAutomationAvailable && browserAutomationStatus) {
+                    browserAutomationStatus.style.display = 'block';
+                } else if (browserAutomationStatus) {
+                    browserAutomationStatus.style.display = 'none';
+                }
                 
                 // Make sure flex container is displayed correctly
                 const flexContainer = productTableControls.querySelector('.controls-flex-container');

@@ -49,7 +49,7 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
     return {
         'found': None,  # Use None to indicate unknown status
         'class_name': None,
-        'detection_method': 'browser_not_available',
+        'detection_method': 'browser_unavailable',
         'message': 'Unknown - Browser automation unavailable - manual verification required',
         'is_test_domain': is_test_domain
     }

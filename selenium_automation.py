@@ -229,9 +229,11 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
     # Only attempt to use Selenium if at least one browser is available
     if not browser_available:
         return {
-            "found": False,
+            "found": None,
+            "class_name": None, 
             "error": "No compatible browsers available",
-            "detection_method": "selenium_failed"
+            "detection_method": "browser_unavailable",
+            "message": "Unknown - Browser automation unavailable - manual verification required"
         }
     
     # Extract domain for logging
