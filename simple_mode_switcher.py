@@ -264,7 +264,11 @@ async def validate(
                     # Log debug information
                     logger.info(f"Requirements JSON: {json.dumps(requirements_json)}")
                     
-                    return result
+                    # Return a properly formatted JSONResponse
+                    return JSONResponse(
+                        content=result,
+                        media_type="application/json"
+                    )
                 except Exception as validation_error:
                     logger.error(f"Validation error: {str(validation_error)}")
                     return JSONResponse(
@@ -510,10 +514,13 @@ async def check_product_tables(
                     }
                 
         # Return results with mode information for the frontend
-        return {
-            "results": results,
-            "mode": config.mode
-        }
+        return JSONResponse(
+            content={
+                "results": results,
+                "mode": config.mode
+            },
+            media_type="application/json"
+        )
     except Exception as e:
         logger.error(f"Error during product table check: {str(e)}")
         return JSONResponse(
@@ -563,11 +570,14 @@ async def check_production_domain_status():
                         'status': f"Error: {str(e)}"
                     }
         
-        return {
-            'domains': results,
-            'mode': config.mode,
-            'total_domains': len(production_domains)
-        }
+        return JSONResponse(
+            content={
+                'domains': results,
+                'mode': config.mode,
+                'total_domains': len(production_domains)
+            },
+            media_type="application/json"
+        )
     except Exception as e:
         logger.error(f"Error checking production domain status: {str(e)}")
         return JSONResponse(
@@ -585,12 +595,15 @@ async def get_config():
         except AttributeError:
             domains = {}
             
-        return {
-            "mode": config.mode,
-            "domains": domains,
-            "browser_automation_available": BROWSER_AUTOMATION_AVAILABLE,
-            "text_analysis_available": TEXT_ANALYSIS_AVAILABLE
-        }
+        return JSONResponse(
+            content={
+                "mode": config.mode,
+                "domains": domains,
+                "browser_automation_available": BROWSER_AUTOMATION_AVAILABLE,
+                "text_analysis_available": TEXT_ANALYSIS_AVAILABLE
+            },
+            media_type="application/json"
+        )
     except Exception as e:
         logger.error(f"Error getting config: {str(e)}")
         return JSONResponse(
