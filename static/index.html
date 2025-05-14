@@ -404,8 +404,8 @@
                 <!-- Browser info message -->
                 <div id="browser-automation-status" style="margin-bottom: 15px; padding: 8px 12px; background-color: #ebf8ff; border-radius: 4px; border-left: 4px solid #4299e1; font-size: 0.9em;">
                     <p style="margin: 0; padding: 0;">
-                        <strong>Note:</strong> Browser automation is currently unavailable. Product table detection will use HTTP requests only.
-                        <br>For client-side rendered websites, you may need to manually check for product tables.
+                        <strong>Note:</strong> Browser automation is currently unavailable.
+                        <br>For product links, you'll see "Unknown - Browser automation unavailable - manual verification required".
                     </p>
                 </div>
                 
@@ -1383,7 +1383,7 @@
                                     if (result.manual_check_message) {
                                         guidanceDiv.innerHTML = result.manual_check_message;
                                     } else {
-                                        guidanceDiv.innerHTML = 'Please check this page manually.<br>Look for product tables with "Add to Cart" buttons.';
+                                        guidanceDiv.innerHTML = 'Unknown - Browser automation unavailable - manual verification required';
                                     }
                                     
                                     statusContainer.appendChild(guidanceDiv);
@@ -2505,7 +2505,7 @@
                         if (item.product_table_message) {
                             manualCheckDiv.textContent = item.product_table_message;
                         } else {
-                            manualCheckDiv.textContent = 'Please visit this page in your browser to verify. Browser automation unavailable.';
+                            manualCheckDiv.textContent = 'Unknown - Browser automation unavailable - manual verification required';
                         }
                         statusContainer.appendChild(manualCheckDiv);
                         

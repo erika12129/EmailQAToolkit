@@ -629,7 +629,7 @@ def check_for_product_tables(url, timeout=None):
                     'found': None,
                     'class_name': None,
                     'detection_method': 'manual_check_required',
-                    'message': 'Browser automation unavailable in Replit - manual verification required',
+                    'message': 'Unknown - Browser automation unavailable - manual verification required',
                     'is_test_domain': is_test_domain
                 }
                 
@@ -655,7 +655,7 @@ def check_for_product_tables(url, timeout=None):
                         'found': None,
                         'class_name': None,
                         'detection_method': 'manual_check_required',
-                        'message': 'Browser automation unavailable in Replit - manual verification required',
+                        'message': 'Unknown - Browser automation unavailable - manual verification required',
                         'is_test_domain': is_test_domain
                     }
                 
@@ -695,7 +695,7 @@ def check_for_product_tables(url, timeout=None):
             'detection_method': 'manual_check_required',
             'original_error': browser_error,
             'is_test_domain': is_test_domain,
-            'message': 'Browser automation unavailable - please manually check this page'
+            'message': 'Unknown - Browser automation unavailable - manual verification required'
         }
         
         # We've already returned, so this code is unreachable
@@ -1035,11 +1035,10 @@ def check_for_product_tables(url, timeout=None):
     
     # Return a clear result indicating manual check is needed
     return {
-        'found': False,
-        'error': 'Playwright browsers not installed',
-        'detection_method': 'http_production',
-        'manual_check_required': True,
-        'manual_check_message': 'Please visit this page in your browser and check for product tables with "Add to Cart" buttons',
+        'found': None,
+        'class_name': None,
+        'detection_method': 'manual_check_required',
+        'message': 'Unknown - Browser automation unavailable - manual verification required',
         'is_test_domain': is_test_domain
     }
 
