@@ -344,8 +344,26 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
                 const results = {
                     found: false,
                     class_name: null,
-                    pattern: null
+                    pattern: null,
+                    definitely_no_products: false
                 };
+                
+                // FIRST: Check for "noPartsPhrase" class which definitely indicates NO products
+                const noPartsElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
+                    if (!div.className) return false;
+                    const classNames = div.className.split(/\\s+/);
+                    return classNames.some(cls => cls === 'noPartsPhrase');
+                });
+                
+                if (noPartsElements.length > 0) {
+                    // Found the "noPartsPhrase" class which definitely indicates no products
+                    results.found = false;
+                    results.class_name = 'noPartsPhrase';
+                    results.pattern = 'exact-match-noPartsPhrase';
+                    results.definitely_no_products = true;
+                    results.elements_count = noPartsElements.length;
+                    return results;
+                }
                 
                 // 1. Look for product-table* pattern (starts with product-table)
                 const productTableElements = Array.from(document.querySelectorAll('div[class]')).filter(div => {
@@ -389,7 +407,7 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
                     return results;
                 }
                 
-                // Nothing found
+                // No matching class patterns found - neither success nor explicit failure indicators
                 return results;
             }
             
@@ -401,6 +419,7 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
             result = driver.execute_script(script)
             
             if result and result.get('found', False):
+                # Found product table class
                 logger.info(f"Found product table via JavaScript: {result}")
                 return {
                     "found": True,
@@ -409,13 +428,33 @@ def check_for_product_tables_with_selenium(url: str, timeout: Optional[int] = No
                     "elements_count": result.get('elements_count', 1),
                     "detection_method": f"selenium_{browser_used}_js"
                 }
+            elif result and result.get('definitely_no_products', False):
+                # Found the explicit "noPartsPhrase" class which indicates NO products
+                logger.info(f"Found 'noPartsPhrase' class indicating no products: {result}")
+                return {
+                    "found": False,
+                    "class_name": "noPartsPhrase",
+                    "pattern": "exact-match-noPartsPhrase",
+                    "definitely_no_products": True,
+                    "detection_method": f"selenium_{browser_used}_js_noparts"
+                }
+            else:
+                # Nothing definitive was found - neither positive nor negative indicators
+                logger.info(f"No product table or noPartsPhrase class found: {result}")
+                return {
+                    "found": None,  # Using None to indicate unknown status
+                    "class_name": None,
+                    "message": "Unknown - Browser automation unavailable - manual verification required",
+                    "detection_method": f"selenium_{browser_used}_unknown"
+                }
         except Exception as e:
             logger.debug(f"Error executing JavaScript search: {e}")
-        
-        # No product table found
+            
+        # Fallback if script execution fails - report unknown status requiring manual verification
         return {
-            "found": False,
-            "detection_method": f"selenium_{browser_used}"
+            "found": None,  # Using None to indicate unknown status
+            "message": "Unknown - Browser automation unavailable - manual verification required",
+            "detection_method": f"selenium_{browser_used}_fallback"
         }
     
     except TimeoutException:

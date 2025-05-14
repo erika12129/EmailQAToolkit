@@ -80,18 +80,11 @@ except ImportError:
             'confidence_score': 0
         }
 
-# Try to import the real browser check function
+# Try to import the Selenium browser check function
 try:
-    # First try to import the Selenium implementation
-    try:
-        from selenium_automation import check_for_product_tables_selenium_sync as browser_check
-        BROWSER_AUTOMATION_AVAILABLE = True
-        logging.info("Selenium browser automation module loaded successfully")
-    except ImportError:
-        # Fall back to Playwright if Selenium is not available
-        from browser_automation import check_for_product_tables_sync as browser_check
-        BROWSER_AUTOMATION_AVAILABLE = True
-        logging.info("Playwright browser automation module loaded successfully")
+    from selenium_automation import check_for_product_tables_selenium_sync as browser_check
+    BROWSER_AUTOMATION_AVAILABLE = True
+    logging.info("Selenium browser automation module loaded successfully")
 except ImportError:
     browser_check = browser_check_fallback  # Use the fallback function
     BROWSER_AUTOMATION_AVAILABLE = False

@@ -638,83 +638,42 @@ def check_for_product_tables(url, timeout=None):
         logger.info(f"Client-side rendered site detected: {url}")
         # For sites using React or similar frameworks, we need browser automation
         
-        browser_automation_available = False
-        browser_error = None
-        
-        # First try with Playwright if available
-        try:
-            # Skip browser automation entirely in Replit environment to prevent hanging
-            if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
-                logger.info(f"Running in Replit environment - returning manual verification message")
-                return {
-                    'found': None,
-                    'class_name': None,
-                    'detection_method': 'manual_check_required',
-                    'message': 'Unknown - Browser automation unavailable - manual verification required',
-                    'is_test_domain': is_test_domain
-                }
+        # Skip browser automation entirely in Replit environment to prevent hanging
+        if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+            logger.info(f"Running in Replit environment - returning manual verification message")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'manual_check_required',
+                'message': 'Unknown - Browser automation unavailable - manual verification required',
+                'is_test_domain': is_test_domain
+            }
                 
+        # Try Selenium if available
+        if SELENIUM_AVAILABLE:
             try:
-                from browser_automation import check_for_product_tables_sync
-                logger.info(f"Using Playwright for client-side rendered site: {url}")
-                try:
-                    browser_result = check_for_product_tables_sync(url, timeout)
-                    browser_result['is_test_domain'] = is_test_domain
-                    return browser_result
-                except Exception as e:
-                    logger.warning(f"Playwright error: {str(e)}")
-                    browser_error = str(e)
-                    raise
-            except ImportError as e:
-                logger.warning(f"Playwright not available: {str(e)}")
-                browser_error = "Playwright not available"
-                
-                # If Playwright isn't available, try Selenium (except in Replit)
-                if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
-                    logger.info(f"Running in Replit environment - skipping Selenium and returning manual verification message")
-                    return {
-                        'found': None,
-                        'class_name': None,
-                        'detection_method': 'manual_check_required',
-                        'message': 'Unknown - Browser automation unavailable - manual verification required',
-                        'is_test_domain': is_test_domain
-                    }
-                
-                if SELENIUM_AVAILABLE:
-                    from selenium_automation import check_for_product_tables_selenium_sync
-                    logger.info(f"Using Selenium for client-side rendered site: {url}")
-                    selenium_result = check_for_product_tables_selenium_sync(url, timeout)
-                    selenium_result['is_test_domain'] = is_test_domain
-                    return selenium_result
-                else:
-                    logger.warning("Selenium not available either")
-                    browser_error = "Browser automation not available"
-        except Exception as e:
-            browser_error = str(e)
-            logger.error(f"Browser automation failed for client-side rendered site: {browser_error}")
-            
+                from selenium_automation import check_for_product_tables_selenium_sync
+                logger.info(f"Using Selenium for client-side rendered site: {url}")
+                selenium_result = check_for_product_tables_selenium_sync(url, timeout)
+                selenium_result['is_test_domain'] = is_test_domain
+                return selenium_result
+            except Exception as e:
+                logger.warning(f"Selenium error: {str(e)}")
+                browser_error = f"Selenium automation error: {str(e)}"
+        else:
+            logger.warning("Selenium not available")
+            browser_error = "Browser automation not available"
+                    
         # Instead of text analysis fallback, show a clear message for marketers to manually check
         logger.info(f"Browser automation failed - instructing user to manually check: {url}")
-        
-        # Create a more informative error message based on the reason
-        error_message = 'Browser automation unavailable'
-        detection_method = 'browser_not_installed'
-        
-        if 'Playwright browsers not installed' in browser_error:
-            error_message = 'Playwright browsers not installed - check manually'
-        elif 'Browser automation not available' in browser_error:
-            error_message = 'Browser automation unavailable - check manually'
-        else:
-            error_message = f'Browser check failed - please manually visit the page'
-            detection_method = 'browser_automation_failed'
             
+        # Create a standard error message for manual verification
         return {
             'found': None,  # Using None to indicate unknown status
             'class_name': None,
-            'error': error_message,
+            'error': 'Browser automation unavailable',
             'manual_check_required': True,
             'detection_method': 'manual_check_required',
-            'original_error': browser_error,
             'is_test_domain': is_test_domain,
             'message': 'Unknown - Browser automation unavailable - manual verification required'
         }
