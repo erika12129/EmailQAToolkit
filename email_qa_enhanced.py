@@ -127,7 +127,7 @@ def extract_email_metadata(soup):
     elif isinstance(preheader, str):
         preheader_text = preheader
     elif hasattr(preheader, 'get_text') and callable(getattr(preheader, 'get_text', None)):
-        # For BeautifulSoup elements
+        # BeautifulSoup elements have get_text method
         try:
             preheader_text = preheader.get_text(strip=True)
         except Exception as e:
