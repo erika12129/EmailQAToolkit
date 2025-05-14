@@ -345,6 +345,10 @@ async def check_product_tables(
                     http_result['detection_method'] = 'http_production'
                     http_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                     
+                    # Use standardized message if browser automation is unavailable
+                    if http_result.get('found') is None or http_result.get('message', '').startswith('Browser automation unavailable'):
+                        http_result['message'] = 'Unknown - Browser automation unavailable - manual verification required'
+                    
                     # If product tables are found, use that result
                     if http_result.get('found', False):
                         logger.info(f"HTTP method found product tables for {url} in production mode")
