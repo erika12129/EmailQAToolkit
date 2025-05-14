@@ -1262,8 +1262,8 @@
                         noteSpan.textContent = `This is normal for many production sites`;
                         statusContainer.appendChild(noteSpan);
                     }
-                    // Special case for replit_environment detection method
-                    else if (result.detection_method === 'replit_environment') {
+                    // Special case for replit_environment or browser_unavailable detection method
+                    else if (result.detection_method === 'replit_environment' || result.detection_method === 'browser_unavailable') {
                         statusSpan.textContent = 'Unknown';
                         statusSpan.style.color = '#dd6b20'; // Orange
                         
@@ -1277,12 +1277,13 @@
                         manualCheckDiv.textContent = result.message || 'Unknown - Browser automation unavailable - manual verification required';
                         statusContainer.appendChild(manualCheckDiv);
                         
-                        // Add detection method
+                        // Add detection method - always use browser_unavailable for consistency
                         const methodSpan = document.createElement('span');
                         methodSpan.style.fontSize = '0.9em';
                         methodSpan.style.display = 'block';
                         methodSpan.style.color = '#718096'; // Gray
-                        methodSpan.textContent = 'Method: replit_environment';
+                        // Always show browser_unavailable instead of replit_environment for better consistency
+                        methodSpan.textContent = 'Method: browser_unavailable';
                         statusContainer.appendChild(methodSpan);
                     }
                     // If not bot blocked, proceed with normal flow
