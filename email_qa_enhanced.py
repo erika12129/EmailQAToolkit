@@ -576,6 +576,8 @@ def check_for_product_tables(url, timeout=None):
     Returns:
         dict: Detection results including found status, class name, and errors
     """
+    # Just use production mode for consistency
+    runtime_mode = 'production'
     if timeout is None:
         timeout = config.product_table_timeout
     
@@ -927,27 +929,17 @@ def check_for_product_tables(url, timeout=None):
                         pass  # If we can't read response content, just proceed normally
                 
                 # For client-side rendered sites, try text analysis as a fallback
-                if 'partly-products-showcase.lovable.app' in url or '/products' in url:
-                    logger.info(f"Using text analysis as fallback for possible client-side rendered site: {url}")
-                    # Try text analysis as a fallback method
-                    try:
-                        if TEXT_ANALYSIS_AVAILABLE:
-                            logger.info(f"Attempting text analysis for {url}")
-                            text_result = check_for_product_tables_with_text_analysis(url)
-                            
-                            if text_result.get('found', False):
-                                logger.info(f"Text analysis found product content: {text_result}")
-                                text_result['is_test_domain'] = is_test_domain
-                                return text_result
-                            else:
-                                logger.info(f"Text analysis did not find product content")
-                    except Exception as e:
-                        logger.warning(f"Text analysis fallback failed: {str(e)}")
+                # DISABLED: No longer using URL pattern matching to identify product pages
+                # We'll ask for manual verification instead to prevent false positives
+                logger.info(f"Browser check failed - instructing manual verification for: {url}")
                 
                 return {
                     'found': False,
-                    'error': error_message,
-                    'detection_method': 'failed'
+                    'error': 'Browser automation unavailable',
+                    'detection_method': 'manual_check_required',
+                    'manual_check_required': True,
+                    'manual_check_message': 'Please visit this page in your browser and check for product tables with "Add to Cart" buttons',
+                    'is_test_domain': is_test_domain
                 }
         except (requests.exceptions.Timeout, 
                 requests.exceptions.ConnectionError, 
@@ -999,51 +991,20 @@ def check_for_product_tables(url, timeout=None):
                 'detection_method': 'failed'
             }
     
-    # If we get here, both HTTP and browser checks have failed
-    # Try text analysis as a last resort if available
-    if TEXT_ANALYSIS_AVAILABLE:
-        # Higher priority for client-side rendered sites
-        is_client_side_site = 'partly-products-showcase.lovable.app' in url or '/products' in url or '/catalog' in url
-        
-        if is_client_side_site:
-            logger.info(f"Prioritizing text analysis for client-side rendered site: {url}")
-        else:
-            logger.info(f"All standard detection methods failed for {url}, attempting text analysis as last resort")
-            
-        try:
-            text_result = check_for_product_tables_with_text_analysis(url)
-            
-            # Add is_test_domain flag for consistency
-            text_result['is_test_domain'] = is_test_domain
-            
-            if text_result.get('found', False):
-                confidence = text_result.get('confidence_score', 0)
-                logger.info(f"Text analysis found product content on {url} with confidence: {confidence}")
-                
-                # For client-side rendered sites with products in URL, boost confidence
-                if is_client_side_site and confidence >= 0.3:
-                    logger.info(f"Boosting confidence for client-side rendered product page: {url}")
-                    text_result['confidence_score'] = min(1.0, confidence + 0.2)  # Boost but cap at 1.0
-                    
-                return text_result
-            else:
-                logger.warning(f"Text analysis also failed to find product tables on {url}")
-                # Append the text analysis information to the error result
-                return {
-                    'found': False,
-                    'error': 'All detection methods failed',
-                    'detection_method': 'text_analysis_fallback_failed',
-                    'text_analysis_attempted': True,
-                    'confidence_score': text_result.get('confidence_score', 0)
-                }
-        except Exception as text_error:
-            logger.error(f"Error during text analysis fallback: {str(text_error)}")
-            
-    # This should never happen due to the return in the except block
+    # DISABLED: We are no longer using text analysis or URL pattern matching to prevent false positives
+    # Instead, we now require manual verification for all cases where browser automation is unavailable
+    
+    # Log the decision for transparency
+    logger.info(f"Browser automation unavailable and direct HTML check failed for {url} - requesting manual verification")
+    
+    # Return a clear result indicating manual check is needed
     return {
         'found': False,
-        'error': 'Connection failed after multiple attempts',
-        'detection_method': 'all_methods_failed'
+        'error': 'Playwright browsers not installed',
+        'detection_method': 'http_production',
+        'manual_check_required': True,
+        'manual_check_message': 'Please visit this page in your browser and check for product tables with "Add to Cart" buttons',
+        'is_test_domain': is_test_domain
     }
 
 def check_links(links, expected_utm, check_product_tables=False, product_table_timeout=None):
