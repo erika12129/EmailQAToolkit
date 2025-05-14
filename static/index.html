@@ -1181,8 +1181,16 @@
         }
     }
     
-    // Start with the first endpoint
-    tryEndpoint(0)
+    // Create a timeout promise
+    const timeoutPromise = new Promise((_, reject) => {
+        const timeoutMs = parseInt(timeout) * 1000 || 10000; // Default to 10 seconds if timeout value is invalid
+        setTimeout(() => {
+            reject(new Error(`Request timed out after ${timeoutMs/1000} seconds`));
+        }, timeoutMs);
+    });
+    
+    // Start with the first endpoint, with timeout handling
+    Promise.race([tryEndpoint(0), timeoutPromise])
     .then(data => {
         console.log('Product table check succeeded, results:', data);
         
@@ -1453,6 +1461,65 @@
         
         // Create more detailed error message
         let errorMessage = error.message || 'Unknown error';
+        
+        // Special handling for timeout errors
+        if (errorMessage.includes('Request timed out')) {
+            console.log('Request timed out, showing browser_unavailable results');
+            
+            // For timeouts, show browser_unavailable for all URLs
+            const browserUnavailableResults = {};
+            selectedLinks.forEach(url => {
+                browserUnavailableResults[url] = {
+                    found: null,
+                    error: "Browser automation unavailable - request timed out",
+                    message: "Unknown - Browser automation unavailable - manual verification required",
+                    detection_method: "browser_unavailable", 
+                    is_test_domain: false
+                };
+            });
+            
+            // Update the UI with browser_unavailable results
+            Object.entries(browserUnavailableResults).forEach(([url, result]) => {
+                // Find checkboxes with this URL
+                const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]:checked`);
+                
+                checkboxes.forEach(checkbox => {
+                    const container = checkbox.closest('div');
+                    const statusContainer = container.querySelector('.product-table-status-container');
+                    const statusSpan = statusContainer.querySelector('.product-table-status');
+                    
+                    // Clear existing content
+                    while (statusContainer.childNodes.length > 1) {
+                        statusContainer.removeChild(statusContainer.lastChild);
+                    }
+                    
+                    // Mark as Unknown
+                    statusSpan.textContent = 'Unknown';
+                    statusSpan.style.color = '#dd6b20'; // Orange
+                    
+                    // Add the manual verification message
+                    const manualCheckDiv = document.createElement('div');
+                    manualCheckDiv.style.fontSize = '12px';
+                    manualCheckDiv.style.marginTop = '4px';
+                    manualCheckDiv.style.color = '#4299e1'; // Blue
+                    manualCheckDiv.textContent = result.message;
+                    statusContainer.appendChild(manualCheckDiv);
+                    
+                    // Add detection method
+                    const methodSpan = document.createElement('span');
+                    methodSpan.style.fontSize = '0.9em';
+                    methodSpan.style.display = 'block';
+                    methodSpan.style.color = '#718096'; // Gray
+                    methodSpan.textContent = `Method: ${result.detection_method}`;
+                    statusContainer.appendChild(methodSpan);
+                });
+            });
+            
+            // Update button state and return early
+            checkButton.disabled = false;
+            checkButton.textContent = 'Check Selected Links';
+            return;
+        }
         
         // Special handling for environments where the API might be temporarily unavailable
         if (errorMessage === 'All product table check endpoints failed') {
