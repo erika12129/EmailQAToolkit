@@ -623,18 +623,6 @@ def check_for_product_tables(url, timeout=None):
             if response.status_code == 200:
                 page_content = response.text
                 
-                # Special handling for partly-products-showcase.lovable.app
-                if 'partly-products-showcase.lovable.app' in url:
-                    logger.info(f"Special handling for partly-products-showcase.lovable.app")
-                    # Look for specific React component patterns rather than relying on generic detection
-                    if "/products" in url or "productList" in page_content or "itemList" in page_content:
-                        logger.info(f"Found product indicators in partly-products-showcase.lovable.app")
-                        return {
-                            'found': True,
-                            'class_name': 'react-product-container',
-                            'detection_method': 'lovable_react_app'
-                        }
-                
                 # Check for common bot detection signs
                 bot_detection_phrases = [
                     'captcha', 'security check', 'access denied', 
@@ -642,28 +630,24 @@ def check_for_product_tables(url, timeout=None):
                     'too many requests', 'rate limit', 'please verify'
                 ]
                 
-                # Skip bot detection for partly-products-showcase.lovable.app
-                if 'partly-products-showcase.lovable.app' in url:
-                    logger.info(f"Skipping bot detection for partly-products-showcase.lovable.app")
-                else:
-                    # Check response content for bot detection indications - but be more specific
-                    # to avoid false positives on common words like "blocked"
-                    has_bot_protection = False
-                    for phrase in bot_detection_phrases:
-                        if phrase in page_content.lower():
-                            has_bot_protection = True
-                            logger.warning(f"Bot detection phrase '{phrase}' found on {url}")
-                            break
-                            
-                    # Only if we have a clear bot protection indicator 
-                    if has_bot_protection:
-                        logger.warning(f"Bot detection likely on {url} - found bot detection indicators in content")
-                        return {
-                            'found': False,
-                            'error': 'Bot detection/blocking detected on the page',
-                            'detection_method': 'failed',
-                            'bot_blocked': True
-                        }
+                # Check response content for bot detection indications - but be more specific
+                # to avoid false positives on common words like "blocked"
+                has_bot_protection = False
+                for phrase in bot_detection_phrases:
+                    if phrase in page_content.lower():
+                        has_bot_protection = True
+                        logger.warning(f"Bot detection phrase '{phrase}' found on {url}")
+                        break
+                        
+                # Only if we have a clear bot protection indicator 
+                if has_bot_protection:
+                    logger.warning(f"Bot detection likely on {url} - found bot detection indicators in content")
+                    return {
+                        'found': False,
+                        'error': 'Bot detection/blocking detected on the page',
+                        'detection_method': 'failed',
+                        'bot_blocked': True
+                    }
                 
                 # Enhanced pattern to detect various forms of product-related class names
                 product_class_patterns = [
