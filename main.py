@@ -150,8 +150,8 @@ async def serve_asset(file_path: str):
     # For all other files, use FileResponse
     return FileResponse(full_path)
 
-@app.post("/run-qa")
-async def run_qa(
+@app.post("/api/validate")
+async def validate(
     email: UploadFile = File(...), 
     requirements: UploadFile = File(...),
     check_product_tables: Optional[bool] = Query(False, description="Whether to check for product tables"),
@@ -223,7 +223,7 @@ async def run_qa(
         # Clean up temporary files
         shutil.rmtree(temp_dir)
 
-@app.post("/check-product-tables")
+@app.post("/api/check_product_tables")
 async def check_product_tables(
     urls: list = Body(..., description="List of URLs to check for product tables"),
     timeout: Optional[int] = Body(None, description="Timeout for product table checks in seconds")
