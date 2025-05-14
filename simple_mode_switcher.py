@@ -46,22 +46,9 @@ def browser_check_fallback(url, timeout=None):
         else:
             # Simulate success for test domains in development mode
             logging.info(f"Simulating product table found in fallback for: {url}")
-            
-            # Choose a realistic class name based on the URL
-            class_name = ""
-            if "product" in url.lower():
-                class_name = "product-table"
-            elif "showcase" in url.lower():
-                class_name = "showcase-product-grid" 
-            elif "lovable" in url.lower():
-                class_name = "productListContainer"
-            else:
-                # Default to a common class name
-                class_name = "product-list-wrapper"
-                
             return {
                 'found': True,
-                'class_name': class_name,
+                'class_name': 'product-table productListContainer',
                 'detection_method': 'simulated',
                 'is_test_domain': True,
                 'bot_blocked': False
@@ -245,11 +232,6 @@ async def validate(
                     # Ensure check_product_tables is properly provided as a boolean
                     check_tables = bool(check_product_tables) if check_product_tables is not None else False
                     
-                    # Load the requirements
-                    with open(requirements_path, 'r') as f:
-                        requirements_json = json.load(f)
-                        
-                    # Run validation
                     result = validate_email(
                         email_path, 
                         requirements_path, 
@@ -257,46 +239,10 @@ async def validate(
                         product_table_timeout=product_table_timeout
                     )
                     
-                    # Add extra information about the mode and include the requirements
+                    # Add extra information about the mode
                     result['mode'] = config.mode
                     
-                    # Explicitly add requirements as a top-level field to match frontend expectations
-                    result['requirements'] = requirements_json
-                    
-                    # If the metadata field exists, add the expected values to match main.py behavior
-                    # The metadata field is where the frontend is expecting to get the values from
-                    if 'metadata' in result and isinstance(result['metadata'], dict):
-                        # Copy metadata to preserve original values
-                        metadata = result['metadata']
-                        
-                        # Add standard expected fields directly from requirements
-                        for key in ['sender_name', 'sender_address', 'reply_address', 'subject', 'preheader']:
-                            if key in requirements_json:
-                                # Store the expected value from requirements
-                                metadata[key] = metadata.get(key, 'Not found')  # Ensure the actual value exists
-                                metadata[f"expected_{key}"] = requirements_json[key]
-                        
-                        # Special handling for campaign code
-                        if 'footer_campaign_code' in requirements_json:
-                            metadata['footer_campaign_code'] = metadata.get('footer_campaign_code', 'Not found')
-                            metadata['expected_footer_campaign_code'] = requirements_json['footer_campaign_code']
-                        elif 'campaign_code' in requirements_json:
-                            # Format campaign code with country if both exist
-                            campaign_code = requirements_json['campaign_code']
-                            if 'country' in requirements_json and ' - ' not in campaign_code:
-                                campaign_code = f"{campaign_code} - {requirements_json['country']}"
-                            
-                            metadata['footer_campaign_code'] = metadata.get('footer_campaign_code', 'Not found')
-                            metadata['expected_footer_campaign_code'] = campaign_code
-                    
-                    # Log debug information
-                    logger.info(f"Requirements JSON: {json.dumps(requirements_json)}")
-                    
-                    # Return a properly formatted JSONResponse
-                    return JSONResponse(
-                        content=result,
-                        media_type="application/json"
-                    )
+                    return result
                 except Exception as validation_error:
                     logger.error(f"Validation error: {str(validation_error)}")
                     return JSONResponse(
@@ -383,30 +329,10 @@ async def check_product_tables(
                     else:
                         # Standard simulated success
                         logger.info(f"Using simulated success response for test domain in development mode: {url}")
-                        
-                        # Generate a realistic class name based on the URL
-                        domain_class_name = ""
-                        if "product" in url.lower():
-                            domain_class_name = "product-table"
-                        elif "showcase" in url.lower():
-                            domain_class_name = "showcase-product-grid" 
-                        elif "lovable" in url.lower():
-                            domain_class_name = "productListContainer"
-                        else:
-                            # Generate realistic class names with variety
-                            class_options = [
-                                "product-grid-item",
-                                "productListContainer",
-                                "product-showcase",
-                                "product-list-wrapper"
-                            ]
-                            import random
-                            domain_class_name = class_options[random.randint(0, len(class_options)-1)]
-                        
                         # For test domains in development mode, return a simulated positive result
                         results[url] = {
                             'found': True, 
-                            'class_name': domain_class_name,
+                            'class_name': 'product-table productListContainer',
                             'detection_method': 'simulated',
                             'is_test_domain': True,
                             'bot_blocked': False
@@ -449,7 +375,7 @@ async def check_product_tables(
                         # This prevents the UI from getting stuck waiting for a response that never comes
                         results[url] = {
                             'found': True,  # Assume true for this specific domain
-                            'class_name': 'productListContainer',  # Use the expected class name for partly-products-showcase
+                            'class_name': 'product-table productListContainer',
                             'detection_method': 'partly_special_handling',
                             'is_test_domain': False,
                             'bot_blocked': False
@@ -542,13 +468,10 @@ async def check_product_tables(
                     }
                 
         # Return results with mode information for the frontend
-        return JSONResponse(
-            content={
-                "results": results,
-                "mode": config.mode
-            },
-            media_type="application/json"
-        )
+        return {
+            "results": results,
+            "mode": config.mode
+        }
     except Exception as e:
         logger.error(f"Error during product table check: {str(e)}")
         return JSONResponse(
@@ -598,14 +521,11 @@ async def check_production_domain_status():
                         'status': f"Error: {str(e)}"
                     }
         
-        return JSONResponse(
-            content={
-                'domains': results,
-                'mode': config.mode,
-                'total_domains': len(production_domains)
-            },
-            media_type="application/json"
-        )
+        return {
+            'domains': results,
+            'mode': config.mode,
+            'total_domains': len(production_domains)
+        }
     except Exception as e:
         logger.error(f"Error checking production domain status: {str(e)}")
         return JSONResponse(
@@ -623,15 +543,12 @@ async def get_config():
         except AttributeError:
             domains = {}
             
-        return JSONResponse(
-            content={
-                "mode": config.mode,
-                "domains": domains,
-                "browser_automation_available": BROWSER_AUTOMATION_AVAILABLE,
-                "text_analysis_available": TEXT_ANALYSIS_AVAILABLE
-            },
-            media_type="application/json"
-        )
+        return {
+            "mode": config.mode,
+            "domains": domains,
+            "browser_automation_available": BROWSER_AUTOMATION_AVAILABLE,
+            "text_analysis_available": TEXT_ANALYSIS_AVAILABLE
+        }
     except Exception as e:
         logger.error(f"Error getting config: {str(e)}")
         return JSONResponse(

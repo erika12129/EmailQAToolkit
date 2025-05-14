@@ -629,31 +629,9 @@ def check_for_product_tables(url, timeout=None):
                     # Look for specific React component patterns rather than relying on generic detection
                     if "/products" in url or "productList" in page_content or "itemList" in page_content:
                         logger.info(f"Found product indicators in partly-products-showcase.lovable.app")
-                        
-                        # Detect the actual class name used
-                        actual_class_name = 'product-container'  # Default fallback
-                        
-                        # Look for common product container class patterns
-                        class_patterns = [
-                            r'class="([^"]*product[^"]*)"',
-                            r'className="([^"]*product[^"]*)"',
-                            r'class="([^"]*item-list[^"]*)"',
-                            r'className="([^"]*item-list[^"]*)"',
-                            r'class="([^"]*productList[^"]*)"',
-                            r'className="([^"]*productList[^"]*)"'
-                        ]
-                        
-                        # Try to find the actual class name used
-                        for pattern in class_patterns:
-                            matches = re.findall(pattern, page_content)
-                            if matches:
-                                actual_class_name = matches[0]
-                                logger.info(f"Found actual product class name: {actual_class_name}")
-                                break
-                                
                         return {
                             'found': True,
-                            'class_name': actual_class_name,
+                            'class_name': 'react-product-container',
                             'detection_method': 'lovable_react_app'
                         }
                 

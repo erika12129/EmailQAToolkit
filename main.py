@@ -151,7 +151,6 @@ async def serve_asset(file_path: str):
     return FileResponse(full_path)
 
 @app.post("/run-qa")
-@app.post("/api/validate")  # Add alias to match frontend expectations
 async def run_qa(
     email: UploadFile = File(...), 
     requirements: UploadFile = File(...),
