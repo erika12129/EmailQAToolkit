@@ -56,7 +56,19 @@ except ImportError:
         Returns:
             dict: Results including whether products were detected
         """
+        # In Replit environment, ALWAYS return the standard manual verification message
+        if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+            logger.info(f"Running in Replit environment - returning manual verification message for {url}")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'replit_environment',
+                'message': 'Unknown - Browser automation unavailable - manual verification required',
+                'is_test_domain': False
+            }
+            
         try:
+            # Only attempt text analysis in non-Replit environments
             # Import here to avoid circular imports
             from web_scraper import check_for_product_tables_with_text_analysis as analyze_text
             
@@ -71,18 +83,20 @@ except ImportError:
         except ImportError:
             logger.warning(f"Text analysis module could not be imported for {url}")
             return {
-                'found': False,
-                'error': "Text analysis module not available",
+                'found': None,
+                'class_name': None,
                 'detection_method': 'text_analysis_unavailable',
-                'confidence_score': 0
+                'message': 'Unknown - Browser automation unavailable - manual verification required',
+                'is_test_domain': False
             }
         except Exception as e:
             logger.error(f"Error during text analysis for {url}: {str(e)}")
             return {
-                'found': False,
-                'error': f"Text analysis error: {str(e)}",
+                'found': None,
+                'class_name': None,
                 'detection_method': 'text_analysis_error',
-                'confidence_score': 0
+                'message': 'Unknown - Browser automation unavailable - manual verification required',
+                'is_test_domain': False
             }
 
 # Set up logging

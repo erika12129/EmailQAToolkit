@@ -1254,6 +1254,29 @@
                         noteSpan.textContent = `This is normal for many production sites`;
                         statusContainer.appendChild(noteSpan);
                     }
+                    // Special case for replit_environment detection method
+                    else if (result.detection_method === 'replit_environment') {
+                        statusSpan.textContent = 'Unknown';
+                        statusSpan.style.color = '#dd6b20'; // Orange
+                        
+                        // Create the message for manual verification
+                        const manualCheckDiv = document.createElement('div');
+                        manualCheckDiv.style.fontSize = '12px';
+                        manualCheckDiv.style.marginTop = '4px';
+                        manualCheckDiv.style.color = '#4299e1'; // Blue
+                        
+                        // Use the standard manual verification message from result
+                        manualCheckDiv.textContent = result.message || 'Unknown - Browser automation unavailable - manual verification required';
+                        statusContainer.appendChild(manualCheckDiv);
+                        
+                        // Add detection method
+                        const methodSpan = document.createElement('span');
+                        methodSpan.style.fontSize = '0.9em';
+                        methodSpan.style.display = 'block';
+                        methodSpan.style.color = '#718096'; // Gray
+                        methodSpan.textContent = 'Method: replit_environment';
+                        statusContainer.appendChild(methodSpan);
+                    }
                     // If not bot blocked, proceed with normal flow
                     else if (result.found === true || (!isProduction && result.detection_method === "simulated")) {
                         statusSpan.textContent = 'Yes';
