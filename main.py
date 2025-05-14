@@ -291,6 +291,11 @@ async def check_product_tables(
                     # Force detection method to http_production and mark as a real domain
                     result["detection_method"] = "http_production"
                     result["is_test_domain"] = False  # Explicitly mark as NOT a test domain
+                    
+                    # Use standardized message if browser automation is unavailable
+                    if result.get("found") is None or result.get("message", "").startswith("Browser automation unavailable"):
+                        result["message"] = "Unknown - Browser automation unavailable - manual verification required"
+                        
                     results[url] = result
                 else:
                     # In development mode, use simulation
@@ -303,7 +308,13 @@ async def check_product_tables(
                     }
             else:
                 # Normal processing for external URLs
-                results[url] = check_for_product_tables(url, timeout=timeout)
+                result = check_for_product_tables(url, timeout=timeout)
+                
+                # Use standardized message if browser automation is unavailable
+                if result.get("found") is None or result.get("message", "").startswith("Browser automation unavailable"):
+                    result["message"] = "Unknown - Browser automation unavailable - manual verification required"
+                    
+                results[url] = result
         
         # Format response correctly with results wrapper for frontend
         response = {
