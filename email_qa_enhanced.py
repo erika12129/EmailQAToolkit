@@ -578,8 +578,21 @@ def check_for_product_tables(url, timeout=None):
     """
     # Just use production mode for consistency
     runtime_mode = 'production'
-    if timeout is None:
-        timeout = config.product_table_timeout
+    
+    # Set a short timeout to prevent hanging
+    if timeout is None or timeout > 2:
+        timeout = 2  # Very short timeout to avoid hanging
+        
+    # Immediately return manual check message when in Replit environment
+    if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+        logger.info(f"Running in Replit environment - returning manual verification message immediately")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'manual_check_required',
+            'message': 'Browser automation unavailable in Replit - manual verification required',
+            'is_test_domain': False
+        }
     
     # Special case for test domains - if this is a test domain, be more permissive
     parsed_url = urlparse(url)
@@ -609,6 +622,17 @@ def check_for_product_tables(url, timeout=None):
         
         # First try with Playwright if available
         try:
+            # Skip browser automation entirely in Replit environment to prevent hanging
+            if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+                logger.info(f"Running in Replit environment - returning manual verification message")
+                return {
+                    'found': None,
+                    'class_name': None,
+                    'detection_method': 'manual_check_required',
+                    'message': 'Browser automation unavailable in Replit - manual verification required',
+                    'is_test_domain': is_test_domain
+                }
+                
             try:
                 from browser_automation import check_for_product_tables_sync
                 logger.info(f"Using Playwright for client-side rendered site: {url}")
@@ -624,7 +648,17 @@ def check_for_product_tables(url, timeout=None):
                 logger.warning(f"Playwright not available: {str(e)}")
                 browser_error = "Playwright not available"
                 
-                # If Playwright isn't available, try Selenium
+                # If Playwright isn't available, try Selenium (except in Replit)
+                if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+                    logger.info(f"Running in Replit environment - skipping Selenium and returning manual verification message")
+                    return {
+                        'found': None,
+                        'class_name': None,
+                        'detection_method': 'manual_check_required',
+                        'message': 'Browser automation unavailable in Replit - manual verification required',
+                        'is_test_domain': is_test_domain
+                    }
+                
                 if SELENIUM_AVAILABLE:
                     from selenium_automation import check_for_product_tables_selenium_sync
                     logger.info(f"Using Selenium for client-side rendered site: {url}")
@@ -654,12 +688,14 @@ def check_for_product_tables(url, timeout=None):
             detection_method = 'browser_automation_failed'
             
         return {
-            'found': False,
+            'found': None,  # Using None to indicate unknown status
+            'class_name': None,
             'error': error_message,
             'manual_check_required': True,
-            'detection_method': detection_method,
+            'detection_method': 'manual_check_required',
             'original_error': browser_error,
-            'is_test_domain': is_test_domain
+            'is_test_domain': is_test_domain,
+            'message': 'Browser automation unavailable - please manually check this page'
         }
         
         # We've already returned, so this code is unreachable

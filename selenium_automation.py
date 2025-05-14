@@ -71,6 +71,11 @@ def check_browser_availability():
     Returns:
         bool: True if at least one browser is available, False otherwise
     """
+    # Skip browser check in Replit environment
+    if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT') or os.environ.get('SKIP_BROWSER_CHECK'):
+        logger.info("Skipping browser availability check in Replit environment")
+        return False
+        
     global CHROME_AVAILABLE, FIREFOX_AVAILABLE
     
     if not _browser_check_complete:
@@ -83,6 +88,14 @@ def check_browser_availability():
 def _check_browser_availability():
     """Check which browsers are available and set global availability flags."""
     global CHROME_AVAILABLE, FIREFOX_AVAILABLE, _browser_check_complete
+    
+    # Skip browser check in Replit environment
+    if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT') or os.environ.get('SKIP_BROWSER_CHECK'):
+        logger.info("Skipping browser availability check in _check_browser_availability")
+        _browser_check_complete = True
+        CHROME_AVAILABLE = False
+        FIREFOX_AVAILABLE = False
+        return False
     
     # Use a lock to prevent multiple threads from checking simultaneously
     with _browser_check_lock:

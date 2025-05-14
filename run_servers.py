@@ -25,6 +25,9 @@ def run_servers(initial_mode=None):
     env = os.environ.copy()
     env["EMAIL_QA_MODE"] = config.mode
     
+    # Add environment variable to skip browser automation in Replit
+    env["SKIP_BROWSER_CHECK"] = "1"
+    
     # Determine if this is a deployment environment
     is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
     
