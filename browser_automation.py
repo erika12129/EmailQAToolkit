@@ -27,20 +27,24 @@ def _check_playwright_browsers_installed() -> bool:
     import os
     import platform
     
-    system = platform.system()
-    if system == "Linux":
-        browser_path = os.path.expanduser("~/.cache/ms-playwright/chromium-*")
-    elif system == "Darwin":  # macOS
-        browser_path = os.path.expanduser("~/Library/Caches/ms-playwright/chromium-*")
-    elif system == "Windows":
-        browser_path = os.path.expanduser("~\\AppData\\Local\\ms-playwright\\chromium-*")
-    else:
+    try:
+        system = platform.system()
+        if system == "Linux":
+            browser_path = os.path.expanduser("~/.cache/ms-playwright/chromium-*")
+        elif system == "Darwin":  # macOS
+            browser_path = os.path.expanduser("~/Library/Caches/ms-playwright/chromium-*")
+        elif system == "Windows":
+            browser_path = os.path.expanduser("~\\AppData\\Local\\ms-playwright\\chromium-*")
+        else:
+            return False
+        
+        # Use glob to check if the browser directory exists
+        import glob
+        browser_paths = glob.glob(browser_path)
+        return len(browser_paths) > 0
+    except Exception as e:
+        logger.warning(f"Error checking Playwright browsers: {str(e)}")
         return False
-    
-    # Use glob to check if the browser directory exists
-    import glob
-    browser_paths = glob.glob(browser_path)
-    return len(browser_paths) > 0
 
 async def check_for_product_tables_with_browser(url: str, timeout: Optional[int] = None) -> Dict[str, Any]:
     """

@@ -12,6 +12,11 @@ page_content = response.text
 print(f"Response status: {response.status_code}")
 print(f"Content length: {len(page_content)} characters")
 
+# Save the entire content to a file for analysis
+with open("partly_products_content.html", "w") as f:
+    f.write(page_content)
+print("Saved complete HTML content to partly_products_content.html for analysis")
+
 # Save a sample of the content
 sample = page_content[:1000]
 print(f"Content sample: {sample}")
