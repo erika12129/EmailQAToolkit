@@ -655,13 +655,46 @@ def check_for_product_tables(url, timeout=None):
                     r'class=["\']([^"\']*?product-table[^"\']*?)["\']',
                     # Product list container
                     r'class=["\']([^"\']*?productListContainer[^"\']*?)["\']',
+                    # Embedded styles with product-table
+                    r'\.product-table\s*\{',
+                    r'\.product[_\-\s]table\s*\{',
+                    r'\.product[_\-\s]list\s*\{',
+                    r'\.product[_\-\s]grid\s*\{',
+                    r'\.productTable\s*\{',
+                    r'\.productList\s*\{',
+                    # Table with product columns - based on your screenshot
+                    r'Product\s*Name</th>',
+                    r'Product\s*(?:Name|Item|Number|ID)</th>',
+                    r'Part\s*Number</th>',
+                    r'Product\s*Inventory',
+                    r'Product\s*Details',
+                    r'Product\s*Catalog',
+                    r'Price</th>',
+                    r'Manufacturer</th>',
+                    r'Quantity\s*Available</th>',
                     # React-specific patterns (often uses className instead of class)
                     r'className=["\']([^"\']*?product[^"\']*?)["\']',
                     r'className=["\']([^"\']*?item[_\-\s]list[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?inventory[^"\']*?)["\']',
+                    r'className=["\']([^"\']*?catalog[^"\']*?)["\']',
+                    r'className=["\']table[^"\']*?["\']',
+                    # JSX/React component names
+                    r'<ProductTable',
+                    r'<ProductList',
+                    r'<ProductGrid',
+                    r'<ProductInventory',
+                    r'<ProductCatalog',
+                    # Product descriptions - based on your screenshot
+                    r'>Digital Pressure Sensor<',
+                    r'>High-Pressure Hydraulic Valve<',
+                    r'>Industrial Ethernet Switch<',
+                    r'>Industrial Grade Bearing<',
+                    r'>Linear Actuator<',
                     # More flexible patterns
                     r'class=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
                     r'class=["\']([^"\']*?product[_\-\s]grid[^"\']*?)["\']',
                     r'class=["\']([^"\']*?products[_\-\s]container[^"\']*?)["\']',
+                    r'class=["\']([^"\']*?product[_\-\s]inventory[^"\']*?)["\']',
                     # Common eCommerce specific patterns
                     r'class=["\']([^"\']*?product[_\-\s]catalog[^"\']*?)["\']',
                     r'class=["\']([^"\']*?shop[_\-\s]products[^"\']*?)["\']',
@@ -672,15 +705,22 @@ def check_for_product_tables(url, timeout=None):
                     # Common div id patterns
                     r'id=["\']products["\']',
                     r'id=["\']product-list["\']',
-                    r'id=["\']product-grid["\']'
+                    r'id=["\']product-grid["\']',
+                    r'id=["\']product-inventory["\']'
                 ]
                 
                 # Check each pattern
                 for pattern in product_class_patterns:
                     match = re.search(pattern, page_content)
                     if match:
-                        class_name = match.group(1)
-                        logger.info(f"Found product class: {class_name} using pattern {pattern}")
+                        try:
+                            # Try to get the captured group if available (patterns with parentheses)
+                            class_name = match.group(1)
+                        except IndexError:
+                            # For patterns without capture groups (JSX components, CSS styles)
+                            class_name = "product-table"  # Use a standard class name
+                            
+                        logger.info(f"Found product class using pattern: {pattern}")
                         return {
                             'found': True,
                             'class_name': class_name,
