@@ -1299,6 +1299,33 @@
                                 statusContainer.appendChild(noteSpan);
                             }
                         }
+                    } 
+                    // Handle the case when found is explicitly null (manual verification required)
+                    else if (result.found === null || result.detection_method === 'manual_check_required') {
+                        statusSpan.textContent = 'Unknown';
+                        statusSpan.style.color = '#dd6b20'; // Orange
+                        
+                        // Create the message for manual verification
+                        const manualCheckDiv = document.createElement('div');
+                        manualCheckDiv.style.fontSize = '12px';
+                        manualCheckDiv.style.marginTop = '4px';
+                        manualCheckDiv.style.color = '#4299e1'; // Blue
+                        
+                        // Use custom message if available, otherwise use default
+                        if (result.message) {
+                            manualCheckDiv.textContent = result.message;
+                        } else {
+                            manualCheckDiv.textContent = 'Please visit this page in your browser to verify. Browser automation unavailable.';
+                        }
+                        statusContainer.appendChild(manualCheckDiv);
+                        
+                        // Add detection method
+                        const methodSpan = document.createElement('span');
+                        methodSpan.style.fontSize = '0.9em';
+                        methodSpan.style.display = 'block';
+                        methodSpan.style.color = '#718096'; // Gray
+                        methodSpan.textContent = `Method: ${result.detection_method || 'manual_check_required'}`;
+                        statusContainer.appendChild(methodSpan);
                     } else {
                         // Special handling for bot protection cases
                         if (result.bot_blocked === true) {
@@ -2462,6 +2489,34 @@
                         console.log("Product table found for URL: " + item.url);
                         if (item.product_table_class) {
                             console.log(`Found product table with class: ${item.product_table_class}`);
+                        }
+                    } 
+                    // Handle case where manual verification is required (found is null)
+                    else if (item.has_product_table === null || item.product_table_detection_method === 'manual_check_required') {
+                        statusSpan.textContent = 'Unknown';
+                        statusSpan.style.color = '#dd6b20'; // Orange
+                        
+                        // Create message for manual verification
+                        const manualCheckDiv = document.createElement('div');
+                        manualCheckDiv.style.fontSize = '12px';
+                        manualCheckDiv.style.marginTop = '4px';
+                        manualCheckDiv.style.color = '#4299e1'; // Blue
+                        
+                        if (item.product_table_message) {
+                            manualCheckDiv.textContent = item.product_table_message;
+                        } else {
+                            manualCheckDiv.textContent = 'Please visit this page in your browser to verify. Browser automation unavailable.';
+                        }
+                        statusContainer.appendChild(manualCheckDiv);
+                        
+                        // Add detection method if available
+                        if (item.product_table_detection_method) {
+                            const methodSpan = document.createElement('span');
+                            methodSpan.style.fontSize = '0.9em';
+                            methodSpan.style.display = 'block';
+                            methodSpan.style.color = '#718096'; // Gray
+                            methodSpan.textContent = `Method: ${item.product_table_detection_method}`;
+                            statusContainer.appendChild(methodSpan);
                         }
                     } else {
                         statusSpan.textContent = 'No';
