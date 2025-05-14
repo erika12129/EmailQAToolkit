@@ -62,7 +62,7 @@ except ImportError:
             return {
                 'found': None,
                 'class_name': None,
-                'detection_method': 'replit_environment',
+                'detection_method': 'browser_unavailable',
                 'message': 'Unknown - Browser automation unavailable - manual verification required',
                 'is_test_domain': False
             }
@@ -611,7 +611,7 @@ def check_for_product_tables(url, timeout=None):
         return {
             'found': None,
             'class_name': None,
-            'detection_method': 'replit_environment',
+            'detection_method': 'browser_unavailable',  # Fixed: Don't expose Replit in production apps
             'message': 'Unknown - Browser automation unavailable - manual verification required',
             'is_test_domain': False
         }

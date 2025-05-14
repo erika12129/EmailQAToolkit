@@ -60,7 +60,7 @@ def check_for_product_tables_with_text_analysis(url: str) -> dict:
         return {
             'found': None,
             'class_name': None, 
-            'detection_method': 'replit_environment',
+            'detection_method': 'browser_unavailable',
             'message': 'Unknown - Browser automation unavailable - manual verification required',
             'is_test_domain': False
         }

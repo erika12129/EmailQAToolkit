@@ -262,7 +262,7 @@ async def check_product_tables(
                 results[url] = {
                     "found": None,
                     "class_name": None, 
-                    "detection_method": "replit_environment",
+                    "detection_method": "browser_unavailable",
                     "message": "Unknown - Browser automation unavailable - manual verification required",
                     "is_test_domain": False
                 }
@@ -282,7 +282,7 @@ async def check_product_tables(
                 results[url] = {
                     "found": None,
                     "class_name": None,
-                    "detection_method": "replit_environment",
+                    "detection_method": "browser_unavailable",
                     "message": "Unknown - Browser automation unavailable - manual verification required",
                     "is_test_domain": False
                 }
@@ -309,7 +309,7 @@ async def check_product_tables(
                     results[url] = {
                         "found": True,
                         "class_name": "product-table",
-                        "detection_method": "replit_environment",
+                        "detection_method": "browser_unavailable",
                         "status_code": 200
                     }
                 else:

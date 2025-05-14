@@ -335,8 +335,8 @@ async def check_product_tables(
                     # Use HTTP detection first - treating this as a REAL production domain
                     logger.info(f"Using HTTP detection method for {url} in production")
                     http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
-                    # Always use replit_environment for detection_method to ensure consistent reporting
-                    http_result['detection_method'] = 'replit_environment'
+                    # Use browser_unavailable for detection_method to ensure consistent reporting
+                    http_result['detection_method'] = 'browser_unavailable'
                     http_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                     
                     # Use standardized message if browser automation is unavailable
@@ -374,7 +374,7 @@ async def check_product_tables(
                         try:
                             logger.info(f"Using text-based detection for {url}")
                             text_result = check_for_product_tables_with_text_analysis(url)
-                            text_result['detection_method'] = 'replit_environment'
+                            text_result['detection_method'] = 'browser_unavailable'
                             text_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                             
                             # If text analysis gives a confident result, use it
@@ -390,7 +390,7 @@ async def check_product_tables(
                                 results[url] = {
                                     'found': None,
                                     'class_name': None,
-                                    'detection_method': 'replit_environment',
+                                    'detection_method': 'browser_unavailable',
                                     'message': 'Unknown - Browser automation unavailable - manual verification required',
                                     'is_test_domain': False
                                 }
