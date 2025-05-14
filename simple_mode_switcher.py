@@ -374,18 +374,31 @@ async def check_product_tables(
                         except Exception as e:
                             logger.warning(f"Browser automation failed in production mode for {url}: {str(e)}")
                         
-                    # Try text analysis as a last resort if nothing was found
-                    if not results[url].get('found', False) and TEXT_ANALYSIS_AVAILABLE:
+                    # Try text analysis for all URLs where browser automation isn't available
+                    # This is more proactive - we use text analysis not just as a last resort
+                    if TEXT_ANALYSIS_AVAILABLE:
                         try:
-                            logger.info(f"Trying text analysis as last resort for {url}")
+                            logger.info(f"Using text-based detection for {url}")
                             text_result = check_for_product_tables_with_text_analysis(url)
                             text_result['detection_method'] = 'text_analysis_production'
                             text_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                             
-                            # Only use text analysis if it found something
-                            if text_result.get('found', False):
-                                logger.info(f"Text analysis found product tables for {url}")
+                            # If text analysis gives a confident result, use it
+                            if text_result.get('found', True) and text_result.get('confidence') in ['high', 'medium']:
+                                logger.info(f"Text analysis found product content with {text_result.get('confidence')} confidence for {url}")
                                 results[url] = text_result
+                            # For URLs in the /products path, lean toward positive detection
+                            elif '/products' in url or '/product/' in url:
+                                logger.info(f"URL {url} contains product path, marking as likely product page")
+                                results[url] = {
+                                    'found': True,
+                                    'class_name': None,
+                                    'detection_method': 'url_pattern',
+                                    'confidence': 'medium',
+                                    'message': 'Product page detected by URL pattern, manual verification recommended',
+                                    'is_test_domain': False
+                                }
+                            # Otherwise, keep the current result
                         except Exception as text_error:
                             logger.warning(f"Text analysis failed for {url}: {str(text_error)}")
                 else:

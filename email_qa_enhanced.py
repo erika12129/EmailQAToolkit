@@ -583,16 +583,37 @@ def check_for_product_tables(url, timeout=None):
     if timeout is None or timeout > 2:
         timeout = 2  # Very short timeout to avoid hanging
         
-    # Immediately return manual check message when in Replit environment
+    # Use text-based detection when browser automation isn't likely to work
+    # This applies to environments like Replit or other cloud environments
     if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
-        logger.info(f"Running in Replit environment - returning manual verification message immediately")
-        return {
-            'found': None,
-            'class_name': None,
-            'detection_method': 'manual_check_required',
-            'message': 'Browser automation unavailable in Replit - manual verification required',
-            'is_test_domain': False
-        }
+        logger.info(f"Browser automation likely unavailable - trying text-based detection")
+        try:
+            # First try our enhanced text-based detection
+            from web_scraper import check_for_product_tables_with_text_analysis
+            result = check_for_product_tables_with_text_analysis(url)
+            
+            # If we got a confident result from text analysis, use it
+            if result.get('found') is True and result.get('confidence') in ['high', 'medium']:
+                logger.info(f"Text-based detection found product content with {result.get('confidence')} confidence")
+                return result
+            
+            # Otherwise use standardized manual verification message
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'text_analysis',
+                'message': 'Unknown - Browser automation unavailable - manual verification required',
+                'is_test_domain': False
+            }
+        except Exception as e:
+            logger.warning(f"Text-based detection failed: {str(e)}")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'fallback',
+                'message': 'Unknown - Browser automation unavailable - manual verification required',
+                'is_test_domain': False
+            }
     
     # Special case for test domains - if this is a test domain, be more permissive
     parsed_url = urlparse(url)
