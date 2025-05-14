@@ -259,7 +259,35 @@ async def validate(
                     
                     # Add extra information about the mode and include the requirements
                     result['mode'] = config.mode
+                    
+                    # Explicitly add requirements as a top-level field to match frontend expectations
                     result['requirements'] = requirements_json
+                    
+                    # If the metadata field exists, add the expected values to match main.py behavior
+                    # The metadata field is where the frontend is expecting to get the values from
+                    if 'metadata' in result and isinstance(result['metadata'], dict):
+                        # Copy metadata to preserve original values
+                        metadata = result['metadata']
+                        
+                        # Add standard expected fields directly from requirements
+                        for key in ['sender_name', 'sender_address', 'reply_address', 'subject', 'preheader']:
+                            if key in requirements_json:
+                                # Store the expected value from requirements
+                                metadata[key] = metadata.get(key, 'Not found')  # Ensure the actual value exists
+                                metadata[f"expected_{key}"] = requirements_json[key]
+                        
+                        # Special handling for campaign code
+                        if 'footer_campaign_code' in requirements_json:
+                            metadata['footer_campaign_code'] = metadata.get('footer_campaign_code', 'Not found')
+                            metadata['expected_footer_campaign_code'] = requirements_json['footer_campaign_code']
+                        elif 'campaign_code' in requirements_json:
+                            # Format campaign code with country if both exist
+                            campaign_code = requirements_json['campaign_code']
+                            if 'country' in requirements_json and ' - ' not in campaign_code:
+                                campaign_code = f"{campaign_code} - {requirements_json['country']}"
+                            
+                            metadata['footer_campaign_code'] = metadata.get('footer_campaign_code', 'Not found')
+                            metadata['expected_footer_campaign_code'] = campaign_code
                     
                     # Log debug information
                     logger.info(f"Requirements JSON: {json.dumps(requirements_json)}")
