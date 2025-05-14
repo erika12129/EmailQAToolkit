@@ -710,6 +710,7 @@ def check_for_product_tables(url, timeout=None):
                 ]
                 
                 # Check each pattern
+                print(f"Checking {len(product_class_patterns)} patterns for product tables in URL: {url}")
                 for pattern in product_class_patterns:
                     match = re.search(pattern, page_content)
                     if match:
@@ -720,12 +721,16 @@ def check_for_product_tables(url, timeout=None):
                             # For patterns without capture groups (JSX components, CSS styles)
                             class_name = "product-table"  # Use a standard class name
                             
+                        matched_text = match.group(0)
+                        print(f"✓✓✓ FOUND PRODUCT TABLE: Pattern '{pattern}' matched '{matched_text}'")
                         logger.info(f"Found product class using pattern: {pattern}")
                         return {
                             'found': True,
                             'class_name': class_name,
                             'detection_method': 'direct_html'
                         }
+                    
+                print(f"No match found for URL: {url} - Unable to detect product table")
                 
                 # Also check for ID-based indicators
                 product_id_patterns = [
