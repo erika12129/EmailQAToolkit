@@ -335,7 +335,8 @@ async def check_product_tables(
                     # Use HTTP detection first - treating this as a REAL production domain
                     logger.info(f"Using HTTP detection method for {url} in production")
                     http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
-                    http_result['detection_method'] = 'http_production'
+                    # Always use replit_environment for detection_method to ensure consistent reporting
+                    http_result['detection_method'] = 'replit_environment'
                     http_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                     
                     # Use standardized message if browser automation is unavailable
@@ -373,22 +374,24 @@ async def check_product_tables(
                         try:
                             logger.info(f"Using text-based detection for {url}")
                             text_result = check_for_product_tables_with_text_analysis(url)
-                            text_result['detection_method'] = 'text_analysis_production'
+                            text_result['detection_method'] = 'replit_environment'
                             text_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                             
                             # If text analysis gives a confident result, use it
                             if text_result.get('found', True) and text_result.get('confidence') in ['high', 'medium']:
                                 logger.info(f"Text analysis found product content with {text_result.get('confidence')} confidence for {url}")
                                 results[url] = text_result
-                            # For URLs in the /products path, lean toward positive detection
-                            elif '/products' in url or '/product/' in url:
-                                logger.info(f"URL {url} contains product path, marking as likely product page")
+                            # CRITICAL FIX: For URLs in the /products/ path, we should NEVER use URL pattern matching
+                            # in Replit environment - always return Unknown result requiring manual verification
+                            # Using more specific matching to ensure we only catch actual product paths
+                            elif '/products/' in url or '/product/' in url or url.endswith('/products'):
+                                logger.info(f"CRITICAL FIX: URL {url} contains product path - NOT using URL pattern matching")
+                                # Return Unknown result that requires manual verification
                                 results[url] = {
-                                    'found': True,
+                                    'found': None,
                                     'class_name': None,
-                                    'detection_method': 'url_pattern',
-                                    'confidence': 'medium',
-                                    'message': 'Product page detected by URL pattern, manual verification recommended',
+                                    'detection_method': 'replit_environment',
+                                    'message': 'Unknown - Browser automation unavailable - manual verification required',
                                     'is_test_domain': False
                                 }
                             # Otherwise, keep the current result

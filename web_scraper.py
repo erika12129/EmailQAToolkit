@@ -52,16 +52,21 @@ def check_for_product_tables_with_text_analysis(url: str) -> dict:
     """
     logger.info(f"Performing text-based product detection for {url}")
     
-    # In Replit environment, ALWAYS return the manual verification message regardless of any other checks
+    # IMPORTANT: In Replit environment, ALWAYS return the standard manual verification message
+    # This ensures we NEVER perform any text-based analysis or URL pattern matching in Replit
     import os
-    if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+    if os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None:
         logger.info(f"Replit environment detected - using manual verification message for {url}")
         return {
             'found': None,
-            'class_name': None,
+            'class_name': None, 
             'detection_method': 'replit_environment',
-            'message': 'Unknown - Browser automation unavailable - manual verification required'
+            'message': 'Unknown - Browser automation unavailable - manual verification required',
+            'is_test_domain': False
         }
+    
+    # The code below will ONLY run in non-Replit environments
+    # -------------------------------------------------------
     
     # Only continue with text analysis in non-Replit environments
     # Check URL patterns first - common product page indicators
@@ -69,6 +74,9 @@ def check_for_product_tables_with_text_analysis(url: str) -> dict:
     path = parsed_url.path.lower()
     domain = parsed_url.netloc.lower()
     
+    # DISABLED: We no longer use URL pattern matching to avoid false positives
+    # This is commented out but kept for reference
+    """
     # More aggressive pattern matching - if URL contains /products, it's very likely a product page
     if '/products' in path or '/product/' in path:
         logger.info(f"URL {url} directly indicates a product page (/products in path)")
@@ -80,6 +88,7 @@ def check_for_product_tables_with_text_analysis(url: str) -> dict:
             'message': 'Product page detected by URL pattern',
             'note': 'URL path strongly indicates product page'
         }
+    """
     
     # URL path indicators of product pages - broader check for other product indicators
     product_path_indicators = [

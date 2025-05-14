@@ -594,13 +594,20 @@ def check_for_product_tables(url, timeout=None):
     runtime_mode = 'production'
     
     # Set a short timeout to prevent hanging
-    if timeout is None or timeout > 2:
-        timeout = 2  # Very short timeout to avoid hanging
+    if timeout is None or timeout > 1:
+        timeout = 1  # Very short timeout to avoid hanging in Replit environment
         
     # In Replit environment, ALWAYS return the standard manual verification message
     # This ensures we NEVER use text-based detection or any other fallbacks
-    if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
-        logger.info(f"Running in Replit environment - returning manual verification message for {url}")
+    repl_id = os.environ.get('REPL_ID')
+    replit_env = os.environ.get('REPLIT_ENVIRONMENT')
+    is_replit = repl_id is not None or replit_env is not None
+    
+    # Log the environment variables for debugging
+    logger.info(f"EMAIL_QA_ENHANCED - ENVIRONMENT CHECK - REPL_ID: '{repl_id}', REPLIT_ENVIRONMENT: '{replit_env}'")
+    
+    if is_replit:
+        logger.info(f"EMAIL_QA_ENHANCED - Detected Replit environment - returning manual verification message for {url}")
         return {
             'found': None,
             'class_name': None,
