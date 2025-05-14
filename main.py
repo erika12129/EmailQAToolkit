@@ -284,21 +284,23 @@ async def check_product_tables(
                     }
             # Handle partly-products-showcase.lovable.app domains
             elif "partly-products-showcase.lovable.app" in url:
-                # In production mode, always use real detection
-                if is_production:
+                # In Replit environment, ALWAYS use the manual verification message
+                if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+                    logger.info(f"Replit environment detected - using manual verification message for {url}")
+                    results[url] = {
+                        "found": None,
+                        "class_name": None,
+                        "detection_method": "replit_environment",
+                        "message": "Unknown - Browser automation unavailable - manual verification required",
+                        "is_test_domain": False
+                    }
+                # In production mode (non-Replit), use real detection
+                elif is_production:
                     logger.info(f"Using HTTP detection for domain in PRODUCTION mode: {url}")
                     result = check_for_product_tables(url, timeout=timeout)
-                    # Force detection method to http_production and mark as a real domain
-                    result["detection_method"] = "http_production"
-                    result["is_test_domain"] = False  # Explicitly mark as NOT a test domain
-                    
-                    # Use standardized message if browser automation is unavailable
-                    if result.get("found") is None or result.get("message", "").startswith("Browser automation unavailable"):
-                        result["message"] = "Unknown - Browser automation unavailable - manual verification required"
-                        
                     results[url] = result
                 else:
-                    # In development mode, use simulation
+                    # In development mode (non-Replit), use simulation
                     logger.info(f"Using simulation for test domain in development mode: {url}")
                     results[url] = {
                         "found": True,
@@ -307,14 +309,25 @@ async def check_product_tables(
                         "is_test_domain": True
                     }
             else:
-                # Normal processing for external URLs
-                result = check_for_product_tables(url, timeout=timeout)
-                
-                # Use standardized message if browser automation is unavailable
-                if result.get("found") is None or result.get("message", "").startswith("Browser automation unavailable"):
-                    result["message"] = "Unknown - Browser automation unavailable - manual verification required"
+                # In Replit environment, ALWAYS use the manual verification message
+                if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+                    logger.info(f"Replit environment detected - using manual verification message for {url}")
+                    results[url] = {
+                        "found": None,
+                        "class_name": None,
+                        "detection_method": "replit_environment",
+                        "message": "Unknown - Browser automation unavailable - manual verification required",
+                        "is_test_domain": False
+                    }
+                else:
+                    # Normal processing for external URLs in non-Replit environments
+                    result = check_for_product_tables(url, timeout=timeout)
                     
-                results[url] = result
+                    # Use standardized message if browser automation is unavailable
+                    if result.get("found") is None or result.get("message", "").startswith("Browser automation unavailable"):
+                        result["message"] = "Unknown - Browser automation unavailable - manual verification required"
+                        
+                    results[url] = result
         
         # Format response correctly with results wrapper for frontend
         response = {

@@ -81,6 +81,18 @@ def check_for_product_tables_with_text_analysis(url: str) -> dict:
     url_indicates_products = any(indicator in path for indicator in product_path_indicators)
     
     # Special case for test domains like partly-products-showcase.lovable.app
+    # In Replit environment, ALWAYS return the manual verification message
+    import os
+    if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+        logger.info(f"Replit environment detected - using manual verification message for {url}")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'replit_environment',
+            'message': 'Unknown - Browser automation unavailable - manual verification required'
+        }
+        
+    # Non-Replit environments can use special domain detection for partly-products-showcase
     if 'partly-products-showcase' in domain:
         logger.info(f"URL {url} is on a known product showcase domain")
         return {
