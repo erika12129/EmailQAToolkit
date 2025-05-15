@@ -279,6 +279,21 @@ async def check_product_tables(
         else:
             timeout = 60  # 60 seconds in development
     
+    # Check if cloud browser API is available
+    SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', '')
+    CLOUD_BROWSER_AVAILABLE = bool(SCRAPINGBEE_API_KEY or BROWSERLESS_API_KEY)
+    
+    logger.info(f"Product table check - ScrapingBee API key available: {bool(SCRAPINGBEE_API_KEY)}")
+    logger.info(f"Product table check - Browserless API key available: {bool(BROWSERLESS_API_KEY)}")
+    logger.info(f"Product table check - Cloud browser available: {CLOUD_BROWSER_AVAILABLE}")
+    
+    # For cloud browser API, use a different timeout
+    if CLOUD_BROWSER_AVAILABLE and (timeout < 30 or timeout is None):
+        cloud_timeout = 30  # Minimum 30 seconds for cloud API
+        logger.info(f"Setting cloud browser timeout to {cloud_timeout}s (was {timeout}s)")
+        timeout = cloud_timeout
+    
     # Enforce a maximum timeout to prevent hanging
     if timeout > 90:
         logger.warning(f"Requested timeout of {timeout}s exceeds maximum, limiting to 90s")
@@ -295,10 +310,47 @@ async def check_product_tables(
         # This is the critical requirement regardless of environment variables
         
         for url in urls:
-            # Force manual verification message for product pages
-            # Using more specific matching to ensure we only catch actual product paths
-            if '/products/' in url or '/product/' in url or url.endswith('/products'):
-                logger.info(f"CRITICAL FIX: Forcing unknown result for URL with product path: {url}")
+            # Check if this is a product URL - if so, handle specially
+            is_product_url = '/products/' in url or '/product/' in url or url.endswith('/products')
+            
+            # Check for Replit environment
+            repl_id = os.environ.get('REPL_ID')
+            replit_env = os.environ.get('REPLIT_ENVIRONMENT')
+            is_replit = repl_id is not None or replit_env is not None
+                
+            # For all product URLs with cloud browser, try using cloud API directly
+            if is_product_url and CLOUD_BROWSER_AVAILABLE:
+                logger.info(f"Product URL with cloud browser available - attempting DIRECT cloud API detection: {url}")
+                
+                try:
+                    # Import and use the cloud browser API directly
+                    from cloud_browser_automation import check_for_product_tables_cloud
+                    
+                    # Re-check API keys to ensure they're available in this context
+                    scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+                    browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+                    
+                    # Log available keys (prefix only)
+                    if scrapingbee_key:
+                        logger.info(f"Using ScrapingBee API key: {scrapingbee_key[:4]}...")
+                    if browserless_key:
+                        logger.info(f"Using Browserless API key: {browserless_key[:4]}...")
+                    
+                    # Call cloud browser directly, bypassing check_for_product_tables
+                    logger.info(f"DIRECT CLOUD BROWSER CALL for URL: {url}")
+                    result = check_for_product_tables_cloud(url, timeout)
+                    
+                    logger.info(f"DIRECT Cloud browser result for product URL: {result}")
+                    results[url] = result
+                    continue  # Skip the rest of processing for this URL
+                except Exception as e:
+                    logger.error(f"Error using direct cloud browser for product URL: {str(e)}")
+                    logger.exception("Full traceback for cloud browser error:")
+                    # Fall back to manual verification if cloud browser fails
+            
+            # Force manual verification message for product pages without cloud browser or if cloud failed
+            if is_product_url:
+                logger.info(f"Using manual verification for product URL (cloud not available or failed): {url}")
                 results[url] = {
                     "found": None,
                     "class_name": None, 
@@ -308,17 +360,47 @@ async def check_product_tables(
                 }
                 continue  # Skip all other checks for this URL
                 
-            # For other URLs, try environment check
-            repl_id = os.environ.get('REPL_ID')
-            replit_env = os.environ.get('REPLIT_ENVIRONMENT')
-            is_replit = repl_id is not None or replit_env is not None
+            # For other URLs, re-use the same environment detection variables
+            # that were already defined above
             
-            # Log the environment detection with detailed debugging
+            # Log the environment detection with detailed debugging (reusing variables)
             logger.info(f"ENVIRONMENT CHECK - REPL_ID: '{repl_id}', REPLIT_ENVIRONMENT: '{replit_env}'")
             
-            # In Replit environment, return the manual verification message for all URLs
+            # In Replit environment with cloud browser API available, use direct cloud API
+            if is_replit and CLOUD_BROWSER_AVAILABLE:
+                logger.info(f"Replit environment with cloud browser API - DIRECT CLOUD API CALL for {url}")
+                
+                try:
+                    # Import and use cloud browser API directly
+                    from cloud_browser_automation import check_for_product_tables_cloud
+                    
+                    # Re-check API keys to ensure they're available in this context
+                    scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+                    browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+                    
+                    # Ensure keys are in the environment for imported function
+                    if scrapingbee_key:
+                        os.environ['SCRAPINGBEE_API_KEY'] = scrapingbee_key
+                        logger.info(f"Using ScrapingBee API key: {scrapingbee_key[:4]}...")
+                    if browserless_key:
+                        os.environ['BROWSERLESS_API_KEY'] = browserless_key
+                        logger.info(f"Using Browserless API key: {browserless_key[:4]}...")
+                    
+                    # Call cloud browser directly, bypassing check_for_product_tables
+                    logger.info(f"DIRECT CLOUD BROWSER CALL for URL: {url}")
+                    result = check_for_product_tables_cloud(url, timeout)
+                    
+                    logger.info(f"DIRECT Cloud browser result for URL: {result}")
+                    results[url] = result
+                    continue  # Skip the rest of processing for this URL
+                except Exception as e:
+                    logger.error(f"Error using direct cloud browser for URL: {str(e)}")
+                    logger.exception("Full traceback for cloud browser error:")
+                    # If there's an error with cloud browser, fall back to the default behavior
+            
+            # In Replit environment without cloud browser, return the manual verification message
             if is_replit:
-                logger.info(f"Replit environment - returning manual verification message for {url}")
+                logger.info(f"Replit environment without cloud browser - returning manual verification message for {url}")
                 results[url] = {
                     "found": None,
                     "class_name": None,

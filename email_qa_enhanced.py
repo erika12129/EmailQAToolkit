@@ -34,14 +34,24 @@ except ImportError:
     SELENIUM_AVAILABLE = False
     logger.warning("Selenium browser automation is not available")
 
-# Import Cloud Browser automation module
-CLOUD_BROWSER_AVAILABLE = False
+# Import Cloud Browser automation module and check if API keys are available
 try:
     from cloud_browser_automation import check_for_product_tables_cloud
-    CLOUD_BROWSER_AVAILABLE = True
-    logger.info("Cloud browser automation is available")
+    # Check for API keys directly in the environment
+    SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', '')
+    CLOUD_BROWSER_AVAILABLE = bool(SCRAPINGBEE_API_KEY or BROWSERLESS_API_KEY)
+    
+    if CLOUD_BROWSER_AVAILABLE:
+        if SCRAPINGBEE_API_KEY:
+            logger.info(f"Cloud browser automation is available with ScrapingBee API key: {SCRAPINGBEE_API_KEY[:4]}...")
+        if BROWSERLESS_API_KEY:
+            logger.info(f"Cloud browser automation is available with Browserless API key: {BROWSERLESS_API_KEY[:4]}...")
+    else:
+        logger.warning("Cloud browser module imported but no API keys are configured")
 except ImportError:
-    logger.warning("Cloud browser automation is not available")
+    CLOUD_BROWSER_AVAILABLE = False
+    logger.warning("Cloud browser automation module is not available")
 
 # Import text analysis module for enhanced detection
 TEXT_ANALYSIS_AVAILABLE = False
@@ -588,18 +598,54 @@ def check_for_product_tables(url, timeout=None):
     logger.info(f"Environment check - Replit: {is_replit}, Deployed: {is_deployed}, Selenium available: {SELENIUM_AVAILABLE}, Cloud browser available: {CLOUD_BROWSER_AVAILABLE}")
     
     # Different handling based on environment and available automation methods
+    # Always re-check API keys from environment to ensure we have the latest
+    SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', '')
+    CLOUD_BROWSER_AVAILABLE = bool(SCRAPINGBEE_API_KEY or BROWSERLESS_API_KEY)
+    
+    # Log key availability
+    logger.info(f"Rechecked API keys - ScrapingBee: {bool(SCRAPINGBEE_API_KEY)}, Browserless: {bool(BROWSERLESS_API_KEY)}")
+    logger.info(f"Cloud browser available: {CLOUD_BROWSER_AVAILABLE}")
+    
     if CLOUD_BROWSER_AVAILABLE:
         # Use cloud browser automation when available, regardless of environment
-        logger.info(f"Using cloud browser automation for {url}")
+        logger.info(f"Using cloud browser automation for {url} with API key: {SCRAPINGBEE_API_KEY[:4] if SCRAPINGBEE_API_KEY else 'None'}...")
+        
+        # Set a longer timeout for cloud browser API
+        if timeout is None or timeout < 30:
+            cloud_timeout = 30  # Use 30 seconds for cloud browser
+            logger.info(f"Setting cloud browser timeout to {cloud_timeout} seconds")
+        else:
+            cloud_timeout = timeout
+            
         try:
+            # Import directly to ensure we have the latest version
             from cloud_browser_automation import check_for_product_tables_cloud
-            cloud_result = check_for_product_tables_cloud(url, timeout)
+            logger.info(f"Calling cloud browser automation with URL: {url}, timeout: {cloud_timeout}")
+            
+            # CRITICAL - Force keys into environment again to ensure cloud module has them
+            if SCRAPINGBEE_API_KEY:
+                os.environ['SCRAPINGBEE_API_KEY'] = SCRAPINGBEE_API_KEY
+                logger.info(f"Re-set ScrapingBee API key in environment: {SCRAPINGBEE_API_KEY[:4]}...")
+            if BROWSERLESS_API_KEY:
+                os.environ['BROWSERLESS_API_KEY'] = BROWSERLESS_API_KEY
+                logger.info(f"Re-set Browserless API key in environment: {BROWSERLESS_API_KEY[:4]}...")
+            
+            # Call cloud browser API with proper timeout
+            cloud_result = check_for_product_tables_cloud(url, cloud_timeout)
+            
+            # Log the result for debugging
+            logger.info(f"Cloud browser result: {cloud_result}")
+            
             # Add is_test_domain flag for consistent response format
             cloud_result['is_test_domain'] = False
             return cloud_result
         except Exception as e:
             logger.error(f"Cloud browser automation error: {str(e)}")
+            logger.exception("Full stacktrace for cloud browser error:")
             # Continue to fallback methods if cloud browser fails
+    else:
+        logger.warning(f"Cloud browser API key not available, SCRAPINGBEE_API_KEY present: {bool(SCRAPINGBEE_API_KEY)}")
     
     # If cloud browser automation is not available or failed, use fallbacks
     if is_replit and not is_deployed:
@@ -612,16 +658,27 @@ def check_for_product_tables(url, timeout=None):
             'message': 'Unknown - Browser automation unavailable in development - manual verification required',
             'is_test_domain': False
         }
-    elif is_replit and is_deployed and not SELENIUM_AVAILABLE:
-        # Special message for deployed environments
-        logger.info(f"Browser automation unavailable in deployment - check configuration for {url}")
-        return {
-            'found': None,
-            'class_name': None,
-            'detection_method': 'browser_unavailable',
-            'message': 'Cloud browser automation not configured - add API key',
-            'is_test_domain': False
-        }
+    elif is_replit and is_deployed:
+        if not CLOUD_BROWSER_AVAILABLE:
+            # Special message for deployed environments without cloud API
+            logger.info(f"Cloud browser automation unavailable in deployment - check configuration for {url}")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'browser_unavailable',
+                'message': 'Cloud browser automation not configured - add API key',
+                'is_test_domain': False
+            }
+        else:
+            # This shouldn't happen if CLOUD_BROWSER_AVAILABLE is true
+            logger.error(f"Cloud browser available but failed to use - check configuration for {url}")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'browser_unavailable',
+                'message': 'Error using cloud browser - check server logs',
+                'is_test_domain': False
+            }
     elif not SELENIUM_AVAILABLE:
         # General message for any other environment without Selenium
         logger.info(f"Selenium not available in this environment - returning manual verification message for {url}")

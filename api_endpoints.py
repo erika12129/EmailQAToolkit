@@ -31,18 +31,52 @@ async def get_cloud_browser_status():
     try:
         if CLOUD_API_TEST_AVAILABLE:
             from cloud_api_test import get_api_status
-            status = get_api_status()
-            return JSONResponse(content=status)
+            
+            # Get the API status with additional safeguards
+            try:
+                status = get_api_status()
+                
+                # Validate the structure of the status response
+                if not isinstance(status, dict):
+                    logger.error(f"Invalid status response: {status}")
+                    raise ValueError("Invalid status response format")
+                
+                # Ensure the expected keys exist
+                if "cloud_browser_available" not in status:
+                    status["cloud_browser_available"] = False
+                
+                # Add headers to ensure proper content type
+                return JSONResponse(
+                    content=status,
+                    headers={"Content-Type": "application/json"}
+                )
+            except Exception as inner_e:
+                logger.error(f"Error processing API status: {str(inner_e)}")
+                return JSONResponse(
+                    status_code=500,
+                    content={
+                        "cloud_browser_available": False,
+                        "error": f"Error processing API status: {str(inner_e)}"
+                    },
+                    headers={"Content-Type": "application/json"}
+                )
         else:
-            return JSONResponse(content={
-                "cloud_browser_available": False,
-                "error": "Cloud browser API module not available"
-            })
+            return JSONResponse(
+                content={
+                    "cloud_browser_available": False,
+                    "error": "Cloud browser API module not available"
+                },
+                headers={"Content-Type": "application/json"}
+            )
     except Exception as e:
         logger.error(f"Error getting cloud browser status: {str(e)}")
         return JSONResponse(
             status_code=500,
-            content={"error": f"Failed to get cloud browser status: {str(e)}"}
+            content={
+                "cloud_browser_available": False,
+                "error": f"Failed to get cloud browser status: {str(e)}"
+            },
+            headers={"Content-Type": "application/json"}
         )
 
 @router.post("/set-cloud-api-key")

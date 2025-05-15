@@ -620,7 +620,15 @@
                     
                     // Also check cloud browser API status for even more accurate detection
                     fetch('/api/cloud/cloud-browser-status')
-                        .then(response => response.json())
+                        .then(response => {
+                            // Check if the response is valid JSON
+                            const contentType = response.headers.get('content-type');
+                            if (!contentType || !contentType.includes('application/json')) {
+                                console.error('Server returned invalid content type:', contentType);
+                                throw new Error('Server returned non-JSON response');
+                            }
+                            return response.json();
+                        })
                         .then(cloudData => {
                             // If cloud browser is available, override the browserAutomationAvailable
                             if (cloudData && cloudData.cloud_browser_available) {
@@ -650,6 +658,22 @@
                         })
                         .catch(error => {
                             console.error('Error checking cloud browser status:', error);
+                            
+                            // Show cloud browser config section when there's an error
+                            const cloudBrowserConfig = document.getElementById('cloud-browser-config');
+                            if (cloudBrowserConfig) {
+                                cloudBrowserConfig.style.display = 'block';
+                                console.log('Forced display of cloud browser config section');
+                                
+                                // Add error message at the top
+                                const errorMessage = document.createElement('div');
+                                errorMessage.className = 'api-error-message';
+                                errorMessage.innerHTML = '<span style="color: #e53e3e;">Error checking cloud API: ' + 
+                                    (error.message || 'Connection issue') + '</span>';
+                                
+                                // Insert message at the top of the cloud browser config section
+                                cloudBrowserConfig.insertBefore(errorMessage, cloudBrowserConfig.firstChild);
+                            }
                         });
                     
                     // Track if we're in a deployment environment
@@ -3038,7 +3062,15 @@
         // Function to check cloud browser API status
         function checkCloudBrowserStatus() {
             fetch('/api/cloud/cloud-browser-status')
-                .then(response => response.json())
+                .then(response => {
+                    // Check if the response is valid JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        console.error('Server returned invalid content type:', contentType);
+                        throw new Error('Server returned non-JSON response');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     const apiKeyStatus = document.getElementById('api-key-status');
                     const browserStatusText = document.getElementById('browser-status-text');
@@ -3114,11 +3146,29 @@
                 })
                 .catch(error => {
                     console.error('Error checking cloud browser status:', error);
-                    // Show error message in status element
+                    
+                    // Update the browser status text to show the error
+                    const browserStatusText = document.getElementById('browser-status-text');
+                    if (browserStatusText) {
+                        browserStatusText.textContent = 'Error';
+                        browserStatusText.className = 'status-unavailable';
+                    }
+                    
+                    // Show detailed error message in status element
                     const apiKeyStatus = document.getElementById('api-key-status');
                     if (apiKeyStatus) {
-                        apiKeyStatus.innerHTML = '<span style="color: #e53e3e;">Error checking cloud API status. API might not be ready.</span>';
+                        apiKeyStatus.innerHTML = '<span style="color: #e53e3e;">Error checking cloud API status: ' + 
+                                                  (error.message || 'Server might be restarting') + '</span>';
                         apiKeyStatus.style.display = 'block';
+                    }
+                    
+                    // Also update the global browser automation flag
+                    window.browserAutomationAvailable = false;
+                    
+                    // Show cloud browser config section since there was an error
+                    const cloudBrowserConfig = document.getElementById('cloud-browser-config');
+                    if (cloudBrowserConfig) {
+                        cloudBrowserConfig.style.display = 'block';
                     }
                 });
         }
