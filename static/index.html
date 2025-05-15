@@ -408,6 +408,20 @@
                         <br>For product links, you'll see a message explaining you need to verify tables manually.
                         <br><span id="deployment-message" style="display: none; color: #c53030;"><strong>Warning:</strong> Browser automation should be available in deployment - check server configuration.</span>
                     </p>
+                    <div id="cloud-browser-config" style="margin-top: 10px; display: none;">
+                        <p style="margin: 0 0 8px 0;">
+                            <strong>Solution:</strong> Configure cloud browser API key to enable automatic product table detection.
+                        </p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <select id="cloud-service-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; flex-grow: 1; max-width: 200px;">
+                                <option value="scrapingbee">ScrapingBee</option>
+                                <option value="browserless">Browserless</option>
+                            </select>
+                            <input type="text" id="cloud-api-key" placeholder="Enter API key" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; flex-grow: 2; min-width: 250px;">
+                            <button id="save-api-key" class="button" style="padding: 5px 10px; background-color: #48bb78; flex-grow: 0;">Save & Test</button>
+                        </div>
+                        <div id="api-key-status" style="margin-top: 5px; font-size: 0.9em; display: none;"></div>
+                    </div>
                 </div>
                 
                 <!-- Timeout dropdown in its own row -->

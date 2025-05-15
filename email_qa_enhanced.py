@@ -34,6 +34,15 @@ except ImportError:
     SELENIUM_AVAILABLE = False
     logger.warning("Selenium browser automation is not available")
 
+# Import Cloud Browser automation module
+CLOUD_BROWSER_AVAILABLE = False
+try:
+    from cloud_browser_automation import check_for_product_tables_cloud
+    CLOUD_BROWSER_AVAILABLE = True
+    logger.info("Cloud browser automation is available")
+except ImportError:
+    logger.warning("Cloud browser automation is not available")
+
 # Import text analysis module for enhanced detection
 TEXT_ANALYSIS_AVAILABLE = False
 try:
@@ -573,7 +582,21 @@ def check_for_product_tables(url, timeout=None):
     # Log the environment and browser availability for debugging
     logger.info(f"Environment check - Replit: {is_replit}, Deployed: {is_deployed}, Selenium available: {SELENIUM_AVAILABLE}")
     
-    # Different handling based on environment
+    # Different handling based on environment and available automation methods
+    if CLOUD_BROWSER_AVAILABLE:
+        # Use cloud browser automation when available, regardless of environment
+        logger.info(f"Using cloud browser automation for {url}")
+        try:
+            from cloud_browser_automation import check_for_product_tables_cloud
+            cloud_result = check_for_product_tables_cloud(url, timeout)
+            # Add is_test_domain flag for consistent response format
+            cloud_result['is_test_domain'] = False
+            return cloud_result
+        except Exception as e:
+            logger.error(f"Cloud browser automation error: {str(e)}")
+            # Continue to fallback methods if cloud browser fails
+    
+    # If cloud browser automation is not available or failed, use fallbacks
     if is_replit and not is_deployed:
         # Standard message for Replit dev environments
         logger.info(f"Browser automation unavailable in Replit development - returning manual verification message for {url}")
@@ -591,7 +614,7 @@ def check_for_product_tables(url, timeout=None):
             'found': None,
             'class_name': None,
             'detection_method': 'browser_unavailable',
-            'message': 'Error - Browser automation failed in deployment - check server configuration',
+            'message': 'Cloud browser automation not configured - add API key',
             'is_test_domain': False
         }
     elif not SELENIUM_AVAILABLE:
@@ -634,7 +657,20 @@ def check_for_product_tables(url, timeout=None):
         is_replit = repl_id is not None or replit_env is not None
         is_deployed = replit_env == 'production'
         
-        # Different handling based on environment
+        # Different handling based on environment and available automation methods
+        if CLOUD_BROWSER_AVAILABLE:
+            # Use cloud browser automation when available, regardless of environment
+            logger.info(f"Using cloud browser automation for client-side rendered site: {url}")
+            try:
+                from cloud_browser_automation import check_for_product_tables_cloud
+                cloud_result = check_for_product_tables_cloud(url, timeout)
+                cloud_result['is_test_domain'] = is_test_domain
+                return cloud_result
+            except Exception as e:
+                logger.error(f"Cloud browser automation error: {str(e)}")
+                # Continue to fallback methods if cloud browser fails
+        
+        # If cloud browser automation is not available or failed, use fallbacks
         if is_replit and not is_deployed:
             # Standard message for Replit dev environments
             logger.info(f"Browser automation unavailable in Replit development - returning manual verification message")
@@ -652,7 +688,7 @@ def check_for_product_tables(url, timeout=None):
                 'found': None,
                 'class_name': None,
                 'detection_method': 'browser_unavailable',
-                'message': 'Error - Browser automation failed in deployment - check server configuration',
+                'message': 'Cloud browser automation not configured - add API key',
                 'is_test_domain': is_test_domain
             }
         elif not SELENIUM_AVAILABLE:

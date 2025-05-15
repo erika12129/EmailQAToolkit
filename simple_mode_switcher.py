@@ -1,6 +1,7 @@
 """
 Simple mode-switching implementation for the Email QA System.
 Enhanced with hybrid browser automation for better product table detection.
+Now with cloud browser automation support.
 """
 
 import os
@@ -8,7 +9,7 @@ import shutil
 import tempfile
 import logging
 import json
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +17,24 @@ from typing import Optional, List, Dict, Any
 import email_qa_enhanced
 from email_qa_enhanced import validate_email
 from runtime_config import config
+
+# Import cloud browser API endpoints module
+try:
+    from api_endpoints import router as api_router
+    CLOUD_API_ENDPOINTS_AVAILABLE = True
+    logging.info("Cloud API endpoints module loaded successfully")
+except ImportError:
+    CLOUD_API_ENDPOINTS_AVAILABLE = False
+    logging.warning("Cloud API endpoints module not available")
+
+# Import cloud browser API test module if available
+try:
+    import cloud_api_test
+    CLOUD_API_TEST_AVAILABLE = True
+    logging.info("Cloud API test module loaded successfully")
+except ImportError:
+    CLOUD_API_TEST_AVAILABLE = False
+    logging.warning("Cloud API test module not available")
 
 # Import browser automation module
 # Define a fallback function in case the real one isn't available
@@ -108,6 +127,14 @@ app.add_middleware(
     expose_headers=["*"],
     max_age=3600,
 )
+
+# Include cloud browser API endpoints router if available
+if CLOUD_API_ENDPOINTS_AVAILABLE:
+    try:
+        app.include_router(api_router, prefix="/api/cloud")
+        logging.info("Cloud browser API endpoints added to FastAPI application")
+    except Exception as e:
+        logging.error(f"Failed to include cloud browser API endpoints: {e}")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
