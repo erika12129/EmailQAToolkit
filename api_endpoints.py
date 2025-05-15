@@ -26,6 +26,7 @@ except ImportError:
     logger.warning("Cloud API test module not available")
 
 @router.get("/cloud-browser-status")
+@router.get("/browser-status")  # Alternate endpoint to match frontend URL pattern
 async def get_cloud_browser_status():
     """Get the status of cloud browser APIs."""
     try:

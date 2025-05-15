@@ -16,7 +16,46 @@ from typing import Dict, Any, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Constants
+# Helper function to load secrets from Replit
+def _load_secrets_from_replit():
+    """Load API keys from Replit secrets files."""
+    try:
+        # Check if we're in Replit environment
+        is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+        
+        if is_replit:
+            # Try to load from potential secret locations
+            replit_secret_path = "/tmp/secrets.json"
+            alt_secret_path = os.path.expanduser("~/.config/secrets.json")
+            
+            secret_locations = [replit_secret_path, alt_secret_path]
+            for secret_file in secret_locations:
+                if os.path.exists(secret_file):
+                    try:
+                        with open(secret_file, "r") as f:
+                            secrets = json.load(f)
+                            
+                            # Check for API keys in the loaded secrets
+                            if "SCRAPINGBEE_API_KEY" in secrets and not os.environ.get("SCRAPINGBEE_API_KEY"):
+                                os.environ["SCRAPINGBEE_API_KEY"] = secrets["SCRAPINGBEE_API_KEY"]
+                                logger.info(f"Loaded ScrapingBee API key from {secret_file}")
+                            
+                            if "BROWSERLESS_API_KEY" in secrets and not os.environ.get("BROWSERLESS_API_KEY"):
+                                os.environ["BROWSERLESS_API_KEY"] = secrets["BROWSERLESS_API_KEY"]
+                                logger.info(f"Loaded Browserless API key from {secret_file}")
+                                
+                            return True
+                    except Exception as e:
+                        logger.error(f"Error loading secrets from {secret_file}: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error loading API keys from Replit secrets: {str(e)}")
+    
+    return False
+
+# Try to load secrets before defining constants
+_load_secrets_from_replit()
+
+# Constants - reload from environment after secret attempt
 SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
 BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', '')
 
@@ -41,6 +80,10 @@ def check_for_product_tables_cloud(url: str, timeout: Optional[int] = None) -> D
     
     # Re-check API keys from environment (in case they were set after module was loaded)
     global SCRAPINGBEE_API_KEY, BROWSERLESS_API_KEY
+    
+    # Try to load from Replit secrets again
+    _load_secrets_from_replit()
+    
     current_scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
     current_browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
     
@@ -110,6 +153,10 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     
     # Re-check API key from environment (in case it was set after module was loaded)
     global SCRAPINGBEE_API_KEY
+    
+    # Try to load from Replit secrets again
+    _load_secrets_from_replit()
+    
     current_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
     if current_key and current_key != SCRAPINGBEE_API_KEY:
         SCRAPINGBEE_API_KEY = current_key
@@ -363,39 +410,44 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             # Check if the response is very long (might be truncated in logs)
             if len(response_text) > 1000:
                 logger.warning(f"Response is very long ({len(response_text)} chars), might be truncated in logs")
-            
-            # Try to extract useful information from the error
-            error_position = getattr(json_error, 'pos', None)
-            error_message = str(json_error)
+                logger.warning(f"Response starts with: {response_text[:100]}")
+                logger.warning(f"Response ends with: {response_text[-100:]}")
             
             return {
                 'found': None,
                 'class_name': None,
                 'detection_method': 'cloud_api_json_parse_error',
-                'message': f'Error - Failed to parse ScrapingBee response as JSON: {error_message}',
+                'message': f'Error - Failed to parse ScrapingBee response as JSON: {str(json_error)}',
                 'content_type': content_type,
-                'error_position': error_position,
                 'response_preview': response_preview
             }
-        
-        except Exception as general_error:
-            # Catch any other exceptions during JSON processing
-            logger.error(f"Unexpected error processing ScrapingBee response: {str(general_error)}")
-            return {
-                'found': None,
-                'class_name': None,
-                'detection_method': 'cloud_api_processing_error',
-                'message': f'Error - Unexpected error processing ScrapingBee response: {str(general_error)}',
-                'content_type': content_type
-            }
-            
-    except requests.RequestException as e:
-        logger.error(f"ScrapingBee request error: {str(e)}")
+    
+    except requests.exceptions.Timeout:
+        logger.error(f"ScrapingBee request timed out after {timeout} seconds")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'cloud_api_timeout',
+            'message': f'Error - ScrapingBee request timed out after {timeout} seconds'
+        }
+    
+    except requests.exceptions.RequestException as request_error:
+        logger.error(f"Error making ScrapingBee request: {str(request_error)}")
         return {
             'found': None,
             'class_name': None,
             'detection_method': 'cloud_api_request_error',
-            'message': f'Error - ScrapingBee request failed: {str(e)}'
+            'message': f'Error - Failed to make ScrapingBee request: {str(request_error)}'
+        }
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in ScrapingBee check: {str(e)}")
+        logger.exception("Full traceback for ScrapingBee error:")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'cloud_api_unexpected_error',
+            'message': f'Error - Unexpected error in ScrapingBee check: {str(e)}'
         }
 
 def check_with_browserless(url: str, timeout: int) -> Dict[str, Any]:
@@ -409,8 +461,21 @@ def check_with_browserless(url: str, timeout: int) -> Dict[str, Any]:
     Returns:
         dict: Detection results
     """
+    # Enforce a safe timeout to prevent indefinite hanging
+    if timeout is None or timeout <= 0:
+        timeout = 30  # Default 30 seconds
+    elif timeout > 60:
+        timeout = 60  # Maximum 60 seconds
+        
+    # Log the actual timeout we're using
+    logger.info(f"Using timeout of {timeout} seconds for Browserless request to {url}")
+    
     # Re-check API key from environment (in case it was set after module was loaded)
     global BROWSERLESS_API_KEY
+    
+    # Try to load from Replit secrets again
+    _load_secrets_from_replit()
+    
     current_key = os.environ.get('BROWSERLESS_API_KEY', '')
     if current_key and current_key != BROWSERLESS_API_KEY:
         BROWSERLESS_API_KEY = current_key
@@ -426,71 +491,74 @@ def check_with_browserless(url: str, timeout: int) -> Dict[str, Any]:
             'message': 'Error - Browserless API key not configured'
         }
     
-    # JavaScript code to execute in the page to find product tables
+    # JavaScript code to execute in the page
     js_script = """
     async function checkForProductTables() {
-        // Results container
-        const results = {
-            found: false,
-            class_name: null,
-            pattern: null,
-            definitely_no_products: false
-        };
-        
-        // Check for "noPartsPhrase" class which definitely indicates NO products
-        const noProductsElements = document.querySelectorAll('.noPartsPhrase');
-        if (noProductsElements.length > 0) {
-            results.found = false;
-            results.class_name = 'noPartsPhrase';
-            results.definitely_no_products = true;
-            return results;
+        try {
+            // Look for different product table patterns
+            const patterns = {
+                'product-table': '*[class*="product-table"]',
+                'productListContainer': '*[class*="productListContainer"]',
+                'product-list': '*[class*="product-list"]',
+                'product-grid': '*[class*="product-grid"]',
+                'product-container': '*[class*="product-container"]',
+                'productGrid': '*[class*="productGrid"]',
+                'productList': '*[class*="productList"]'
+            };
+            
+            let found = false;
+            let foundClass = null;
+            let patternName = null;
+            
+            // Check each pattern
+            for (const [pattern, selector] of Object.entries(patterns)) {
+                const elements = document.querySelectorAll(selector);
+                if (elements.length > 0) {
+                    found = true;
+                    foundClass = elements[0].className;
+                    patternName = pattern;
+                    break;
+                }
+            }
+            
+            // Check for "no products" indicators
+            const noProductsElements = document.querySelectorAll('.noPartsPhrase');
+            const definitelyNoProducts = noProductsElements.length > 0;
+            
+            return {
+                found: found,
+                class_name: foundClass,
+                pattern: patternName,
+                definitely_no_products: definitelyNoProducts
+            };
+        } catch (error) {
+            return {
+                found: false,
+                error: error.toString()
+            };
         }
-        
-        // Look for class names starting with "product-table"
-        const productTableElements = Array.from(document.querySelectorAll('*[class*="product-table"]'));
-        if (productTableElements.length > 0) {
-            const element = productTableElements[0];
-            results.found = true;
-            results.class_name = Array.from(element.classList).find(cls => cls.startsWith('product-table'));
-            results.pattern = 'product-table*';
-            return results;
-        }
-        
-        // Look for class names ending with "productListContainer"
-        const productListElements = Array.from(document.querySelectorAll('*[class*="productListContainer"]'));
-        if (productListElements.length > 0) {
-            const element = productListElements[0];
-            results.found = true;
-            results.class_name = Array.from(element.classList).find(cls => cls.endsWith('productListContainer'));
-            results.pattern = '*productListContainer';
-            return results;
-        }
-        
-        // No matches found
-        return results;
     }
     
-    // Define the structure of the response
     return await checkForProductTables();
     """
     
-    # Construct the API request
-    api_url = f"https://chrome.browserless.io/function?token={BROWSERLESS_API_KEY}"
+    # Browserless API endpoint for content
+    api_url = f"https://chrome.browserless.io/content?token={BROWSERLESS_API_KEY}"
+    
+    # Request payload
     payload = {
-        "code": js_script,
-        "context": {
-            "url": url,
-            "timeout": timeout * 1000,  # Browserless uses milliseconds
-            "waitFor": {
-                "selectorOrFunctionOrTimeout": 2000  # Wait at least 2 seconds for page to load
-            }
-        }
+        "url": url,
+        "evaluate": js_script,
+        "waitFor": 5000  # Wait 5 seconds for page to load
     }
     
     try:
-        # Make the request to Browserless
+        # Make the request to Browserless with proper timeout handling
         start_time = time.time()
-        response = requests.post(api_url, json=payload, timeout=timeout + 5)  # Add buffer to timeout
+        logger.info(f"Making Browserless API request to {url} (timeout: {timeout}s)")
+        
+        # Make the request with detailed logging
+        response = requests.post(api_url, json=payload, timeout=timeout)
         duration = time.time() - start_time
         
         logger.info(f"Browserless response received in {duration:.2f}s with status code {response.status_code}")
@@ -506,55 +574,82 @@ def check_with_browserless(url: str, timeout: int) -> Dict[str, Any]:
                 'error': response.text
             }
         
-        # Parse the response as JSON
-        try:
-            result = response.json()
-            
-            # Extract results from the JavaScript execution
-            found = result.get('found', False)
-            class_name = result.get('class_name')
-            pattern = result.get('pattern')
-            definitely_no_products = result.get('definitely_no_products', False)
-            
-            if definitely_no_products:
-                logger.info(f"Definitely no products found on {url}: class='{class_name}'")
-                return {
-                    'found': False,
-                    'class_name': class_name,
-                    'detection_method': 'cloud_browser_api',
-                    'message': f'No products found - detected class: {class_name}'
-                }
-            elif found and class_name:
-                logger.info(f"Product table found on {url}: class='{class_name}', pattern='{pattern}'")
-                return {
-                    'found': True,
-                    'class_name': class_name,
-                    'detection_method': 'cloud_browser_api',
-                    'message': f'Product table found - class: {class_name}, pattern: {pattern}'
-                }
-            else:
-                logger.info(f"No product table found on {url}")
-                return {
-                    'found': False,
-                    'class_name': None,
-                    'detection_method': 'cloud_browser_api',
-                    'message': 'No product table found'
-                }
-                
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse Browserless response as JSON: {response.text[:200]}")
+        # Parse the response
+        result = response.json()
+        
+        # Check for error in the result
+        if 'error' in result:
+            logger.error(f"Browserless returned error: {result['error']}")
             return {
                 'found': None,
                 'class_name': None,
-                'detection_method': 'cloud_api_invalid_response',
-                'message': 'Error - Failed to parse Browserless response'
+                'detection_method': 'cloud_api_error',
+                'message': f'Error - Browserless returned error: {result["error"]}'
             }
-            
-    except requests.RequestException as e:
-        logger.error(f"Browserless request error: {str(e)}")
+        
+        # Extract results
+        found = result.get('found', False)
+        class_name = result.get('class_name')
+        pattern = result.get('pattern')
+        definitely_no_products = result.get('definitely_no_products', False)
+        
+        if definitely_no_products:
+            logger.info(f"Definitely no products found on {url}")
+            return {
+                'found': False,
+                'class_name': class_name,
+                'detection_method': 'cloud_browser_api',
+                'message': f'No products found - detected "no products" indicator'
+            }
+        elif found and class_name:
+            logger.info(f"Product table found on {url}: class='{class_name}', pattern='{pattern}'")
+            return {
+                'found': True,
+                'class_name': class_name,
+                'detection_method': 'cloud_browser_api',
+                'message': f'Product table found - class: {class_name}, pattern: {pattern}'
+            }
+        else:
+            logger.info(f"No product table found on {url}")
+            return {
+                'found': False,
+                'class_name': None,
+                'detection_method': 'cloud_browser_api',
+                'message': 'No product table found'
+            }
+    
+    except requests.exceptions.Timeout:
+        logger.error(f"Browserless request timed out after {timeout} seconds")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'cloud_api_timeout',
+            'message': f'Error - Browserless request timed out after {timeout} seconds'
+        }
+    
+    except requests.exceptions.RequestException as request_error:
+        logger.error(f"Error making Browserless request: {str(request_error)}")
         return {
             'found': None,
             'class_name': None,
             'detection_method': 'cloud_api_request_error',
-            'message': f'Error - Browserless request failed: {str(e)}'
+            'message': f'Error - Failed to make Browserless request: {str(request_error)}'
+        }
+    
+    except json.JSONDecodeError as json_error:
+        logger.error(f"Failed to parse Browserless response as JSON: {str(json_error)}")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'cloud_api_json_parse_error',
+            'message': f'Error - Failed to parse Browserless response as JSON'
+        }
+    
+    except Exception as e:
+        logger.error(f"Unexpected error in Browserless check: {str(e)}")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'cloud_api_unexpected_error',
+            'message': f'Error - Unexpected error in Browserless check: {str(e)}'
         }

@@ -5,10 +5,50 @@ Provides mode switching between development and production.
 
 import os
 import logging
+import json
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Helper function to load secrets from Replit
+def _load_api_keys_from_replit():
+    """Load API keys from Replit secrets files."""
+    try:
+        # Check if we're in Replit environment
+        is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+        
+        if is_replit:
+            # Define paths for potential secret storage locations in Replit
+            replit_secret_path = "/tmp/secrets.json"
+            alt_secret_path = os.path.expanduser("~/.config/secrets.json")
+            
+            # Try to load from potential secret locations
+            secret_locations = [replit_secret_path, alt_secret_path]
+            for secret_file in secret_locations:
+                if os.path.exists(secret_file):
+                    try:
+                        with open(secret_file, "r") as f:
+                            secrets = json.load(f)
+                            # Check for API keys in the loaded secrets
+                            if "SCRAPINGBEE_API_KEY" in secrets and not os.environ.get("SCRAPINGBEE_API_KEY"):
+                                os.environ["SCRAPINGBEE_API_KEY"] = secrets["SCRAPINGBEE_API_KEY"]
+                                logger.info(f"Loaded ScrapingBee API key from {secret_file}")
+                            
+                            if "BROWSERLESS_API_KEY" in secrets and not os.environ.get("BROWSERLESS_API_KEY"):
+                                os.environ["BROWSERLESS_API_KEY"] = secrets["BROWSERLESS_API_KEY"]
+                                logger.info(f"Loaded Browserless API key from {secret_file}")
+                                
+                            return True
+                    except Exception as e:
+                        logger.error(f"Error loading secrets from {secret_file}: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error loading API keys from Replit secrets: {str(e)}")
+    
+    return False
+
+# Try to load secrets at module import time
+_load_api_keys_from_replit()
 
 class RuntimeConfig:
     """Runtime configuration that can be changed without restarting."""
@@ -55,114 +95,89 @@ class RuntimeConfig:
                 logger.info(f"Cloud browser API key found ({key_preview}) - cloud browser automation is available")
             else:
                 logger.info("No cloud browser API keys found")
-        except Exception as e:
-            logger.error(f"Error checking cloud browser availability: {str(e)}")
-            self.cloud_browser_available = False
-            self.scrapingbee_key = ""
-            self.browserless_key = ""
             
-        # In Replit dev environment, browser automation is never available
-        # But in deployed Replit app, check for both traditional and cloud browser
-        if is_replit and not is_deployed:
-            logger.info("Replit development environment detected - local browser automation is unavailable")
-            local_browser_available = False
-        elif is_replit and is_deployed:
-            logger.info("Replit deployment environment detected - checking for browser automation")
+            # Try to re-check local browser too, if possible
+            local_available = False
             try:
-                # First try to import and use check_browser_availability directly
-                try:
-                    from selenium_automation import check_browser_availability
-                    local_browser_available = check_browser_availability()
-                    logger.info(f"Local browser automation available in deployment: {local_browser_available}")
-                except (ImportError, Exception) as e:
-                    logger.warning(f"Error importing selenium_automation: {str(e)}")
-                    local_browser_available = False
-                    
-                # Fallback to trying to use browser_detection directly if selenium_automation fails
-                if not local_browser_available:
-                    try:
-                        from browser_detection import run_full_detection
-                        local_browser_available = run_full_detection()
-                        logger.info(f"Browser detection result: {local_browser_available}")
-                    except Exception as e:
-                        logger.error(f"Error in browser detection: {str(e)}")
-                        local_browser_available = False
-                        
+                from browser_detection import run_full_detection
+                local_available = run_full_detection()
             except Exception as e:
-                logger.error(f"Error checking browser automation availability in deployment: {str(e)}")
-                local_browser_available = False
-        else:
-            # Not in Replit at all
-            try:
-                from selenium_automation import check_browser_availability
-                local_browser_available = check_browser_availability()
-                logger.info(f"Local browser automation available: {local_browser_available}")
-            except Exception as e:
-                logger.error(f"Error checking browser automation availability: {str(e)}")
-                local_browser_available = False
-                
-        # Set overall browser automation availability (cloud OR local)
-        self.browser_automation_available = self.cloud_browser_available or local_browser_available
-        logger.info(f"Overall browser automation available: {self.browser_automation_available} (Cloud: {self.cloud_browser_available}, Local: {local_browser_available})")
-        self.request_timeout = 10
-        self.max_retries = 2
-        self.test_domains = []
+                logger.error(f"Error checking local browser availability: {str(e)}")
+                local_available = False
+            
+            # Update overall status
+            old_status = self.browser_automation_available
+            self.browser_automation_available = self.cloud_browser_available or local_available
+            logger.info(f"Updated browser automation status: {self.browser_automation_available} (Cloud: {self.cloud_browser_available}, Local: {local_available})")
         
-        # Initialize settings based on the mode
-        self._update_settings_for_mode()
-        logger.info(f"Initialized in {self.mode} mode - Deployment environment: {self.is_deployment_env}")
+        except Exception as e:
+            logger.error(f"Error in browser automation detection: {str(e)}")
+            self.browser_automation_available = False
+        
+        finally:
+            # Always update settings for the current mode, regardless of errors
+            self._update_settings_for_mode()
     
     def _update_settings_for_mode(self):
         """Update settings based on current mode."""
-        # Make sure test_domains is always properly maintained based on mode
-        base_test_domains = ["localhost:5001", "localtest.me"]
-        
-        if self.is_production:
-            # In production mode, we should NOT use test redirects or simulated results
-            self.enable_test_redirects = False  # CRITICAL FIX: Must be False in production
-            self.product_table_timeout = 15     # Increased timeout for production
-            self.request_timeout = 15
-            # Ensure partly-products-showcase.lovable.app is NOT in test_domains in production
-            self.test_domains = base_test_domains.copy()
-            logger.info("Production mode settings applied: test redirects disabled")
-        else:
-            # In development mode, enable test redirects for testing
+        if self.mode == "development":
             self.enable_test_redirects = True
-            self.product_table_timeout = 5
-            self.request_timeout = 5
-            # Add partly-products-showcase.lovable.app to test_domains in development
-            self.test_domains = base_test_domains.copy()
-            self.test_domains.append("partly-products-showcase.lovable.app")
-            logger.info("Development mode settings applied: test redirects enabled")
+            self.product_table_timeout = 30  # Longer timeout in development
+            self.request_timeout = 10
+            self.max_retries = 2
+            self.test_domains = {"localhost:5001"}
+            logger.info("Using DEVELOPMENT configuration")
+        else:  # Production mode
+            self.enable_test_redirects = False  # Never redirect to test in production
+            self.product_table_timeout = 20  # Shorter timeout for production
+            self.request_timeout = 8
+            self.max_retries = 3
+            self.test_domains = set()  # No test domains in production
+            logger.info("Using PRODUCTION configuration")
     
-    @property
     def is_development(self):
         """Check if running in development mode."""
         return self.mode == "development"
     
-    @property
     def is_production(self):
         """Check if running in production mode."""
         return self.mode == "production"
     
     def refresh_browser_automation_status(self):
         """Refresh the browser automation status without restarting the application."""
-        logger.info("Refreshing browser automation status...")
+        # Try to load API keys from Replit secrets first
+        _load_api_keys_from_replit()
         
-        # Re-check cloud browser API keys
+        # Store old status to check if it changed
+        old_status = self.browser_automation_available
+        old_cloud = self.cloud_browser_available
+        
+        # Re-check cloud API keys (in case they were added/removed)
         scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
         browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+        
+        # Update cloud status
         self.cloud_browser_available = bool(scrapingbee_key or browserless_key)
         
-        # Store the API keys for re-checking
+        # Check if keys changed
+        keys_changed = (scrapingbee_key != getattr(self, 'scrapingbee_key', '') or 
+                       browserless_key != getattr(self, 'browserless_key', ''))
+        
+        # Update stored keys
         self.scrapingbee_key = scrapingbee_key
         self.browserless_key = browserless_key
         
-        if self.cloud_browser_available:
+        # Only log if status changed
+        if self.cloud_browser_available != old_cloud:
+            if self.cloud_browser_available:
+                key_preview = scrapingbee_key[:4] + "..." if scrapingbee_key else browserless_key[:4] + "..."
+                logger.info(f"Cloud browser API key status changed: Now available ({key_preview})")
+            else:
+                logger.info("Cloud browser API key status changed: Now unavailable")
+        elif keys_changed and self.cloud_browser_available:
+            # If keys changed but availability remained, still log the change
             key_preview = scrapingbee_key[:4] + "..." if scrapingbee_key else browserless_key[:4] + "..."
-            logger.info(f"Cloud browser API key found ({key_preview}) - cloud browser automation is available")
-        else:
-            logger.info("No cloud browser API keys found")
+            logger.info(f"Cloud browser API key changed: Now using {key_preview}")
         
         # Try to re-check local browser too, if possible
         local_available = False
@@ -174,12 +189,15 @@ class RuntimeConfig:
             local_available = False
         
         # Update overall status
-        old_status = self.browser_automation_available
         self.browser_automation_available = self.cloud_browser_available or local_available
-        logger.info(f"Updated browser automation status: {self.browser_automation_available} (Cloud: {self.cloud_browser_available}, Local: {local_available})")
+        
+        # Log changes
+        if self.browser_automation_available != old_status:
+            logger.info(f"Browser automation status changed: {old_status} -> {self.browser_automation_available}")
+            logger.info(f"Current status - Cloud: {self.cloud_browser_available}, Local: {local_available}")
         
         # Return True if status changed, False otherwise
-        return old_status != self.browser_automation_available
+        return self.browser_automation_available != old_status
     
     def set_mode(self, mode):
         """
@@ -189,18 +207,16 @@ class RuntimeConfig:
             mode: 'development' or 'production'
         """
         if mode not in ["development", "production"]:
-            raise ValueError("Mode must be 'development' or 'production'")
-            
+            logger.error(f"Invalid mode: {mode}, must be 'development' or 'production'")
+            return False
+        
+        old_mode = self.mode
         self.mode = mode
         self._update_settings_for_mode()
-        logger.info(f"Switched to {mode} mode")
         
-        return {
-            "mode": self.mode,
-            "enable_test_redirects": self.enable_test_redirects,
-            "product_table_timeout": self.product_table_timeout,
-            "request_timeout": self.request_timeout
-        }
+        # Log mode change
+        logger.info(f"Mode changed: {old_mode} -> {self.mode}")
+        return True
     
     def create_test_url(self, url):
         """
