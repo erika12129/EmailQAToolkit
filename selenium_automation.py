@@ -89,9 +89,28 @@ def _check_browser_availability():
     """Check which browsers are available and set global availability flags."""
     global CHROME_AVAILABLE, FIREFOX_AVAILABLE, _browser_check_complete
     
-    # Skip browser check in Replit environment
-    if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT') or os.environ.get('SKIP_BROWSER_CHECK'):
-        logger.info("Skipping browser availability check in _check_browser_availability")
+    # Check if we're in a Replit environment
+    is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+    
+    # Check if this is a deployed app (not just a Replit dev environment)
+    is_deployed = os.environ.get('REPLIT_ENVIRONMENT') == 'production'
+    
+    # Skip browser check only in Replit development environment
+    if is_replit and not is_deployed:
+        logger.info("Skipping browser availability check in Replit development environment")
+        _browser_check_complete = True
+        CHROME_AVAILABLE = False
+        FIREFOX_AVAILABLE = False
+        return False
+        
+    # Special handling for Replit deployment - force browser check
+    if is_replit and is_deployed:
+        logger.info("Replit deployment environment detected - attempting to find browsers")
+        # Continue with the browser check (ignoring SKIP_BROWSER_CHECK)
+        
+    # Skip checks only in non-deployment environments when SKIP_BROWSER_CHECK is set
+    elif os.environ.get('SKIP_BROWSER_CHECK'):
+        logger.info("Skipping browser availability check due to SKIP_BROWSER_CHECK flag (in non-deployment)")
         _browser_check_complete = True
         CHROME_AVAILABLE = False
         FIREFOX_AVAILABLE = False

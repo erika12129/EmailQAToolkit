@@ -48,14 +48,21 @@ async def get_config():
     """Get current configuration settings for frontend."""
     logger.info(f"Serving config endpoint, mode={config.mode}")
     
-    # Import selenium_automation for browser availability check
-    from selenium_automation import check_browser_availability
+    # Explicitly check browser automation again to ensure it's up to date
+    browser_available = False
+    try:
+        # Import selenium_automation for browser availability check
+        from selenium_automation import check_browser_availability
+        
+        # Check if browser automation is available
+        browser_available = check_browser_availability()
+        logger.info(f"Checking browser automation for config endpoint: {browser_available}")
+    except Exception as e:
+        logger.error(f"Error checking browser automation availability: {str(e)}")
+        browser_available = False
     
-    # Check if browser automation is available
-    browser_available = check_browser_availability()
-    logger.info(f"Browser automation available: {browser_available}")
-    
-    return JSONResponse(content={
+    # Create config response with the freshly checked browser automation status
+    config_response = {
         "mode": config.mode,
         "enable_test_redirects": config.enable_test_redirects,
         "product_table_timeout": config.product_table_timeout,
@@ -63,7 +70,11 @@ async def get_config():
         "max_retries": config.max_retries,
         "test_domains": config.test_domains,
         "browser_automation_available": browser_available
-    })
+    }
+    
+    logger.info(f"Config response: {config_response}")
+    
+    return JSONResponse(content=config_response)
 
 @app.get("/")
 async def read_root():

@@ -43,13 +43,21 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
         # If runtime_config isn't available
         pass
     
-    logger.info(f"Browser automation not available - returning manual verification message for: {url}")
+    # Check if we're in Replit environment or in a deployed environment
+    is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+    
+    if is_replit:
+        logger.info(f"Running in Replit - browser automation unavailable for URL: {url}")
+        message = 'Unknown - Browser automation unavailable in Replit - manual verification required'
+    else:
+        logger.warning(f"Browser automation expected but failed in deployment environment for URL: {url}")
+        message = 'Error - Browser automation failed in deployment - check server configuration'
     
     # Return standardized message about unavailability
     return {
         'found': None,  # Use None to indicate unknown status
         'class_name': None,
         'detection_method': 'browser_unavailable',
-        'message': 'Unknown - Browser automation unavailable - manual verification required',
+        'message': message,
         'is_test_domain': is_test_domain
     }

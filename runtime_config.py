@@ -28,6 +28,39 @@ class RuntimeConfig:
         # Set default values (will be overridden by _update_settings_for_mode)
         self.enable_test_redirects = True
         self.product_table_timeout = 10
+        
+        # Check browser automation availability
+        self.browser_automation_available = False
+        
+        # Check if we're in a Replit environment
+        is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+        
+        # Check if this is a deployed app (not just a Replit dev environment)
+        is_deployed = os.environ.get('REPLIT_ENVIRONMENT') == 'production'
+        
+        # In Replit dev environment, browser automation is never available
+        # But in deployed Replit app, it should be available
+        if is_replit and not is_deployed:
+            logger.info("Replit development environment detected - browser automation is unavailable")
+            self.browser_automation_available = False
+        elif is_replit and is_deployed:
+            logger.info("Replit deployment environment detected - checking for browser automation")
+            try:
+                from selenium_automation import check_browser_availability
+                self.browser_automation_available = check_browser_availability()
+                logger.info(f"Browser automation available in deployment: {self.browser_automation_available}")
+            except Exception as e:
+                logger.error(f"Error checking browser automation availability in deployment: {str(e)}")
+                self.browser_automation_available = False
+        else:
+            # Not in Replit at all
+            try:
+                from selenium_automation import check_browser_availability
+                self.browser_automation_available = check_browser_availability()
+                logger.info(f"Browser automation available: {self.browser_automation_available}")
+            except Exception as e:
+                logger.error(f"Error checking browser automation availability: {str(e)}")
+                self.browser_automation_available = False
         self.request_timeout = 10
         self.max_retries = 2
         self.test_domains = []

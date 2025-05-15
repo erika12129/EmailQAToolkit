@@ -562,18 +562,41 @@ def check_for_product_tables(url, timeout=None):
     if timeout is None or timeout > 1:
         timeout = 1  # Very short timeout to avoid hanging in Replit environment
         
-    # Always check if browser automation is available
-    # If it's not available (Replit or other environments without browsers), return standard message
+    # Check if we're in a Replit environment
     repl_id = os.environ.get('REPL_ID')
     replit_env = os.environ.get('REPLIT_ENVIRONMENT')
     is_replit = repl_id is not None or replit_env is not None
-    browser_unavailable = is_replit or not SELENIUM_AVAILABLE
+    
+    # Check if this is a deployed app (not just a Replit dev environment)
+    is_deployed = replit_env == 'production'
     
     # Log the environment and browser availability for debugging
-    logger.info(f"Environment check - Replit: {is_replit}, Selenium available: {SELENIUM_AVAILABLE}")
+    logger.info(f"Environment check - Replit: {is_replit}, Deployed: {is_deployed}, Selenium available: {SELENIUM_AVAILABLE}")
     
-    if browser_unavailable:
-        logger.info(f"Browser automation unavailable - returning manual verification message for {url}")
+    # Different handling based on environment
+    if is_replit and not is_deployed:
+        # Standard message for Replit dev environments
+        logger.info(f"Browser automation unavailable in Replit development - returning manual verification message for {url}")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'browser_unavailable',
+            'message': 'Unknown - Browser automation unavailable in development - manual verification required',
+            'is_test_domain': False
+        }
+    elif is_replit and is_deployed and not SELENIUM_AVAILABLE:
+        # Special message for deployed environments
+        logger.info(f"Browser automation unavailable in deployment - check configuration for {url}")
+        return {
+            'found': None,
+            'class_name': None,
+            'detection_method': 'browser_unavailable',
+            'message': 'Error - Browser automation failed in deployment - check server configuration',
+            'is_test_domain': False
+        }
+    elif not SELENIUM_AVAILABLE:
+        # General message for any other environment without Selenium
+        logger.info(f"Selenium not available in this environment - returning manual verification message for {url}")
         return {
             'found': None,
             'class_name': None,
@@ -605,9 +628,36 @@ def check_for_product_tables(url, timeout=None):
         logger.info(f"Client-side rendered site detected: {url}")
         # For sites using React or similar frameworks, we need browser automation
         
-        # Skip browser automation entirely in environments where it's not available
-        if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT') or not SELENIUM_AVAILABLE:
-            logger.info(f"Browser automation unavailable - returning manual verification message")
+        # Check again if we're in a Replit environment vs deployed environment
+        repl_id = os.environ.get('REPL_ID')
+        replit_env = os.environ.get('REPLIT_ENVIRONMENT')
+        is_replit = repl_id is not None or replit_env is not None
+        is_deployed = replit_env == 'production'
+        
+        # Different handling based on environment
+        if is_replit and not is_deployed:
+            # Standard message for Replit dev environments
+            logger.info(f"Browser automation unavailable in Replit development - returning manual verification message")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'browser_unavailable',
+                'message': 'Unknown - Browser automation unavailable in development - manual verification required',
+                'is_test_domain': is_test_domain
+            }
+        elif is_replit and is_deployed and not SELENIUM_AVAILABLE:
+            # Special message for deployed environments
+            logger.info(f"Browser automation unavailable in deployment - check configuration")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'browser_unavailable',
+                'message': 'Error - Browser automation failed in deployment - check server configuration',
+                'is_test_domain': is_test_domain
+            }
+        elif not SELENIUM_AVAILABLE:
+            # General message for any other environment without Selenium
+            logger.info(f"Selenium not available in this environment - returning manual verification message")
             return {
                 'found': None,
                 'class_name': None,
