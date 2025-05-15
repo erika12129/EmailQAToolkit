@@ -3052,21 +3052,47 @@
                             // Also update window.browserAutomationAvailable for other functions
                             window.browserAutomationAvailable = true;
                             
-                            // Add cloud provider info to cloud browser config section
+                            // Hide the API key input section if cloud browser is available
                             const cloudBrowserConfig = document.getElementById('cloud-browser-config');
                             if (cloudBrowserConfig) {
-                                // Check if the configured message already exists
-                                if (!cloudBrowserConfig.querySelector('.cloud-configured-message')) {
-                                    // Add visual indicator that cloud browser is configured
-                                    const configuredMessage = document.createElement('div');
-                                    configuredMessage.className = 'cloud-configured-message';
-                                    configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
-                                        (data.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
-                                        '</strong>';
-                                    
-                                    // Insert message at the top of the cloud browser config section
-                                    cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
-                                }
+                                // First, remove any existing success messages to prevent duplicates
+                                const existingMessages = cloudBrowserConfig.querySelectorAll('.cloud-configured-message');
+                                existingMessages.forEach(msg => msg.remove());
+                                
+                                // Add a single configured message
+                                const configuredMessage = document.createElement('div');
+                                configuredMessage.className = 'cloud-configured-message';
+                                configuredMessage.style.backgroundColor = '#f0fff4';
+                                configuredMessage.style.border = '1px solid #68d391';
+                                configuredMessage.style.borderRadius = '4px';
+                                configuredMessage.style.padding = '10px';
+                                configuredMessage.style.marginBottom = '15px';
+                                configuredMessage.style.textAlign = 'center';
+                                configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
+                                    (data.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
+                                    '</strong>';
+                                
+                                // Insert message at the top of the cloud browser config section
+                                cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
+                                
+                                // Hide the API key input fields
+                                const apiKeyInputs = cloudBrowserConfig.querySelectorAll('input, select, button:not(#refresh-browser-status)');
+                                apiKeyInputs.forEach(input => {
+                                    const container = input.closest('.form-group');
+                                    if (container) {
+                                        container.style.display = 'none';
+                                    } else {
+                                        input.style.display = 'none';
+                                    }
+                                });
+                                
+                                // Add a note that API key is already configured
+                                const configNote = document.createElement('div');
+                                configNote.style.marginTop = '10px';
+                                configNote.textContent = 'API key is already configured and working properly.';
+                                configNote.style.fontSize = '0.9em';
+                                configNote.style.color = '#2c7a7b';
+                                cloudBrowserConfig.appendChild(configNote);
                             }
                         } else {
                             browserStatusText.textContent = 'Unavailable';

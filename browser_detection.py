@@ -187,14 +187,25 @@ def run_full_detection():
     # Check if cloud browser automation is available
     cloud_browser_available = check_cloud_browser_available()
     
-    # In Replit deployment environment, we focus on cloud browser availability
-    if is_replit and is_deployed:
-        logger.info("Replit deployment environment detected - prioritizing cloud browser automation")
+    # In Replit environment, we focus on cloud browser availability
+    if is_replit:
+        if is_deployed:
+            logger.info("Replit deployment environment detected - prioritizing cloud browser automation")
+        else:
+            logger.info("Replit development environment detected - skipping local browser checks")
+            
+        # In both development and deployment Replit, if cloud browser is available, use it
         if cloud_browser_available:
-            logger.info("Cloud browser automation is available in deployment - browser checks complete")
+            logger.info("Cloud browser automation is available in Replit - browser checks complete")
             return True
-        logger.info("No cloud browser automation available in deployment - local browser automation will not work")
-        return False
+            
+        # Log if cloud browser is not available
+        logger.info("No cloud browser automation available in Replit - local browser automation will not work")
+        
+        # If we're running in a Replit environment and checking for Chrome/Firefox,
+        # just skip this check to avoid unnecessary delays
+        logger.info("Skipping browser availability check in Replit environment")
+        return cloud_browser_available
     
     # If cloud browser is available in any environment, we can use it
     if cloud_browser_available:

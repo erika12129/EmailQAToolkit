@@ -84,6 +84,8 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     Returns:
         dict: Detection results
     """
+    import base64
+    
     # Enforce a safe timeout to prevent indefinite hanging
     if timeout is None or timeout <= 0:
         timeout = 30  # Default 30 seconds
@@ -159,19 +161,47 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     return checkForProductTables();
     """
     
-    # Encoded JavaScript to be executed
-    encoded_js = quote(js_script)
+    # Properly encode JavaScript with base64 for ScrapingBee
+    import base64
+    from urllib.parse import quote_plus
     
-    # Construct the API URL
-    api_url = f"https://app.scrapingbee.com/api/v1/?api_key={SCRAPINGBEE_API_KEY}&url={quote(url)}&render_js=true&js_snippet={encoded_js}&timeout={timeout * 1000}"
+    # Ensure proper encoding - first base64 encode the script, then URL encode the base64 string
+    encoded_js = base64.b64encode(js_script.encode('utf-8')).decode('utf-8')
+    # URL encode the base64 string to ensure special characters are properly handled
+    url_encoded_js = quote_plus(encoded_js)
+    
+    logger.info(f"Using base64 encoded and URL-encoded JS snippet for ScrapingBee API")
+    
+    # Enforce a reasonable timeout
+    if timeout > 30:
+        logger.warning(f"Limiting timeout from {timeout}s to 30s to prevent hanging requests")
+        timeout = 30
+    
+    # Construct the API URL with properly encoded parameters and additional parameters for reliability
+    api_url = (
+        f"https://app.scrapingbee.com/api/v1/?"
+        f"api_key={SCRAPINGBEE_API_KEY}&"
+        f"url={quote(url)}&"
+        f"render_js=true&"
+        f"js_snippet={url_encoded_js}&"
+        f"timeout={timeout * 1000}&"
+        f"premium_proxy=true"
+    )
     
     try:
-        # Make the request to ScrapingBee
+        # Make the request to ScrapingBee with proper timeout handling
         start_time = time.time()
-        response = requests.get(api_url, timeout=timeout + 5)  # Add buffer to timeout
+        logger.info(f"Making ScrapingBee API request to {url} (timeout: {timeout}s)")
+        
+        # Use a slightly larger timeout for the request itself
+        request_timeout = min(timeout + 5, 35)  # Never exceed 35 seconds total
+        
+        # Make the request with detailed logging
+        response = requests.get(api_url, timeout=request_timeout)
         duration = time.time() - start_time
         
         logger.info(f"ScrapingBee response received in {duration:.2f}s with status code {response.status_code}")
+        logger.info(f"Response content type: {response.headers.get('content-type', 'unknown')}")
         
         # Check for errors in the response
         if response.status_code != 200:
@@ -184,8 +214,17 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                 'error': response.text
             }
         
-        # Parse the response as JSON (ScrapingBee returns the JS result as JSON)
+        # Parse the response (ScrapingBee returns the JS result as JSON, but might return HTML or other formats on error)
+        # Variables to hold response information
+        content_type = response.headers.get('content-type', '')
+        response_text = response.text.strip()
+        
+        # Log response details for debugging
+        logger.info(f"ScrapingBee response content type: {content_type}")
+        logger.info(f"ScrapingBee response starts with: {response_text[:30]}...")
+        
         try:
+            # Try to parse as JSON
             result = response.json()
             
             # Extract results from the JavaScript execution
@@ -220,13 +259,38 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                 }
                 
         except json.JSONDecodeError:
+            # Log detailed error information
             logger.error(f"Failed to parse ScrapingBee response as JSON: {response.text[:200]}")
-            return {
-                'found': None,
-                'class_name': None,
-                'detection_method': 'cloud_api_invalid_response',
-                'message': 'Error - Failed to parse ScrapingBee response'
-            }
+            
+            try:
+                # Check if we got HTML instead of JSON (common error case)
+                if '<html' in response_text.lower() or '<!doctype html' in response_text.lower():
+                    logger.error("ScrapingBee returned HTML instead of JSON - likely a JS execution error")
+                    return {
+                        'found': None,
+                        'class_name': None,
+                        'detection_method': 'cloud_api_html_response',
+                        'message': 'Error - ScrapingBee returned HTML instead of JSON. The JavaScript may have failed to execute.',
+                        'content_type': content_type
+                    }
+                else:
+                    # Generic error for other invalid response types
+                    return {
+                        'found': None,
+                        'class_name': None,
+                        'detection_method': 'cloud_api_invalid_response',
+                        'message': f'Error - Failed to parse ScrapingBee response (content-type: {content_type})',
+                        'content_type': content_type
+                    }
+            except NameError:
+                # If response_text or content_type variables are undefined for some reason
+                return {
+                    'found': None,
+                    'class_name': None,
+                    'detection_method': 'cloud_api_invalid_response',
+                    'message': 'Error - Failed to parse ScrapingBee response',
+                    'error_details': 'Variable access error in error handler'
+                }
             
     except requests.RequestException as e:
         logger.error(f"ScrapingBee request error: {str(e)}")
