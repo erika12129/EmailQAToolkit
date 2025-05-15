@@ -645,14 +645,18 @@
                                 const cloudBrowserConfig = document.getElementById('cloud-browser-config');
                                 if (cloudBrowserConfig) {
                                     // Add visual indicator that cloud browser is configured
-                                    const configuredMessage = document.createElement('div');
-                                    configuredMessage.className = 'cloud-configured-message';
-                                    configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
-                                        (cloudData.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
-                                        '</strong>';
-                                    
-                                    // Insert message at the top of the cloud browser config section
-                                    cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
+                                    // Check if the message already exists to prevent duplicates
+                                    const existingMessage = cloudBrowserConfig.querySelector('.cloud-configured-message');
+                                    if (!existingMessage) {
+                                        const configuredMessage = document.createElement('div');
+                                        configuredMessage.className = 'cloud-configured-message';
+                                        configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
+                                            (cloudData.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
+                                            '</strong>';
+                                        
+                                        // Insert message at the top of the cloud browser config section
+                                        cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
+                                    }
                                 }
                             }
                         })
@@ -3092,20 +3096,24 @@
                                 existingMessages.forEach(msg => msg.remove());
                                 
                                 // Add a single configured message
-                                const configuredMessage = document.createElement('div');
-                                configuredMessage.className = 'cloud-configured-message';
-                                configuredMessage.style.backgroundColor = '#f0fff4';
-                                configuredMessage.style.border = '1px solid #68d391';
-                                configuredMessage.style.borderRadius = '4px';
-                                configuredMessage.style.padding = '10px';
-                                configuredMessage.style.marginBottom = '15px';
-                                configuredMessage.style.textAlign = 'center';
-                                configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
-                                    (data.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
-                                    '</strong>';
-                                
-                                // Insert message at the top of the cloud browser config section
-                                cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
+                                // Check if the message already exists to prevent duplicates
+                                const existingMessage = cloudBrowserConfig.querySelector('.cloud-configured-message');
+                                if (!existingMessage) {
+                                    const configuredMessage = document.createElement('div');
+                                    configuredMessage.className = 'cloud-configured-message';
+                                    configuredMessage.style.backgroundColor = '#f0fff4';
+                                    configuredMessage.style.border = '1px solid #68d391';
+                                    configuredMessage.style.borderRadius = '4px';
+                                    configuredMessage.style.padding = '10px';
+                                    configuredMessage.style.marginBottom = '15px';
+                                    configuredMessage.style.textAlign = 'center';
+                                    configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
+                                        (data.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
+                                        '</strong>';
+                                    
+                                    // Insert message at the top of the cloud browser config section
+                                    cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
+                                }
                                 
                                 // Hide the API key input fields
                                 const apiKeyInputs = cloudBrowserConfig.querySelectorAll('input, select, button:not(#refresh-browser-status)');

@@ -126,52 +126,54 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         }
     
     # JavaScript code to execute in the page to find product tables
+    # FIXED: Simplified script to avoid "Illegal return statement" errors with ScrapingBee
     js_script = """
-    // Function to check if a div has specific class patterns we're looking for
-    function checkForProductTables() {
-        // Results container
-        const results = {
-            found: false,
-            class_name: null,
-            pattern: null,
-            definitely_no_products: false
-        };
-        
-        // Check for "noPartsPhrase" class which definitely indicates NO products
-        const noProductsElements = document.querySelectorAll('.noPartsPhrase');
-        if (noProductsElements.length > 0) {
-            results.found = false;
-            results.class_name = 'noPartsPhrase';
-            results.definitely_no_products = true;
-            return results;
-        }
-        
+    // Simple script to detect product tables - avoids illegal return statement issues
+    var results = {
+        found: false,
+        class_name: null,
+        pattern: null,
+        definitely_no_products: false
+    };
+    
+    // Check for "noPartsPhrase" class which definitely indicates NO products
+    var noProductsElements = document.querySelectorAll('.noPartsPhrase');
+    if (noProductsElements.length > 0) {
+        results.found = false;
+        results.class_name = 'noPartsPhrase';
+        results.definitely_no_products = true;
+    } else {
         // Look for class names starting with "product-table"
-        const productTableElements = Array.from(document.querySelectorAll('*[class*="product-table"]'));
+        var productTableElements = document.querySelectorAll('*[class*="product-table"]');
         if (productTableElements.length > 0) {
-            const element = productTableElements[0];
+            var element = productTableElements[0];
             results.found = true;
-            results.class_name = Array.from(element.classList).find(cls => cls.startsWith('product-table'));
-            results.pattern = 'product-table*';
-            return results;
+            for (var i = 0; i < element.classList.length; i++) {
+                if (element.classList[i].startsWith('product-table')) {
+                    results.class_name = element.classList[i];
+                    results.pattern = 'product-table*';
+                    break;
+                }
+            }
+        } else {
+            // Look for class names ending with "productListContainer"
+            var productListElements = document.querySelectorAll('*[class*="productListContainer"]');
+            if (productListElements.length > 0) {
+                var element = productListElements[0];
+                results.found = true;
+                for (var i = 0; i < element.classList.length; i++) {
+                    if (element.classList[i].endsWith('productListContainer')) {
+                        results.class_name = element.classList[i];
+                        results.pattern = '*productListContainer';
+                        break;
+                    }
+                }
+            }
         }
-        
-        // Look for class names ending with "productListContainer"
-        const productListElements = Array.from(document.querySelectorAll('*[class*="productListContainer"]'));
-        if (productListElements.length > 0) {
-            const element = productListElements[0];
-            results.found = true;
-            results.class_name = Array.from(element.classList).find(cls => cls.endsWith('productListContainer'));
-            results.pattern = '*productListContainer';
-            return results;
-        }
-        
-        // No matches found
-        return results;
     }
     
-    // Run the check and return results
-    return checkForProductTables();
+    // Return results object without using a return statement (avoids ScrapingBee issues)
+    results;
     """
     
     # Properly encode JavaScript with base64 for ScrapingBee

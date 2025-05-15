@@ -244,6 +244,8 @@ async def run_qa(
         shutil.rmtree(temp_dir)
 
 @app.post("/check-product-tables")
+@app.post("/check_product_tables")  # Add underscore version for frontend compatibility
+@app.post("/api/check_product_tables")  # Add with /api prefix for frontend compatibility
 async def check_product_tables(
     urls: list = Body(..., description="List of URLs to check for product tables"),
     timeout: Optional[int] = Body(None, description="Timeout for product table checks in seconds")
