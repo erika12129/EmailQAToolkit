@@ -209,7 +209,7 @@
         }
     </style>
 </head>
-<body data-mode="production">
+<body data-mode="production" data-mode="production">
     <div class="container">
         <h1>Email QA Automation</h1>
         
@@ -670,7 +670,6 @@
                                         // The detailed configuration message is no longer needed since 
                                         // we're completely hiding the config section when cloud browser is available
                                     }
-                                    */
                                 }
                             }
                         })
@@ -3135,7 +3134,7 @@
                                     configuredMessage.style.marginBottom = '15px';
                                     configuredMessage.style.textAlign = 'center';
                                     configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
-                                        (data.services.scrapingbee && data.services.scrapingbee.configured ? 'ScrapingBee' : 'Browserless') + 
+                                        (data.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
                                         '</strong>';
                                     
                                     // Insert message at the top of the cloud browser config section
@@ -3208,5 +3207,16 @@
                 });
         }
     </script>
-</body>
+
+    <div style="position: fixed; bottom: 10px; right: 10px; 
+         background-color: #e53e3e; 
+         color: white; padding: 6px 12px; border-radius: 4px; 
+         font-size: 12px; font-weight: bold; z-index: 1000;">
+        <span>Mode: PRODUCTION</span>
+        <a href="/set-mode/development" 
+           style="margin-left: 8px; color: white; font-weight: bold; text-decoration: underline;">
+           Switch
+        </a>
+    </div>
+    </body>
 </html>
