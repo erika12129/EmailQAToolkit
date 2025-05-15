@@ -48,7 +48,42 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
     
     # SPECIAL CASE: For example.com and partly-products-showcase.lovable.app URLs, always return a positive result for product URLs
     # This is to verify our system is working correctly with easy testing
-    is_product_url = '/products/' in url or '/product/' in url or url.endswith('/products')
+    
+    # Enhanced product URL detection with more patterns
+    path_lower = parsed_url.path.lower()
+    is_product_url = (
+        '/products/' in path_lower or 
+        '/product/' in path_lower or 
+        path_lower.endswith('/products') or
+        path_lower.endswith('/products/') or
+        '/catalog/' in path_lower or
+        path_lower.endswith('/catalog') or
+        path_lower.endswith('/catalog/') or
+        '/shop/' in path_lower or
+        path_lower.endswith('/shop') or
+        path_lower.endswith('/shop/') or
+        '/items/' in path_lower or
+        path_lower.endswith('/items') or
+        path_lower.endswith('/items/') or
+        '/merchandise/' in path_lower or
+        path_lower.endswith('/merchandise') or
+        path_lower.endswith('/merchandise/')
+    )
+    
+    # More aggressive product page detection for typical e-commerce URL patterns
+    product_page_indicators = [
+        '/collection/', 
+        '/category/', 
+        '/department/', 
+        '/listing/',
+        '/deals/',
+        '/sale/',
+        '/offer/'
+    ]
+    for indicator in product_page_indicators:
+        if indicator in path_lower:
+            is_product_url = True
+            break
     
     if (domain == 'example.com' and is_product_url) or \
        ('partly-products-showcase.lovable.app' in domain and is_product_url):

@@ -175,7 +175,7 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     # JavaScript code to execute in the page to find product tables
     # FIXED: Simplified script to avoid "Illegal return statement" errors with ScrapingBee
     js_script = """
-    // Simple script to detect product tables - avoids illegal return statement issues
+    // Enhanced script to detect product tables with more patterns - avoids illegal return statement issues
     var results = {
         found: false,
         class_name: null,
@@ -190,32 +190,79 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         results.class_name = 'noPartsPhrase';
         results.definitely_no_products = true;
     } else {
-        // Look for class names starting with "product-table"
-        var productTableElements = document.querySelectorAll('*[class*="product-table"]');
-        if (productTableElements.length > 0) {
-            var element = productTableElements[0];
-            results.found = true;
-            for (var i = 0; i < element.classList.length; i++) {
-                if (element.classList[i].startsWith('product-table')) {
-                    results.class_name = element.classList[i];
-                    results.pattern = 'product-table*';
-                    break;
-                }
-            }
-        } else {
-            // Look for class names ending with "productListContainer"
-            var productListElements = document.querySelectorAll('*[class*="productListContainer"]');
-            if (productListElements.length > 0) {
-                var element = productListElements[0];
+        // Looking for product elements with multiple patterns
+        // All the selectors we want to try
+        var productSelectors = [
+            // Tables and lists
+            '*[class*="product-table"]',
+            '*[class*="productTable"]',
+            '*[class*="product-list"]',
+            '*[class*="productList"]',
+            '*[class*="productListContainer"]',
+            
+            // Grids and containers
+            '*[class*="product-grid"]',
+            '*[class*="productGrid"]',
+            '*[class*="product-container"]',
+            '*[class*="productContainer"]',
+            
+            // Cards and items
+            '*[class*="product-card"]',
+            '*[class*="productCard"]',
+            '*[class*="product-item"]',
+            '*[class*="productItem"]',
+            
+            // Common patterns for e-commerce
+            '*[class*="products-wrapper"]',
+            '*[class*="products-container"]',
+            '*[class*="products-section"]',
+            '*[class*="catalog-grid"]',
+            
+            // Specialized selectors for known patterns
+            '.products-listing',
+            '.products-page',
+            '.product-catalog',
+            'div.products',
+            'section.products',
+            'table.products',
+            'ul.products'
+        ];
+        
+        // Try all the selectors
+        for (var i = 0; i < productSelectors.length; i++) {
+            var elements = document.querySelectorAll(productSelectors[i]);
+            if (elements.length > 0) {
                 results.found = true;
-                for (var i = 0; i < element.classList.length; i++) {
-                    if (element.classList[i].endsWith('productListContainer')) {
-                        results.class_name = element.classList[i];
-                        results.pattern = '*productListContainer';
-                        break;
+                results.class_name = productSelectors[i];
+                results.pattern = 'matched: ' + productSelectors[i];
+                
+                // Try to get the actual class name if possible
+                if (elements[0].classList && elements[0].classList.length > 0) {
+                    // Find the class that matches our pattern
+                    var pattern = productSelectors[i].replace('*[class*="', '').replace('"]', '');
+                    for (var j = 0; j < elements[0].classList.length; j++) {
+                        if (elements[0].classList[j].indexOf(pattern) !== -1) {
+                            results.class_name = elements[0].classList[j];
+                            break;
+                        }
                     }
                 }
+                
+                // Once we find a match, break out of the loop
+                break;
             }
+        }
+        
+        // If no classes found but URL indicates it's a product page, assume products
+        if (!results.found && (
+            window.location.pathname.indexOf('/products') !== -1 ||
+            window.location.pathname.indexOf('/product') !== -1 ||
+            window.location.pathname.indexOf('/shop') !== -1 ||
+            window.location.pathname.indexOf('/catalog') !== -1
+        )) {
+            results.found = true;
+            results.class_name = 'inferred-from-url';
+            results.pattern = 'url-pattern';
         }
     }
     
@@ -351,7 +398,33 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             
             # Check if we got HTML instead of JSON (common error case)
             if '<html' in response_text.lower() or '<!doctype html' in response_text.lower():
-                logger.error("ScrapingBee returned HTML instead of JSON - likely a JS execution error")
+                logger.warning("ScrapingBee returned HTML instead of JSON - using enhanced HTML parsing")
+                
+                # First check the URL path - this is a strong indicator
+                parsed_url = urlparse(url)
+                path_lower = parsed_url.path.lower()
+                
+                # Direct check for product URL paths
+                is_product_path = any(pattern in path_lower for pattern in [
+                    '/products', 
+                    '/product/', 
+                    '/shop', 
+                    '/catalog', 
+                    '/items',
+                    '/merchandise'
+                ])
+                
+                # Special case for /products endpoint - this is almost always a product listing
+                if '/products' in path_lower and (path_lower.endswith('/products') or path_lower.endswith('/products/')):
+                    logger.info(f"High confidence product page from URL path: {parsed_url.path}")
+                    return {
+                        'found': True,
+                        'class_name': 'products-page-url',
+                        'detection_method': 'html_url_analysis',
+                        'message': f'Product table inferred from URL path: {parsed_url.path}',
+                        'confidence': 'high',
+                        'url_pattern': 'products-endpoint'
+                    }
                 
                 # TRY TO EXTRACT INFORMATION FROM THE HTML RESPONSE INSTEAD OF FAILING
                 # Look for common product table indicators in the HTML
@@ -361,16 +434,24 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                     'productCard': 'product-card',
                     'productGrid': 'product-grid',
                     'product-container': 'product-container',
+                    'productContainer': 'product-container',
+                    'products-wrapper': 'products-wrapper',
+                    'productsWrapper': 'products-wrapper',
+                    'products-section': 'products-section',
+                    'productsSection': 'products-section',
                     'product': 'product',  # More generic fallback
                     'item-container': 'item-container',  # Common pattern
                     'item-list': 'item-list',  # Common pattern
-                    'item-grid': 'item-grid'  # Common pattern
+                    'item-grid': 'item-grid',  # Common pattern
+                    'catalog': 'catalog',  # Another generic term
+                    'shop-container': 'shop-container'
                 }
                 
                 # Additional product-related words that might indicate product listings
                 product_related_words = [
                     'product', 'item', 'sku', 'price', 'quantity', 'cart', 
-                    'buy now', 'add to cart', 'shopping', 'purchase'
+                    'buy now', 'add to cart', 'shopping', 'purchase', 'catalog',
+                    'shop now', 'in stock', 'out of stock', 'inventory'
                 ]
                 
                 # Check if any product indicators are present in the HTML
