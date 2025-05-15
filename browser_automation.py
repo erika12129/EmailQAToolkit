@@ -83,19 +83,64 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
             # Ensure environment variables are available
             if scrapingbee_key:
                 os.environ['SCRAPINGBEE_API_KEY'] = scrapingbee_key
+                logger.info(f"Set ScrapingBee API key in environment: {scrapingbee_key[:4]}...")
             if browserless_key:
                 os.environ['BROWSERLESS_API_KEY'] = browserless_key
+                logger.info(f"Set Browserless API key in environment: {browserless_key[:4]}...")
                 
             # Direct call to cloud API function with enhanced logging
             logger.info(f"Making DIRECT cloud API call for {url} with timeout {timeout}")
             result = check_for_product_tables_cloud(url, timeout)
+            
+            # Check for specific error patterns
+            if result.get('error') and isinstance(result['error'], str):
+                error_text = result['error'].lower()
+                if 'api key' in error_text and ('invalid' in error_text or 'unauthorized' in error_text):
+                    logger.error(f"Invalid or unauthorized API key detected: {result['error']}")
+                    result['message'] = "Cloud browser error: API key is invalid or unauthorized"
+                elif 'timeout' in error_text:
+                    logger.warning(f"Timeout detected in cloud browser response: {result['error']}")
+                    result['message'] = "Cloud browser timed out while processing the request"
+            
             logger.info(f"DIRECT cloud API result for {url}: {result}")
             
+            # Add a marker to indicate this came from cloud browser
+            result['cloud_browser_used'] = True
             return result
+            
+        except ImportError as ie:
+            logger.error(f"Failed to import cloud_browser_automation module: {str(ie)}")
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'cloud_browser_import_error',
+                'message': f'Cloud browser module not available: {str(ie)}',
+                'cloud_browser_error': True
+            }
         except Exception as e:
             logger.error(f"Cloud browser attempt failed: {str(e)}")
             logger.exception("Full exception for cloud browser failure:")
-            # Continue to fallback message below
+            
+            # Provide more context about the error
+            error_context = str(e)
+            if 'ConnectionError' in error_context or 'ConnectionRefused' in error_context:
+                error_message = 'Network connection error accessing cloud browser API'
+            elif 'Timeout' in error_context:
+                error_message = 'Cloud browser API request timed out'
+            elif 'JSON' in error_context:
+                error_message = 'Error parsing cloud browser API response'
+            else:
+                error_message = f'Cloud browser error: {str(e)}'
+                
+            return {
+                'found': None,
+                'class_name': None,
+                'detection_method': 'cloud_browser_error',
+                'message': error_message,
+                'error': str(e),
+                'cloud_browser_error': True
+            }
+            # If we return here, we don't continue to fallback below
     
     # Standard unavailability messages if cloud browser is not available or failed
     if is_replit:

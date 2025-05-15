@@ -99,6 +99,21 @@ async def get_config():
         logger.error(f"Error processing test domains for config response: {str(e)}")
         test_domains_safe = {}
     
+    # Check for cloud browser API keys
+    try:
+        scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+        browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+        
+        cloud_browser_available = bool(scrapingbee_key or browserless_key)
+        
+        # Update browser_available to include cloud browser status
+        browser_available = browser_available or cloud_browser_available
+        
+        logger.info(f"Cloud browser availability: {cloud_browser_available}")
+    except Exception as e:
+        logger.error(f"Error checking cloud browser keys: {str(e)}")
+        cloud_browser_available = False
+    
     # Create config response with safely serializable data only
     try:
         config_response = {
@@ -108,7 +123,8 @@ async def get_config():
             "request_timeout": getattr(config, 'request_timeout', 10),
             "max_retries": getattr(config, 'max_retries', 3),
             "test_domains": test_domains_safe,
-            "browser_automation_available": browser_available
+            "browser_automation_available": browser_available,
+            "cloud_browser_available": cloud_browser_available
         }
         
         logger.info(f"Config response: {config_response}")
@@ -116,10 +132,19 @@ async def get_config():
         return JSONResponse(content=config_response)
     except Exception as e:
         logger.error(f"Error creating config response: {str(e)}")
-        # Fallback minimal response
+        # Fallback minimal response with cloud browser info
+        try:
+            # Include cloud browser status even in the fallback response
+            scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+            browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+            cloud_browser_available = bool(scrapingbee_key or browserless_key)
+        except Exception:
+            cloud_browser_available = False
+            
         return JSONResponse(content={
             "mode": config.mode,
             "browser_automation_available": browser_available,
+            "cloud_browser_available": cloud_browser_available,
             "error": f"Config error: {str(e)}"
         })
 

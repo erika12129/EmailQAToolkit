@@ -261,6 +261,7 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         timeout = 30
     
     # Construct the API URL with properly encoded parameters and additional parameters for reliability
+    # FIX: Added parameter to request JSON response format explicitly
     api_url = (
         f"https://app.scrapingbee.com/api/v1/?"
         f"api_key={SCRAPINGBEE_API_KEY}&"
@@ -268,7 +269,8 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         f"render_js=true&"
         f"js_snippet={url_encoded_js}&"
         f"timeout={timeout * 1000}&"
-        f"premium_proxy=true"
+        f"premium_proxy=true&"
+        f"extract_rules={quote(json.dumps({'result': 'body'}))}"  # Extract body as JSON
     )
     
     try:
@@ -334,17 +336,99 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         # Handle non-JSON responses more gracefully
         if not is_likely_json:
             logger.error(f"Response doesn't appear to be JSON: {response_preview}")
+            logger.info(f"Response content type: {content_type}, Length: {len(response_text)}")
+            
+            # Log detailed debugging information for non-JSON responses
+            # This is critical for troubleshooting ScrapingBee API issues
+            try:
+                if len(response_text) < 1000:
+                    logger.info(f"FULL RESPONSE TEXT: {response_text}")
+                else:
+                    logger.info(f"RESPONSE START: {response_text[:500]}")
+                    logger.info(f"RESPONSE END: {response_text[-500:]}")
+            except Exception as log_error:
+                logger.error(f"Error logging response: {log_error}")
             
             # Check if we got HTML instead of JSON (common error case)
             if '<html' in response_text.lower() or '<!doctype html' in response_text.lower():
                 logger.error("ScrapingBee returned HTML instead of JSON - likely a JS execution error")
-                return {
-                    'found': None,
-                    'class_name': None,
-                    'detection_method': 'cloud_api_html_response',
-                    'message': 'Error - ScrapingBee returned HTML instead of JSON. The JavaScript may have failed to execute.',
-                    'content_type': content_type
+                
+                # TRY TO EXTRACT INFORMATION FROM THE HTML RESPONSE INSTEAD OF FAILING
+                # Look for common product table indicators in the HTML
+                html_indicators = {
+                    'productTable': 'product-table',
+                    'productList': 'product-list',
+                    'productCard': 'product-card',
+                    'productGrid': 'product-grid',
+                    'product-container': 'product-container',
+                    'product': 'product',  # More generic fallback
+                    'item-container': 'item-container',  # Common pattern
+                    'item-list': 'item-list',  # Common pattern
+                    'item-grid': 'item-grid'  # Common pattern
                 }
+                
+                # Additional product-related words that might indicate product listings
+                product_related_words = [
+                    'product', 'item', 'sku', 'price', 'quantity', 'cart', 
+                    'buy now', 'add to cart', 'shopping', 'purchase'
+                ]
+                
+                # Check if any product indicators are present in the HTML
+                found_indicator = None
+                for indicator, display_name in html_indicators.items():
+                    if indicator.lower() in response_text.lower():
+                        found_indicator = display_name
+                        logger.info(f"Found product indicator '{indicator}' in HTML response")
+                        break
+                
+                # If no specific class indicators found, check for product-related content
+                if not found_indicator:
+                    word_matches = []
+                    for word in product_related_words:
+                        if word.lower() in response_text.lower():
+                            word_matches.append(word)
+                    
+                    # If we found multiple product-related words, this is likely a product page
+                    if len(word_matches) >= 3:  # Require at least 3 matches for confidence
+                        found_indicator = 'content-based-detection'
+                        logger.info(f"Found product-related content with words: {word_matches}")
+                
+                # URL-based fallback detection as absolute last resort
+                is_likely_product_url = False
+                if '/product' in url.lower() or '/item' in url.lower() or '/shop' in url.lower():
+                    is_likely_product_url = True
+                    logger.info(f"URL contains product-related path: {url}")
+                
+                if found_indicator:
+                    logger.info(f"Found product indicator '{found_indicator}' in HTML response")
+                    return {
+                        'found': True,
+                        'class_name': found_indicator,
+                        'detection_method': 'cloud_api_html_analysis',
+                        'message': f'Product table likely present - found indicator: {found_indicator} in HTML',
+                        'content_type': content_type
+                    }
+                elif is_likely_product_url:
+                    # URL-based detection as fallback when we're pretty confident
+                    logger.info(f"Using URL-based detection as fallback for {url}")
+                    return {
+                        'found': True,
+                        'class_name': 'url-pattern-detection',
+                        'detection_method': 'cloud_api_url_analysis',
+                        'message': f'Product content likely present based on URL pattern analysis',
+                        'confidence': 'medium',
+                        'content_type': content_type
+                    }
+                else:
+                    # Still no indicators found, return the original error
+                    logger.warning(f"No product indicators found in HTML response from ScrapingBee")
+                    return {
+                        'found': None,
+                        'class_name': None,
+                        'detection_method': 'cloud_api_html_response',
+                        'message': 'Error - ScrapingBee returned HTML instead of JSON. Analyzed HTML but found no product indicators.',
+                        'content_type': content_type
+                    }
             else:
                 # Generic error for other invalid response types
                 return {

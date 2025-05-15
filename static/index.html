@@ -613,10 +613,15 @@
             fetch('/config')
                 .then(response => response.json())
                 .then(data => {
+                    console.log("Config response:", data); // Debug log
                     const appMode = data.mode || 'production';  // Default to production if not specified
                     
                     // Use browser_automation_available from API if available
                     window.browserAutomationAvailable = data.browser_automation_available || false;
+                    
+                    // Get cloud browser availability directly from the config response
+                    window.cloudBrowserAvailable = data.cloud_browser_available || false;
+                    console.log('Cloud browser available from config:', window.cloudBrowserAvailable);
                     
                     // Also check cloud browser API status for even more accurate detection
                     fetch('/api/cloud/cloud-browser-status')
@@ -630,32 +635,43 @@
                             return response.json();
                         })
                         .then(cloudData => {
-                            // If cloud browser is available, override the browserAutomationAvailable
+                            // Skip this check if we already have cloud browser info in the config
+                            if (data.hasOwnProperty('cloud_browser_available')) {
+                                // Just log that we're using the primary config data
+                                console.log('Using cloud browser status from primary config:', window.cloudBrowserAvailable);
+                                return;
+                            }
+                            
+                            // If cloud browser is available from dedicated endpoint, override the browserAutomationAvailable
                             if (cloudData && cloudData.cloud_browser_available) {
+                                window.cloudBrowserAvailable = true;
                                 window.browserAutomationAvailable = true;
-                                console.log('Cloud browser automation is available!');
+                                console.log('Cloud browser automation is available from dedicated endpoint!');
                                 
                                 // Update UI to show cloud browser is available
                                 const browserStatusText = document.getElementById('browser-status-text');
                                 if (browserStatusText) {
-                                    browserStatusText.textContent = 'Available';
+                                    browserStatusText.textContent = 'Available (Cloud API)';
                                     browserStatusText.className = 'status-available';
                                 }
                                 
                                 const cloudBrowserConfig = document.getElementById('cloud-browser-config');
                                 if (cloudBrowserConfig) {
-                                    // Add visual indicator that cloud browser is configured
-                                    // Check if the message already exists to prevent duplicates
+                                    // Hide the cloud browser config section completely
+                                    cloudBrowserConfig.style.display = 'none';
+                                    
+                                    // No need to add a message since we're hiding the element
+                                    /* Old code replaced
                                     const existingMessage = cloudBrowserConfig.querySelector('.cloud-configured-message');
                                     if (!existingMessage) {
                                         const configuredMessage = document.createElement('div');
                                         configuredMessage.className = 'cloud-configured-message';
                                         configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
-                                            (cloudData.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
-                                            '</strong>';
-                                        
-                                        // Insert message at the top of the cloud browser config section
-                                        cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
+                                    *
+                                     * Content removed - the old message is no longer needed since 
+                                     * we're completely hiding the config section when cloud browser is available
+                                     */
+                                        // This code is no longer needed
                                     }
                                 }
                             }
@@ -2175,10 +2191,23 @@
                             browserStatusText.className = 'status-available';
                         }
                         
+                        // Check if we're using cloud browser or local browser
+                        if (window.cloudBrowserAvailable) {
+                            // Mark that we're using cloud browser API
+                            if (browserStatusText) {
+                                browserStatusText.textContent = 'Available (Cloud API)';
+                            }
+                        }
+                        
                         // Hide the configuration section since it's not needed
                         if (cloudBrowserConfig) {
-                            // Don't hide completely, but reduce prominence
-                            cloudBrowserConfig.style.opacity = '0.7';
+                            // Hide the config section completely when keys are already available in Replit secrets
+                            if (window.cloudBrowserAvailable) {
+                                cloudBrowserConfig.style.display = 'none';
+                            } else {
+                                // Just reduce opacity for local browser
+                                cloudBrowserConfig.style.opacity = '0.7';
+                            }
                         }
                     } else {
                         // If automation is unavailable, update status and show cloud config form
