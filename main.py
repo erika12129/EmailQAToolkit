@@ -74,20 +74,54 @@ async def get_config():
             logger.error(f"Error checking browser automation availability: {str(e)}")
             browser_available = False
     
-    # Create config response with the freshly checked browser automation status
-    config_response = {
-        "mode": config.mode,
-        "enable_test_redirects": config.enable_test_redirects,
-        "product_table_timeout": config.product_table_timeout,
-        "request_timeout": config.request_timeout,
-        "max_retries": config.max_retries,
-        "test_domains": config.test_domains,
-        "browser_automation_available": browser_available
-    }
+    # Create safe version of the test domains for response
+    # The test_domains might include complex objects that aren't JSON serializable
+    try:
+        # Convert test domains to a simpler format if needed
+        test_domains_safe = {}
+        if hasattr(config, 'test_domains') and config.test_domains:
+            if isinstance(config.test_domains, dict):
+                # Simple copy of dictionary - exclude any complex objects
+                for domain, info in config.test_domains.items():
+                    if isinstance(info, dict):
+                        test_domains_safe[domain] = {
+                            k: v for k, v in info.items() 
+                            if isinstance(v, (str, int, float, bool, list)) or v is None
+                        }
+                    else:
+                        # If not a dict, only include if it's a simple type
+                        if isinstance(info, (str, int, float, bool)) or info is None:
+                            test_domains_safe[domain] = info
+            elif isinstance(config.test_domains, (list, tuple)):
+                # If it's a list, convert to a simple dictionary
+                test_domains_safe = {domain: True for domain in config.test_domains}
+    except Exception as e:
+        logger.error(f"Error processing test domains for config response: {str(e)}")
+        test_domains_safe = {}
     
-    logger.info(f"Config response: {config_response}")
-    
-    return JSONResponse(content=config_response)
+    # Create config response with safely serializable data only
+    try:
+        config_response = {
+            "mode": config.mode,
+            "enable_test_redirects": config.enable_test_redirects,
+            "product_table_timeout": getattr(config, 'product_table_timeout', 30),
+            "request_timeout": getattr(config, 'request_timeout', 10),
+            "max_retries": getattr(config, 'max_retries', 3),
+            "test_domains": test_domains_safe,
+            "browser_automation_available": browser_available
+        }
+        
+        logger.info(f"Config response: {config_response}")
+        
+        return JSONResponse(content=config_response)
+    except Exception as e:
+        logger.error(f"Error creating config response: {str(e)}")
+        # Fallback minimal response
+        return JSONResponse(content={
+            "mode": config.mode,
+            "browser_automation_available": browser_available,
+            "error": f"Config error: {str(e)}"
+        })
 
 @app.get("/")
 async def read_root():

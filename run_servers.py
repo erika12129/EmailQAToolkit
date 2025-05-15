@@ -33,10 +33,12 @@ def run_servers(initial_mode=None):
     
     # Start the FastAPI server (main application) on port 5000
     # Use a consistent import path regardless of environment
+    # Add debug logging to show detailed errors
     server_cmd = ["python", "-c", 
-                 "import uvicorn; import simple_mode_switcher; "
+                 "import uvicorn; import simple_mode_switcher; import logging; "
+                 "logging.basicConfig(level=logging.DEBUG); "
                  "print('Running in DEPLOYMENT mode' if {} else 'Running in local mode'); "
-                 "uvicorn.run(simple_mode_switcher.app, host='0.0.0.0', port=5000)".format(is_deployment)]
+                 "uvicorn.run(simple_mode_switcher.app, host='0.0.0.0', port=5000, log_level='debug')".format(is_deployment)]
     
     fastapi_process = subprocess.Popen(
         server_cmd,

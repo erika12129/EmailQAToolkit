@@ -211,17 +211,89 @@ async def get_config():
     # Check if this is a deployment environment (Replit production)
     is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
     
-    return JSONResponse(content={
+    # Create safe version of the test domains for response
+    # The test_domains might include complex objects that aren't JSON serializable
+    try:
+        # Convert test domains to a simpler format if needed
+        test_domains_safe = {}
+        if hasattr(config, 'test_domains') and config.test_domains:
+            if isinstance(config.test_domains, dict):
+                # Simple copy of dictionary - exclude any complex objects
+                for domain, info in config.test_domains.items():
+                    if isinstance(info, dict):
+                        test_domains_safe[domain] = {
+                            k: v for k, v in info.items() 
+                            if isinstance(v, (str, int, float, bool, list)) or v is None
+                        }
+                    else:
+                        # If not a dict, only include if it's a simple type
+                        if isinstance(info, (str, int, float, bool)) or info is None:
+                            test_domains_safe[domain] = info
+            elif isinstance(config.test_domains, (list, tuple)):
+                # If it's a list, convert to a simple dictionary
+                test_domains_safe = {domain: True for domain in config.test_domains}
+    except Exception as e:
+        logger.error(f"Error processing test domains for config response: {str(e)}")
+        test_domains_safe = {}
+    
+    # Create a safe response with only JSON-serializable data
+    config_data = {
         "mode": config.mode,
         "enable_test_redirects": config.enable_test_redirects,
-        "product_table_timeout": config.product_table_timeout,
-        "request_timeout": config.request_timeout,
-        "max_retries": config.max_retries,
-        "test_domains": config.test_domains,
+        "product_table_timeout": getattr(config, 'product_table_timeout', 30),
+        "request_timeout": getattr(config, 'request_timeout', 10),
+        "max_retries": getattr(config, 'max_retries', 3),
+        "test_domains": test_domains_safe,
         "browser_automation_available": browser_automation_available,
         "cloud_browser_available": cloud_browser_available,
         "is_deployment": is_deployment
-    })
+    }
+    
+    try:
+        return JSONResponse(content=config_data)
+    except Exception as e:
+        logger.error(f"Error creating config response: {str(e)}")
+        # Fallback minimal response
+        return JSONResponse(content={
+            "mode": config.mode,
+            "browser_automation_available": browser_automation_available,
+            "cloud_browser_available": cloud_browser_available,
+            "error": f"Config error: {str(e)}"
+        })
+
+@app.get("/api/cloud-browser-status")
+@app.get("/api/cloud/browser-status")  # Added path that matches the router prefix for compatibility
+async def get_cloud_browser_status():
+    """Get the status of cloud browser APIs."""
+    try:
+        # Simple check for API keys without importing cloud_api_test
+        scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+        browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+        
+        services = {
+            "scrapingbee": {
+                "configured": bool(scrapingbee_key),
+                "key_present": bool(scrapingbee_key),
+                "status": "configured" if scrapingbee_key else "not_configured"
+            },
+            "browserless": {
+                "configured": bool(browserless_key),
+                "key_present": bool(browserless_key),
+                "status": "configured" if browserless_key else "not_configured"
+            }
+        }
+        
+        return JSONResponse(content={
+            "status": "success",
+            "cloud_browser_available": bool(scrapingbee_key or browserless_key),
+            "services": services
+        })
+    except Exception as e:
+        logger.error(f"Error getting cloud browser status: {str(e)}")
+        return JSONResponse(content={
+            "status": "error",
+            "message": f"Error getting cloud browser status: {str(e)}"
+        })
 
 @app.get("/api/production-domain-status")
 @app.get("/production-domain-status")
