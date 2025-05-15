@@ -184,10 +184,29 @@ async def test_page():
 @app.get("/config")
 async def get_config():
     """Get current configuration settings."""
-    # Check for browser availability - including both traditional and cloud browser automation
-    from browser_detection import check_cloud_browser_available
-    cloud_browser_available = check_cloud_browser_available()
-    browser_automation_available = BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available
+    # For Replit deployment, SKIP the browser availability check and use cloud browser only
+    cloud_browser_available = False
+    
+    # Fast check if we're in Replit
+    is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+    
+    if is_replit:
+        # In Replit, we only check for API keys, not for browser installation
+        scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+        browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+        cloud_browser_available = bool(scrapingbee_key or browserless_key)
+        logger.info(f"Replit environment detected, using cloud browser availability: {cloud_browser_available}")
+    else:
+        # Only in non-Replit environments, check traditionally
+        try:
+            from browser_detection import check_cloud_browser_available
+            cloud_browser_available = check_cloud_browser_available()
+        except Exception as e:
+            logger.error(f"Error checking cloud browser availability: {str(e)}")
+            cloud_browser_available = False
+    
+    # In Replit, we use cloud browser availability as the overall availability
+    browser_automation_available = cloud_browser_available if is_replit else (BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available)
     
     # Check if this is a deployment environment (Replit production)
     is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
