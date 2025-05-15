@@ -262,10 +262,30 @@ async def check_product_tables(
     """
     from email_qa_enhanced import check_for_product_tables
     from runtime_config import RuntimeConfig
+    import logging
+    
+    # Set up logging
+    logger = logging.getLogger(__name__)
     
     # Get current config
     runtime_config = RuntimeConfig()
     is_production = runtime_config.is_production
+    
+    # Set a default timeout to prevent hanging in deployed environments
+    if timeout is None:
+        # In production environments, use a shorter timeout
+        if is_production:
+            timeout = 45  # 45 seconds in production
+        else:
+            timeout = 60  # 60 seconds in development
+    
+    # Enforce a maximum timeout to prevent hanging
+    if timeout > 90:
+        logger.warning(f"Requested timeout of {timeout}s exceeds maximum, limiting to 90s")
+        timeout = 90  # Never allow more than 90 seconds
+    
+    # Log the timeout being used
+    logger.info(f"Using product table timeout of {timeout} seconds for {len(urls)} URLs")
     
     try:
         results = {}

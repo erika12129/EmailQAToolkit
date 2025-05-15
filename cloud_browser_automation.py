@@ -84,6 +84,15 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     Returns:
         dict: Detection results
     """
+    # Enforce a safe timeout to prevent indefinite hanging
+    if timeout is None or timeout <= 0:
+        timeout = 30  # Default 30 seconds
+    elif timeout > 60:
+        timeout = 60  # Maximum 60 seconds
+        
+    # Log the actual timeout we're using
+    logger.info(f"Using timeout of {timeout} seconds for ScrapingBee request to {url}")
+    
     # Re-check API key from environment (in case it was set after module was loaded)
     global SCRAPINGBEE_API_KEY
     current_key = os.environ.get('SCRAPINGBEE_API_KEY', '')

@@ -1100,6 +1100,19 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
         check_product_tables: Whether to check for product tables (can be skipped to speed up validation)
         product_table_timeout: Timeout for product table checks (if None, use default configuration)
     """
+    # Set a default timeout to prevent hanging in deployed environments
+    if product_table_timeout is None:
+        # In production/deployment environments, use a shorter timeout to prevent hanging
+        if config.is_production:  # This is a property, not a method
+            product_table_timeout = 30  # 30 seconds max in production
+        else:
+            product_table_timeout = 45  # 45 seconds in development
+    
+    # Enforce a maximum timeout to prevent hanging
+    product_table_timeout = min(int(product_table_timeout), 60)  # Maximum 60 seconds
+    
+    # Log the timeout being used
+    logger.info(f"Using product table timeout of {product_table_timeout} seconds")
     results = []
     
     # Links can now be either a list of tuples (legacy format) or a list of dictionaries (new format)

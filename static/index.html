@@ -185,6 +185,28 @@
         .radio-label {
             margin-left: 5px;
         }
+        
+        /* Status indicators */
+        .status-available {
+            color: #38a169;
+            font-weight: bold;
+        }
+        
+        .status-unavailable {
+            color: #e53e3e;
+            font-weight: bold;
+        }
+        
+        /* Cloud browser configuration message */
+        .cloud-configured-message {
+            background-color: #f0fff4;
+            border: 1px solid #38a169;
+            color: #38a169;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+            text-align: center;
+        }
     </style>
 </head>
 <body data-mode="production">
@@ -416,8 +438,8 @@
                 <!-- Browser info message - hidden by default and only shown when needed -->
                 <div id="browser-automation-status" style="margin-bottom: 15px; padding: 8px 12px; background-color: #ebf8ff; border-radius: 4px; border-left: 4px solid #4299e1; font-size: 0.9em; display: none;">
                     <p style="margin: 0; padding: 0;">
-                        <strong>Note:</strong> Browser automation is currently unavailable.
-                        <br>For product links, you'll see a message explaining you need to verify tables manually.
+                        <strong>Browser Automation Status:</strong> <span id="browser-status-text" class="status-unavailable">Unavailable</span>
+                        <br>When unavailable, you'll need to verify product tables manually for each link.
                         <br><span id="deployment-message" style="display: none; color: #c53030;"><strong>Warning:</strong> Browser automation should be available in deployment - check server configuration.</span>
                     </p>
                     <div id="cloud-browser-config" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
@@ -593,9 +615,42 @@
                 .then(data => {
                     const appMode = data.mode || 'production';  // Default to production if not specified
                     
-                    // Use browser_automation_available from API if available, otherwise assume false
-                    // For Replit, we'll directly set it to false since we know it's not available
-                    window.browserAutomationAvailable = false;
+                    // Use browser_automation_available from API if available
+                    window.browserAutomationAvailable = data.browser_automation_available || false;
+                    
+                    // Also check cloud browser API status for even more accurate detection
+                    fetch('/api/cloud/cloud-browser-status')
+                        .then(response => response.json())
+                        .then(cloudData => {
+                            // If cloud browser is available, override the browserAutomationAvailable
+                            if (cloudData && cloudData.cloud_browser_available) {
+                                window.browserAutomationAvailable = true;
+                                console.log('Cloud browser automation is available!');
+                                
+                                // Update UI to show cloud browser is available
+                                const browserStatusText = document.getElementById('browser-status-text');
+                                if (browserStatusText) {
+                                    browserStatusText.textContent = 'Available';
+                                    browserStatusText.className = 'status-available';
+                                }
+                                
+                                const cloudBrowserConfig = document.getElementById('cloud-browser-config');
+                                if (cloudBrowserConfig) {
+                                    // Add visual indicator that cloud browser is configured
+                                    const configuredMessage = document.createElement('div');
+                                    configuredMessage.className = 'cloud-configured-message';
+                                    configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
+                                        (cloudData.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
+                                        '</strong>';
+                                    
+                                    // Insert message at the top of the cloud browser config section
+                                    cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error checking cloud browser status:', error);
+                        });
                     
                     // Track if we're in a deployment environment
                     window.isDeployment = appMode === 'production' && 
@@ -988,13 +1043,32 @@
                 url += '?' + params.toString();
             }
             
-            // Submit the form
+            // Define a timeout for the fetch request - 120 seconds should be sufficient
+            const timeoutDuration = 120000; // 120 seconds in milliseconds
+            
+            // Create an AbortController to manage the timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
+            
+            // Indicate that we're using cloud-based browser if available
+            if (window.browserAutomationAvailable) {
+                loadingMessage.innerHTML = 'Running QA checks... <span style="color: #4299e1;">(Using cloud browser automation)</span>';
+            }
+            
+            // Submit the form with timeout
             fetch(url, {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json'
                 },
-                body: formData
+                body: formData,
+                signal: controller.signal
+            }).catch(error => {
+                // This specific check is for timeout/abort errors
+                if (error.name === 'AbortError') {
+                    throw new Error('Request timed out after ' + (timeoutDuration/1000) + ' seconds. Cloud browser might be overloaded.');
+                }
+                throw error; // Re-throw other errors
             })
             .then(response => {
                 if (!response.ok) {
@@ -1035,18 +1109,40 @@
             })
             .catch(error => {
                 console.error('QA error:', error);
-                if (error.message && error.message.includes('Unexpected token')) {
-                    errorMessage.textContent = 'Invalid response format. Please refresh the page and try again or check console for details.';
+                
+                // Clear the timeout to prevent memory leaks
+                clearTimeout(timeoutId);
+                
+                // Handle different types of errors with helpful messages
+                if (error.name === 'AbortError' || (error.message && error.message.includes('timed out'))) {
+                    // Special handling for timeout errors with cloud browser
+                    errorMessage.innerHTML = '<strong>Request timed out</strong>: The cloud browser service may be overloaded or your internet connection may be unstable. Please try again later.';
+                    
+                    // Add a suggestion about cloud browser if available
+                    if (window.browserAutomationAvailable) {
+                        errorMessage.innerHTML += '<br>The cloud browser automation service may be temporarily unavailable. Try again in a few minutes.';
+                    }
+                } else if (error.message && error.message.includes('Unexpected token')) {
+                    errorMessage.innerHTML = '<strong>Invalid response format</strong>: Please refresh the page and try again or check the console for details.';
                 } else {
-                    errorMessage.textContent = error.message || 'An error occurred while processing the request.';
+                    errorMessage.innerHTML = '<strong>Error</strong>: ' + (error.message || 'An unknown error occurred while processing the request.');
                 }
+                
+                // Show error message
                 showElement(errorMessage);
+                
+                // Log additional diagnostic information
+                console.log('Browser automation available?', window.browserAutomationAvailable);
+                console.log('Application mode:', document.body.getAttribute('data-mode'));
             })
             .finally(() => {
-                // End loading state
+                // End loading state and clean up
                 submitButton.disabled = false;
                 submitButton.textContent = 'Run QA';
                 hideElement(loadingMessage);
+                
+                // Always clear the timeout to prevent memory leaks
+                clearTimeout(timeoutId);
             });
         });
         
@@ -1056,6 +1152,25 @@
     const selectedLinks = [];
     const linkCheckboxes = document.querySelectorAll('#links-results .product-table-checkbox:checked');
     const allCheckboxes = document.querySelectorAll('#links-results .product-table-checkbox');
+    
+    // Check if browser automation is available (window.browserAutomationAvailable should be set by now)
+    if (!window.browserAutomationAvailable) {
+        // Show alert if browser automation is not available
+        alert('Browser automation is not available. Please configure a cloud browser API key to use this feature.');
+        
+        // Highlight the browser status section if it exists
+        const browserStatusSection = document.getElementById('browser-automation-status');
+        if (browserStatusSection) {
+            // Add a highlight effect
+            browserStatusSection.style.boxShadow = '0 0 8px 2px rgba(229, 62, 62, 0.5)';
+            // Remove the highlight after 3 seconds
+            setTimeout(() => {
+                browserStatusSection.style.boxShadow = '';
+            }, 3000);
+        }
+        
+        return;
+    }
     
     // Get the timeout setting
     const timeout = document.getElementById('selected-timeout').value;
@@ -1234,12 +1349,28 @@
         }
     }
     
-    // Create a timeout promise
+    // Create a timeout promise with a more appropriate timeout for cloud browser API
     const timeoutPromise = new Promise((_, reject) => {
-        const timeoutMs = parseInt(timeout) * 1000 || 10000; // Default to 10 seconds if timeout value is invalid
-        setTimeout(() => {
+        // Set timeout value - different for cloud browser vs regular
+        let timeoutMs;
+        if (window.browserAutomationAvailable) {
+            // For cloud browser, use a longer timeout (90 seconds)
+            timeoutMs = 90000; // 90 seconds
+            console.log('Using extended timeout (90s) for cloud browser API');
+        } else {
+            // For regular API, use standard timeout
+            timeoutMs = parseInt(timeout) * 1000 || 20000; // Default to 20 seconds if timeout value is invalid
+            console.log(`Using standard timeout (${timeoutMs/1000}s) for regular API`);
+        }
+        
+        // Set the timeout
+        const timeoutId = setTimeout(() => {
+            console.log(`Request timed out after ${timeoutMs/1000} seconds`);
             reject(new Error(`Request timed out after ${timeoutMs/1000} seconds`));
         }, timeoutMs);
+        
+        // Store the timeout ID globally so we can clear it if needed
+        window.productTableTimeoutId = timeoutId;
     });
     
     // Start with the first endpoint, with timeout handling
@@ -1258,6 +1389,37 @@
         
         // Update UI with results (handle both old and new formats)
         if (resultsData) {
+            // First check if cloud browser failed due to timeout
+            let hasTimedOut = false;
+            if (window.browserAutomationAvailable) {
+                for (const [url, result] of Object.entries(resultsData)) {
+                    // Check if any result has timeout indications
+                    if (result && (
+                        (result.error && result.error.includes("timed out")) ||
+                        (result.message && result.message.includes("timed out"))
+                    )) {
+                        hasTimedOut = true;
+                        console.log(`Detected timeout in cloud browser for URL: ${url}`);
+                        break;
+                    }
+                }
+            }
+            
+            // If we detected timeouts on cloud browser, show a warning
+            if (hasTimedOut) {
+                console.log("Cloud browser timeout detected - showing warning");
+                const errorContainer = document.getElementById('error-message');
+                if (errorContainer) {
+                    errorContainer.innerHTML = `
+                        <div class="warning-box" style="margin:10px 0; padding:10px; border:1px solid #ecc94b; background-color:#fffaf0; border-radius:4px;">
+                            <strong>⚠️ Cloud Browser Timeout</strong>: The cloud browser service may be temporarily slow or overloaded. 
+                            Some links will show "manual verification required" due to timeouts. You can try again later or check these links manually.
+                        </div>
+                    `;
+                    errorContainer.style.display = 'block';
+                }
+            }
+            
             Object.entries(resultsData).forEach(([url, result]) => {
                 // Only find checked checkboxes with this URL
                 const checkboxes = document.querySelectorAll(`#links-results .product-table-checkbox[data-url="${url}"]:checked`);
@@ -1513,12 +1675,23 @@
     .catch(error => {
         console.error('Error checking product tables:', error);
         
+        // Clear any timeouts to prevent memory leaks
+        if (window.productTableTimeoutId) {
+            clearTimeout(window.productTableTimeoutId);
+            window.productTableTimeoutId = null;
+        }
+        
         // Create more detailed error message
         let errorMessage = error.message || 'Unknown error';
         
         // Special handling for timeout errors
-        if (errorMessage.includes('Request timed out')) {
-            console.log('Request timed out, showing browser_unavailable results');
+        if (error.name === 'AbortError' || errorMessage.includes('timed out') || errorMessage.includes('timeout')) {
+            console.log('Request timed out or aborted, showing browser_unavailable results');
+            
+            // Update UI to show the timeout was related to cloud browser if applicable
+            if (window.browserAutomationAvailable) {
+                console.log('The timeout occurred with cloud browser automation enabled - may be a service issue');
+            }
             
             // For timeouts, show browser_unavailable for all URLs
             const browserUnavailableResults = {};
@@ -1958,12 +2131,39 @@
             if (data.links && data.links.length > 0) {
                 productTableControls.style.display = 'block';
                 
-                // Show browser automation unavailable message only if browser automation is not available
+                // Always show browser automation status message
                 const browserAutomationStatus = document.getElementById('browser-automation-status');
-                if (!window.browserAutomationAvailable && browserAutomationStatus) {
+                if (browserAutomationStatus) {
                     browserAutomationStatus.style.display = 'block';
-                } else if (browserAutomationStatus) {
-                    browserAutomationStatus.style.display = 'none';
+                    
+                    // Update UI based on browser automation availability
+                    const browserStatusText = document.getElementById('browser-status-text');
+                    const cloudBrowserConfig = document.getElementById('cloud-browser-config');
+                    
+                    if (window.browserAutomationAvailable) {
+                        // If automation is available, update status and hide cloud config form
+                        if (browserStatusText) {
+                            browserStatusText.textContent = 'Available';
+                            browserStatusText.className = 'status-available';
+                        }
+                        
+                        // Hide the configuration section since it's not needed
+                        if (cloudBrowserConfig) {
+                            // Don't hide completely, but reduce prominence
+                            cloudBrowserConfig.style.opacity = '0.7';
+                        }
+                    } else {
+                        // If automation is unavailable, update status and show cloud config form
+                        if (browserStatusText) {
+                            browserStatusText.textContent = 'Unavailable';
+                            browserStatusText.className = 'status-unavailable';
+                        }
+                        
+                        // Show the configuration section prominently
+                        if (cloudBrowserConfig) {
+                            cloudBrowserConfig.style.opacity = '1';
+                        }
+                    }
                 }
                 
                 // Make sure flex container is displayed correctly
@@ -2740,23 +2940,44 @@
                     const browserAutomationStatus = document.getElementById('browser-automation-status');
                     const deploymentMessage = document.getElementById('deployment-message');
                     const cloudBrowserConfig = document.getElementById('cloud-browser-config');
+                    const browserStatusText = document.getElementById('browser-status-text');
                     
-                    if (!data.browser_automation_available) {
-                        // Show the browser automation unavailable message
-                        browserAutomationStatus.style.display = 'block';
+                    // Always show the browser automation status section
+                    browserAutomationStatus.style.display = 'block';
+                    
+                    // Update browser status based on config data
+                    if (data.browser_automation_available) {
+                        // Update status text to show available
+                        if (browserStatusText) {
+                            browserStatusText.textContent = 'Available';
+                            browserStatusText.className = 'status-available';
+                        }
+                        
+                        // Note: Cloud browser configuration section is still shown for reference
+                    } else {
+                        // Browser automation is unavailable
+                        if (browserStatusText) {
+                            browserStatusText.textContent = 'Unavailable';
+                            browserStatusText.className = 'status-unavailable';
+                        }
                         
                         // Show deployment warning if in deployment environment
                         if (data.is_deployment) {
                             deploymentMessage.style.display = 'block';
-                            
-                            // The cloud browser configuration section is now always visible via CSS
-                            // but we still need to check the status
-                            checkCloudBrowserStatus();
                         }
                     }
+                    
+                    // Always check cloud browser status to keep UI in sync
+                    checkCloudBrowserStatus();
                 })
                 .catch(error => {
                     console.error('Error checking browser automation status:', error);
+                    
+                    // Show status section with error state on failure
+                    const browserAutomationStatus = document.getElementById('browser-automation-status');
+                    if (browserAutomationStatus) {
+                        browserAutomationStatus.style.display = 'block';
+                    }
                 });
                 
             // Set up cloud browser API key handlers
@@ -2820,7 +3041,40 @@
                 .then(response => response.json())
                 .then(data => {
                     const apiKeyStatus = document.getElementById('api-key-status');
+                    const browserStatusText = document.getElementById('browser-status-text');
                     
+                    // Update the browser status text at the top of the page
+                    if (browserStatusText) {
+                        if (data.cloud_browser_available) {
+                            browserStatusText.textContent = 'Available';
+                            browserStatusText.className = 'status-available';
+                            
+                            // Also update window.browserAutomationAvailable for other functions
+                            window.browserAutomationAvailable = true;
+                            
+                            // Add cloud provider info to cloud browser config section
+                            const cloudBrowserConfig = document.getElementById('cloud-browser-config');
+                            if (cloudBrowserConfig) {
+                                // Check if the configured message already exists
+                                if (!cloudBrowserConfig.querySelector('.cloud-configured-message')) {
+                                    // Add visual indicator that cloud browser is configured
+                                    const configuredMessage = document.createElement('div');
+                                    configuredMessage.className = 'cloud-configured-message';
+                                    configuredMessage.innerHTML = '<strong>✓ Cloud browser configured with ' + 
+                                        (data.services.scrapingbee?.configured ? 'ScrapingBee' : 'Browserless') + 
+                                        '</strong>';
+                                    
+                                    // Insert message at the top of the cloud browser config section
+                                    cloudBrowserConfig.insertBefore(configuredMessage, cloudBrowserConfig.firstChild);
+                                }
+                            }
+                        } else {
+                            browserStatusText.textContent = 'Unavailable';
+                            browserStatusText.className = 'status-unavailable';
+                        }
+                    }
+                    
+                    // Update the API key status display
                     if (apiKeyStatus) {
                         if (data.cloud_browser_available) {
                             apiKeyStatus.innerHTML = '<span style="color: #48bb78;">✓ Cloud browser API configured: ' + 
