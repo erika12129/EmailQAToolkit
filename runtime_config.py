@@ -38,29 +38,72 @@ class RuntimeConfig:
         # Check if this is a deployed app (not just a Replit dev environment)
         is_deployed = os.environ.get('REPLIT_ENVIRONMENT') == 'production'
         
+        # Check for cloud browser API keys first (works in any environment)
+        self.cloud_browser_available = False
+        try:
+            # Check for cloud browser API keys
+            scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+            browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+            self.cloud_browser_available = bool(scrapingbee_key or browserless_key)
+            
+            # Store the API keys for re-checking
+            self.scrapingbee_key = scrapingbee_key
+            self.browserless_key = browserless_key
+            
+            if self.cloud_browser_available:
+                key_preview = scrapingbee_key[:4] + "..." if scrapingbee_key else browserless_key[:4] + "..."
+                logger.info(f"Cloud browser API key found ({key_preview}) - cloud browser automation is available")
+            else:
+                logger.info("No cloud browser API keys found")
+        except Exception as e:
+            logger.error(f"Error checking cloud browser availability: {str(e)}")
+            self.cloud_browser_available = False
+            self.scrapingbee_key = ""
+            self.browserless_key = ""
+            
         # In Replit dev environment, browser automation is never available
-        # But in deployed Replit app, it should be available
+        # But in deployed Replit app, check for both traditional and cloud browser
         if is_replit and not is_deployed:
-            logger.info("Replit development environment detected - browser automation is unavailable")
-            self.browser_automation_available = False
+            logger.info("Replit development environment detected - local browser automation is unavailable")
+            local_browser_available = False
         elif is_replit and is_deployed:
             logger.info("Replit deployment environment detected - checking for browser automation")
             try:
-                from selenium_automation import check_browser_availability
-                self.browser_automation_available = check_browser_availability()
-                logger.info(f"Browser automation available in deployment: {self.browser_automation_available}")
+                # First try to import and use check_browser_availability directly
+                try:
+                    from selenium_automation import check_browser_availability
+                    local_browser_available = check_browser_availability()
+                    logger.info(f"Local browser automation available in deployment: {local_browser_available}")
+                except (ImportError, Exception) as e:
+                    logger.warning(f"Error importing selenium_automation: {str(e)}")
+                    local_browser_available = False
+                    
+                # Fallback to trying to use browser_detection directly if selenium_automation fails
+                if not local_browser_available:
+                    try:
+                        from browser_detection import run_full_detection
+                        local_browser_available = run_full_detection()
+                        logger.info(f"Browser detection result: {local_browser_available}")
+                    except Exception as e:
+                        logger.error(f"Error in browser detection: {str(e)}")
+                        local_browser_available = False
+                        
             except Exception as e:
                 logger.error(f"Error checking browser automation availability in deployment: {str(e)}")
-                self.browser_automation_available = False
+                local_browser_available = False
         else:
             # Not in Replit at all
             try:
                 from selenium_automation import check_browser_availability
-                self.browser_automation_available = check_browser_availability()
-                logger.info(f"Browser automation available: {self.browser_automation_available}")
+                local_browser_available = check_browser_availability()
+                logger.info(f"Local browser automation available: {local_browser_available}")
             except Exception as e:
                 logger.error(f"Error checking browser automation availability: {str(e)}")
-                self.browser_automation_available = False
+                local_browser_available = False
+                
+        # Set overall browser automation availability (cloud OR local)
+        self.browser_automation_available = self.cloud_browser_available or local_browser_available
+        logger.info(f"Overall browser automation available: {self.browser_automation_available} (Cloud: {self.cloud_browser_available}, Local: {local_browser_available})")
         self.request_timeout = 10
         self.max_retries = 2
         self.test_domains = []
@@ -101,6 +144,42 @@ class RuntimeConfig:
     def is_production(self):
         """Check if running in production mode."""
         return self.mode == "production"
+    
+    def refresh_browser_automation_status(self):
+        """Refresh the browser automation status without restarting the application."""
+        logger.info("Refreshing browser automation status...")
+        
+        # Re-check cloud browser API keys
+        scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+        browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+        self.cloud_browser_available = bool(scrapingbee_key or browserless_key)
+        
+        # Store the API keys for re-checking
+        self.scrapingbee_key = scrapingbee_key
+        self.browserless_key = browserless_key
+        
+        if self.cloud_browser_available:
+            key_preview = scrapingbee_key[:4] + "..." if scrapingbee_key else browserless_key[:4] + "..."
+            logger.info(f"Cloud browser API key found ({key_preview}) - cloud browser automation is available")
+        else:
+            logger.info("No cloud browser API keys found")
+        
+        # Try to re-check local browser too, if possible
+        local_available = False
+        try:
+            from browser_detection import run_full_detection
+            local_available = run_full_detection()
+        except Exception as e:
+            logger.error(f"Error checking local browser availability: {str(e)}")
+            local_available = False
+        
+        # Update overall status
+        old_status = self.browser_automation_available
+        self.browser_automation_available = self.cloud_browser_available or local_available
+        logger.info(f"Updated browser automation status: {self.browser_automation_available} (Cloud: {self.cloud_browser_available}, Local: {local_available})")
+        
+        # Return True if status changed, False otherwise
+        return old_status != self.browser_automation_available
     
     def set_mode(self, mode):
         """

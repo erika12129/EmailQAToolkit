@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Email QA Automation</title>
+    <script>
+        // Force display cloud browser config on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const cloudBrowserConfig = document.getElementById('cloud-browser-config');
+                if (cloudBrowserConfig) {
+                    cloudBrowserConfig.style.display = 'block';
+                    console.log('Forced display of cloud browser config section');
+                }
+            }, 500);
+        });
+    </script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -408,7 +420,7 @@
                         <br>For product links, you'll see a message explaining you need to verify tables manually.
                         <br><span id="deployment-message" style="display: none; color: #c53030;"><strong>Warning:</strong> Browser automation should be available in deployment - check server configuration.</span>
                     </p>
-                    <div id="cloud-browser-config" style="margin-top: 10px; display: none;">
+                    <div id="cloud-browser-config" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
                         <p style="margin: 0 0 8px 0;">
                             <strong>Solution:</strong> Configure cloud browser API key to enable automatic product table detection.
                         </p>
@@ -2717,6 +2729,118 @@
             
             // Show results
             showElement(resultsContainer);
+        }
+        
+        // Cloud Browser API Integration
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if browser automation is available
+            fetch('/api/config')
+                .then(response => response.json())
+                .then(data => {
+                    const browserAutomationStatus = document.getElementById('browser-automation-status');
+                    const deploymentMessage = document.getElementById('deployment-message');
+                    const cloudBrowserConfig = document.getElementById('cloud-browser-config');
+                    
+                    if (!data.browser_automation_available) {
+                        // Show the browser automation unavailable message
+                        browserAutomationStatus.style.display = 'block';
+                        
+                        // Show deployment warning if in deployment environment
+                        if (data.is_deployment) {
+                            deploymentMessage.style.display = 'block';
+                            
+                            // The cloud browser configuration section is now always visible via CSS
+                            // but we still need to check the status
+                            checkCloudBrowserStatus();
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking browser automation status:', error);
+                });
+                
+            // Set up cloud browser API key handlers
+            const saveApiKeyButton = document.getElementById('save-api-key');
+            if (saveApiKeyButton) {
+                saveApiKeyButton.addEventListener('click', function() {
+                    const apiKey = document.getElementById('cloud-api-key').value;
+                    const service = document.getElementById('cloud-service-select').value;
+                    const apiKeyStatus = document.getElementById('api-key-status');
+                    
+                    if (!apiKey) {
+                        apiKeyStatus.innerHTML = '<span style="color: #e53e3e;">Please enter an API key</span>';
+                        apiKeyStatus.style.display = 'block';
+                        return;
+                    }
+                    
+                    // Show loading message
+                    apiKeyStatus.innerHTML = '<span style="color: #4299e1;">Testing API key...</span>';
+                    apiKeyStatus.style.display = 'block';
+                    
+                    // Save and test the API key
+                    fetch('/api/cloud/set-cloud-api-key', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            api_key: apiKey,
+                            service: service
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            apiKeyStatus.innerHTML = '<span style="color: #48bb78;">✓ API key set successfully. Cloud browser automation is now available!</span>';
+                            
+                            // Add a refresh button 
+                            apiKeyStatus.innerHTML += '<br><button id="refresh-browser-status" class="button" style="padding: 5px 10px; margin-top: 5px; background-color: #4299e1;">Refresh Status</button>';
+                            
+                            const refreshButton = document.getElementById('refresh-browser-status');
+                            if (refreshButton) {
+                                refreshButton.addEventListener('click', function() {
+                                    window.location.reload();
+                                });
+                            }
+                        } else {
+                            apiKeyStatus.innerHTML = '<span style="color: #e53e3e;">✗ API key test failed: ' + (data.message || 'Unknown error') + '</span>';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving API key:', error);
+                        apiKeyStatus.innerHTML = '<span style="color: #e53e3e;">✗ Error saving API key: ' + error.message + '</span>';
+                    });
+                });
+            }
+        });
+        
+        // Function to check cloud browser API status
+        function checkCloudBrowserStatus() {
+            fetch('/api/cloud/cloud-browser-status')
+                .then(response => response.json())
+                .then(data => {
+                    const apiKeyStatus = document.getElementById('api-key-status');
+                    
+                    if (apiKeyStatus) {
+                        if (data.cloud_browser_available) {
+                            apiKeyStatus.innerHTML = '<span style="color: #48bb78;">✓ Cloud browser API configured: ' + 
+                                Object.keys(data.services).filter(s => data.services[s].configured).join(', ') + '</span>';
+                            apiKeyStatus.style.display = 'block';
+                        } else {
+                            apiKeyStatus.innerHTML = '<span style="color: #e53e3e;">✗ No cloud browser API configured</span>';
+                            apiKeyStatus.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking cloud browser status:', error);
+                    // Show error message in status element
+                    const apiKeyStatus = document.getElementById('api-key-status');
+                    if (apiKeyStatus) {
+                        apiKeyStatus.innerHTML = '<span style="color: #e53e3e;">Error checking cloud API status. API might not be ready.</span>';
+                        apiKeyStatus.style.display = 'block';
+                    }
+                });
         }
     </script>
 </body>

@@ -152,10 +152,56 @@ def configure_browser_paths():
     
     return chrome_found, firefox_found
 
+def check_cloud_browser_available():
+    """Check if cloud browser automation is available via API keys."""
+    # Check for ScrapingBee API key
+    scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    if scrapingbee_key:
+        logger.info(f"ScrapingBee API key found - cloud browser automation available: {scrapingbee_key[:4]}...")
+        return True
+    
+    # Check for Browserless API key
+    browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+    if browserless_key:
+        logger.info(f"Browserless API key found - cloud browser automation available: {browserless_key[:4]}...")
+        return True
+    
+    # Log environment variables for debugging
+    env_vars = {k: v[:4]+'...' if k in ['SCRAPINGBEE_API_KEY', 'BROWSERLESS_API_KEY'] and v else v 
+               for k, v in os.environ.items() 
+               if k in ['SCRAPINGBEE_API_KEY', 'BROWSERLESS_API_KEY']}
+    
+    logger.info(f"No cloud browser API keys found in environment: {env_vars}")
+    return False
+
 def run_full_detection():
     """Run all detection steps and configure environment for browser automation."""
     logger.info("Starting browser detection and configuration...")
     
+    # First check for Replit environment since cloud browser is our primary option there
+    repl_id = os.environ.get('REPL_ID')
+    replit_env = os.environ.get('REPLIT_ENVIRONMENT')
+    is_replit = repl_id is not None or replit_env is not None
+    is_deployed = replit_env == 'production'
+    
+    # Check if cloud browser automation is available
+    cloud_browser_available = check_cloud_browser_available()
+    
+    # In Replit deployment environment, we focus on cloud browser availability
+    if is_replit and is_deployed:
+        logger.info("Replit deployment environment detected - prioritizing cloud browser automation")
+        if cloud_browser_available:
+            logger.info("Cloud browser automation is available in deployment - browser checks complete")
+            return True
+        logger.info("No cloud browser automation available in deployment - local browser automation will not work")
+        return False
+    
+    # If cloud browser is available in any environment, we can use it
+    if cloud_browser_available:
+        logger.info("Cloud browser automation is available - skipping local browser checks")
+        return True
+    
+    # If no cloud browser, check for local browsers
     chrome_installed, chrome_version = check_chrome_installed()
     firefox_installed, firefox_version = check_firefox_installed()
     
@@ -180,9 +226,14 @@ def run_full_detection():
                       f"driver={'✓' if firefox_driver else '✗'}, " +
                       f"path={'✓' if firefox_path else '✗'}")
     
-    # Return overall status
-    return (chrome_installed and chrome_driver and chrome_path) or \
-           (firefox_installed and firefox_driver and firefox_path)
+    # Return overall status - cloud browser OR local browser
+    local_browser_available = (chrome_installed and chrome_driver and chrome_path) or \
+                              (firefox_installed and firefox_driver and firefox_path)
+    
+    overall_available = cloud_browser_available or local_browser_available
+    logger.info(f"Overall browser automation available: {overall_available} (Cloud: {cloud_browser_available}, Local: {local_browser_available})")
+    
+    return overall_available
 
 if __name__ == "__main__":
     # If run directly, perform detection and print status

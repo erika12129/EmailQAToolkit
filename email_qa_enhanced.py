@@ -579,8 +579,13 @@ def check_for_product_tables(url, timeout=None):
     # Check if this is a deployed app (not just a Replit dev environment)
     is_deployed = replit_env == 'production'
     
+    # Check for cloud browser API keys
+    SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', '')
+    CLOUD_BROWSER_AVAILABLE = bool(SCRAPINGBEE_API_KEY or BROWSERLESS_API_KEY)
+    
     # Log the environment and browser availability for debugging
-    logger.info(f"Environment check - Replit: {is_replit}, Deployed: {is_deployed}, Selenium available: {SELENIUM_AVAILABLE}")
+    logger.info(f"Environment check - Replit: {is_replit}, Deployed: {is_deployed}, Selenium available: {SELENIUM_AVAILABLE}, Cloud browser available: {CLOUD_BROWSER_AVAILABLE}")
     
     # Different handling based on environment and available automation methods
     if CLOUD_BROWSER_AVAILABLE:

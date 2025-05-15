@@ -25,6 +25,7 @@ try:
     logging.info("Cloud API endpoints module loaded successfully")
 except ImportError:
     CLOUD_API_ENDPOINTS_AVAILABLE = False
+    api_router = None  # Set it to None to avoid "possibly unbound" error
     logging.warning("Cloud API endpoints module not available")
 
 # Import cloud browser API test module if available
@@ -129,7 +130,7 @@ app.add_middleware(
 )
 
 # Include cloud browser API endpoints router if available
-if CLOUD_API_ENDPOINTS_AVAILABLE:
+if CLOUD_API_ENDPOINTS_AVAILABLE and api_router is not None:
     try:
         app.include_router(api_router, prefix="/api/cloud")
         logging.info("Cloud browser API endpoints added to FastAPI application")
@@ -183,13 +184,24 @@ async def test_page():
 @app.get("/config")
 async def get_config():
     """Get current configuration settings."""
+    # Check for browser availability - including both traditional and cloud browser automation
+    from browser_detection import check_cloud_browser_available
+    cloud_browser_available = check_cloud_browser_available()
+    browser_automation_available = BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available
+    
+    # Check if this is a deployment environment (Replit production)
+    is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
+    
     return JSONResponse(content={
         "mode": config.mode,
         "enable_test_redirects": config.enable_test_redirects,
         "product_table_timeout": config.product_table_timeout,
         "request_timeout": config.request_timeout,
         "max_retries": config.max_retries,
-        "test_domains": config.test_domains
+        "test_domains": config.test_domains,
+        "browser_automation_available": browser_automation_available,
+        "cloud_browser_available": cloud_browser_available,
+        "is_deployment": is_deployment
     })
 
 @app.get("/api/production-domain-status")

@@ -39,13 +39,29 @@ def check_for_product_tables_cloud(url: str, timeout: Optional[int] = None) -> D
     domain = parsed_url.netloc
     is_test_domain = False
     
+    # Re-check API keys from environment (in case they were set after module was loaded)
+    global SCRAPINGBEE_API_KEY, BROWSERLESS_API_KEY
+    current_scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    current_browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+    
+    # Update global variables if environment has newer values
+    if current_scrapingbee_key and current_scrapingbee_key != SCRAPINGBEE_API_KEY:
+        SCRAPINGBEE_API_KEY = current_scrapingbee_key
+        logger.info(f"Updated ScrapingBee API key from environment: {SCRAPINGBEE_API_KEY[:4]}...")
+    
+    if current_browserless_key and current_browserless_key != BROWSERLESS_API_KEY:
+        BROWSERLESS_API_KEY = current_browserless_key
+        logger.info(f"Updated Browserless API key from environment: {BROWSERLESS_API_KEY[:4]}...")
+    
     # Log the attempt
     logger.info(f"Checking for product tables via cloud service on {domain}")
     
     # Determine which cloud service to use
     if SCRAPINGBEE_API_KEY:
+        logger.info(f"Using ScrapingBee API (key: {SCRAPINGBEE_API_KEY[:4]}...) for {domain}")
         return check_with_scrapingbee(url, timeout)
     elif BROWSERLESS_API_KEY:
+        logger.info(f"Using Browserless API (key: {BROWSERLESS_API_KEY[:4]}...) for {domain}")
         return check_with_browserless(url, timeout)
     else:
         logger.error("No cloud browser service API key available")
@@ -68,6 +84,13 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     Returns:
         dict: Detection results
     """
+    # Re-check API key from environment (in case it was set after module was loaded)
+    global SCRAPINGBEE_API_KEY
+    current_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    if current_key and current_key != SCRAPINGBEE_API_KEY:
+        SCRAPINGBEE_API_KEY = current_key
+        logger.info(f"Updated ScrapingBee API key from environment: {SCRAPINGBEE_API_KEY[:4]}...")
+    
     # Check if API key is available
     if not SCRAPINGBEE_API_KEY:
         logger.error("ScrapingBee API key not configured")
@@ -216,6 +239,13 @@ def check_with_browserless(url: str, timeout: int) -> Dict[str, Any]:
     Returns:
         dict: Detection results
     """
+    # Re-check API key from environment (in case it was set after module was loaded)
+    global BROWSERLESS_API_KEY
+    current_key = os.environ.get('BROWSERLESS_API_KEY', '')
+    if current_key and current_key != BROWSERLESS_API_KEY:
+        BROWSERLESS_API_KEY = current_key
+        logger.info(f"Updated Browserless API key from environment: {BROWSERLESS_API_KEY[:4]}...")
+    
     # Check if API key is available
     if not BROWSERLESS_API_KEY:
         logger.error("Browserless API key not configured")

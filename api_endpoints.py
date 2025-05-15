@@ -63,6 +63,28 @@ async def set_cloud_api_key(
         env_var = "SCRAPINGBEE_API_KEY" if service == "scrapingbee" else "BROWSERLESS_API_KEY"
         os.environ[env_var] = api_key
         
+        # Add some debug logging
+        logger.info(f"Setting {env_var} environment variable to new value: {api_key[:4]}...")
+        
+        # Import cloud browser automation to update its global variables
+        try:
+            import cloud_browser_automation
+            if service == "scrapingbee":
+                cloud_browser_automation.SCRAPINGBEE_API_KEY = api_key
+            else:
+                cloud_browser_automation.BROWSERLESS_API_KEY = api_key
+            logger.info(f"Updated cloud_browser_automation.{service.upper()}_API_KEY variable directly")
+        except ImportError:
+            logger.warning("Could not import cloud_browser_automation module to update API key")
+            
+        # Update runtime configuration to reflect the new browser automation status
+        try:
+            from runtime_config import config
+            status_changed = config.refresh_browser_automation_status()
+            logger.info(f"Refreshed browser automation status, changed: {status_changed}")
+        except Exception as e:
+            logger.error(f"Error refreshing browser automation status: {str(e)}")
+        
         # Test the API key if possible
         if CLOUD_API_TEST_AVAILABLE:
             from cloud_api_test import test_cloud_api
