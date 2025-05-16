@@ -566,7 +566,6 @@ def check_for_product_tables(url, timeout=None):
     """
     Check if a URL's HTML contains product table classes with improved error handling.
     Enhanced with hybrid detection using both HTTP checks and browser automation.
-    New: Enhanced URL-based detection for common product page patterns.
     
     Args:
         url: The URL to check for product tables
@@ -577,47 +576,6 @@ def check_for_product_tables(url, timeout=None):
     """
     # Just use production mode for consistency
     runtime_mode = 'production'
-    
-    # First do a quick check for URL patterns that almost always indicate product pages
-    parsed_url = urlparse(url)
-    path_lower = parsed_url.path.lower()
-    
-    # Check for URL patterns that almost always indicate product pages
-    product_url_patterns = [
-        # Common product endpoints
-        ('/products' in path_lower and (path_lower.endswith('/products') or path_lower.endswith('/products/'))),
-        ('/product' in path_lower and not '/product-' in path_lower),  # product directory but not product-info etc.
-        ('/catalog' in path_lower and (path_lower.endswith('/catalog') or path_lower.endswith('/catalog/'))),
-        ('/shop' in path_lower and (path_lower.endswith('/shop') or path_lower.endswith('/shop/'))),
-        ('/items' in path_lower and (path_lower.endswith('/items') or path_lower.endswith('/items/'))),
-        
-        # Common e-commerce category patterns
-        '/collection/' in path_lower,
-        '/category/' in path_lower,
-        '/department/' in path_lower,
-        '/listing/' in path_lower,
-        
-        # Common e-commerce special product listings
-        '/deals/' in path_lower and not '/deals/policy' in path_lower,
-        '/sale/' in path_lower and not '/sale/terms' in path_lower,
-        '/offer/' in path_lower and not '/offer/terms' in path_lower,
-        
-        # Additional common patterns
-        '/merchandise/' in path_lower,
-        '/store/' in path_lower,
-    ]
-    
-    # If any pattern matches, we can confidently say this is a product page
-    if any(product_url_patterns):
-        logger.info(f"URL pattern indicates product page: {url}")
-        return {
-            'found': True,
-            'class_name': 'product-page-url-pattern',
-            'detection_method': 'url_pattern_analysis',
-            'message': f'Product page detected from URL pattern: {path_lower}',
-            'is_test_domain': False,
-            'confidence': 'high'
-        }
     
     # Set a short timeout to prevent hanging
     if timeout is None or timeout > 1:

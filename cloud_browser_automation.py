@@ -175,7 +175,7 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     # JavaScript code to execute in the page to find product tables
     # FIXED: Simplified script to avoid "Illegal return statement" errors with ScrapingBee
     js_script = """
-    // Enhanced script to detect product tables with more patterns - avoids illegal return statement issues
+    // Simple script to detect product tables - avoids illegal return statement issues
     var results = {
         found: false,
         class_name: null,
@@ -190,79 +190,32 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         results.class_name = 'noPartsPhrase';
         results.definitely_no_products = true;
     } else {
-        // Looking for product elements with multiple patterns
-        // All the selectors we want to try
-        var productSelectors = [
-            // Tables and lists
-            '*[class*="product-table"]',
-            '*[class*="productTable"]',
-            '*[class*="product-list"]',
-            '*[class*="productList"]',
-            '*[class*="productListContainer"]',
-            
-            // Grids and containers
-            '*[class*="product-grid"]',
-            '*[class*="productGrid"]',
-            '*[class*="product-container"]',
-            '*[class*="productContainer"]',
-            
-            // Cards and items
-            '*[class*="product-card"]',
-            '*[class*="productCard"]',
-            '*[class*="product-item"]',
-            '*[class*="productItem"]',
-            
-            // Common patterns for e-commerce
-            '*[class*="products-wrapper"]',
-            '*[class*="products-container"]',
-            '*[class*="products-section"]',
-            '*[class*="catalog-grid"]',
-            
-            // Specialized selectors for known patterns
-            '.products-listing',
-            '.products-page',
-            '.product-catalog',
-            'div.products',
-            'section.products',
-            'table.products',
-            'ul.products'
-        ];
-        
-        // Try all the selectors
-        for (var i = 0; i < productSelectors.length; i++) {
-            var elements = document.querySelectorAll(productSelectors[i]);
-            if (elements.length > 0) {
+        // Look for class names starting with "product-table"
+        var productTableElements = document.querySelectorAll('*[class*="product-table"]');
+        if (productTableElements.length > 0) {
+            var element = productTableElements[0];
+            results.found = true;
+            for (var i = 0; i < element.classList.length; i++) {
+                if (element.classList[i].startsWith('product-table')) {
+                    results.class_name = element.classList[i];
+                    results.pattern = 'product-table*';
+                    break;
+                }
+            }
+        } else {
+            // Look for class names ending with "productListContainer"
+            var productListElements = document.querySelectorAll('*[class*="productListContainer"]');
+            if (productListElements.length > 0) {
+                var element = productListElements[0];
                 results.found = true;
-                results.class_name = productSelectors[i];
-                results.pattern = 'matched: ' + productSelectors[i];
-                
-                // Try to get the actual class name if possible
-                if (elements[0].classList && elements[0].classList.length > 0) {
-                    // Find the class that matches our pattern
-                    var pattern = productSelectors[i].replace('*[class*="', '').replace('"]', '');
-                    for (var j = 0; j < elements[0].classList.length; j++) {
-                        if (elements[0].classList[j].indexOf(pattern) !== -1) {
-                            results.class_name = elements[0].classList[j];
-                            break;
-                        }
+                for (var i = 0; i < element.classList.length; i++) {
+                    if (element.classList[i].endsWith('productListContainer')) {
+                        results.class_name = element.classList[i];
+                        results.pattern = '*productListContainer';
+                        break;
                     }
                 }
-                
-                // Once we find a match, break out of the loop
-                break;
             }
-        }
-        
-        // If no classes found but URL indicates it's a product page, assume products
-        if (!results.found && (
-            window.location.pathname.indexOf('/products') !== -1 ||
-            window.location.pathname.indexOf('/product') !== -1 ||
-            window.location.pathname.indexOf('/shop') !== -1 ||
-            window.location.pathname.indexOf('/catalog') !== -1
-        )) {
-            results.found = true;
-            results.class_name = 'inferred-from-url';
-            results.pattern = 'url-pattern';
         }
     }
     
