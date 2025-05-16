@@ -39,11 +39,18 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Mount attached assets
 app.mount("/attached_assets", StaticFiles(directory="attached_assets"), name="attached_assets")
 
+# Import API router
+from api_endpoints import router as api_router
+
+# Include API router with a prefix
+app.include_router(api_router, prefix="/api")
+
 # Import the runtime configuration
 from runtime_config import config
 
 # Add config endpoint for frontend usage
 @app.get("/config")
+@app.get("/api/config")  # Add API prefix for compatibility with frontend
 async def get_config():
     """Get current configuration settings for frontend."""
     logger.info(f"Serving config endpoint, mode={config.mode}")

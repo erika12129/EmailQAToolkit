@@ -27,6 +27,8 @@ except ImportError:
 
 @router.get("/cloud-browser-status")
 @router.get("/browser-status")  # Alternate endpoint to match frontend URL pattern
+@router.get("/cloud/browser-status")  # Added to match the URL used in frontend
+@router.get("/cloud/cloud-browser-status")  # Extra compatibility path
 async def get_cloud_browser_status():
     """Get the status of cloud browser APIs."""
     try:

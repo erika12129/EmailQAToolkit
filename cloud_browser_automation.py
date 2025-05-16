@@ -174,8 +174,9 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     
     # JavaScript code to execute in the page to find product tables
     # FIXED: Simplified script to avoid "Illegal return statement" errors with ScrapingBee
+    # Updated to strictly check only for specific class names and patterns
     js_script = """
-    // Simple script to detect product tables - avoids illegal return statement issues
+    // Script to detect product tables with strict class name checks only
     var results = {
         found: false,
         class_name: null,
@@ -190,30 +191,44 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         results.class_name = 'noPartsPhrase';
         results.definitely_no_products = true;
     } else {
-        // Look for class names starting with "product-table"
+        // STRICT DETECTION: Only look for exact class patterns
+        
+        // Check for class names starting with "product-table"
         var productTableElements = document.querySelectorAll('*[class*="product-table"]');
         if (productTableElements.length > 0) {
-            var element = productTableElements[0];
-            results.found = true;
-            for (var i = 0; i < element.classList.length; i++) {
-                if (element.classList[i].startsWith('product-table')) {
-                    results.class_name = element.classList[i];
-                    results.pattern = 'product-table*';
-                    break;
-                }
-            }
-        } else {
-            // Look for class names ending with "productListContainer"
-            var productListElements = document.querySelectorAll('*[class*="productListContainer"]');
-            if (productListElements.length > 0) {
-                var element = productListElements[0];
-                results.found = true;
-                for (var i = 0; i < element.classList.length; i++) {
-                    if (element.classList[i].endsWith('productListContainer')) {
-                        results.class_name = element.classList[i];
-                        results.pattern = '*productListContainer';
+            // Verify if any of the matched elements actually has a class starting with "product-table"
+            for (var i = 0; i < productTableElements.length; i++) {
+                var element = productTableElements[i];
+                for (var j = 0; j < element.classList.length; j++) {
+                    if (element.classList[j].startsWith('product-table')) {
+                        results.found = true;
+                        results.class_name = element.classList[j];
+                        results.pattern = 'product-table*';
+                        results.element_tag = element.tagName;
                         break;
                     }
+                }
+                if (results.found) break;
+            }
+        }
+        
+        // If not found yet, check for class names ending with "productListContainer"
+        if (!results.found) {
+            var productListElements = document.querySelectorAll('*[class*="productListContainer"]');
+            if (productListElements.length > 0) {
+                // Verify if any of the matched elements actually has a class ending with "productListContainer"
+                for (var i = 0; i < productListElements.length; i++) {
+                    var element = productListElements[i];
+                    for (var j = 0; j < element.classList.length; j++) {
+                        if (element.classList[j].endsWith('productListContainer')) {
+                            results.found = true;
+                            results.class_name = element.classList[j];
+                            results.pattern = '*productListContainer';
+                            results.element_tag = element.tagName;
+                            break;
+                        }
+                    }
+                    if (results.found) break;
                 }
             }
         }
@@ -367,37 +382,24 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                     '/merchandise'
                 ])
                 
-                # Special case for /products endpoint - this is almost always a product listing
-                if '/products' in path_lower and (path_lower.endswith('/products') or path_lower.endswith('/products/')):
-                    logger.info(f"High confidence product page from URL path: {parsed_url.path}")
+                # Do NOT use URL patterns to infer product tables - this is misleading
+                # Instead, indicate Unknown status requiring manual verification
+                if '/products' in path_lower:
+                    logger.info(f"URL path suggests products but we need class-based verification: {parsed_url.path}")
                     return {
-                        'found': True,
-                        'class_name': 'products-page-url',
-                        'detection_method': 'html_url_analysis',
-                        'message': f'Product table inferred from URL path: {parsed_url.path}',
-                        'confidence': 'high',
-                        'url_pattern': 'products-endpoint'
+                        'found': None,
+                        'class_name': None,
+                        'detection_method': 'browser_unavailable',
+                        'message': 'Unknown - check manually to verify - URL suggests products but no class detection available',
+                        'confidence': 'none',
+                        'url_pattern': 'products-path'
                     }
                 
                 # TRY TO EXTRACT INFORMATION FROM THE HTML RESPONSE INSTEAD OF FAILING
-                # Look for common product table indicators in the HTML
+                # Look ONLY for specific product table indicators in the HTML
+                # Only use the specific class patterns required (product-table* or *productListContainer)
                 html_indicators = {
-                    'productTable': 'product-table',
-                    'productList': 'product-list',
-                    'productCard': 'product-card',
-                    'productGrid': 'product-grid',
-                    'product-container': 'product-container',
-                    'productContainer': 'product-container',
-                    'products-wrapper': 'products-wrapper',
-                    'productsWrapper': 'products-wrapper',
-                    'products-section': 'products-section',
-                    'productsSection': 'products-section',
-                    'product': 'product',  # More generic fallback
-                    'item-container': 'item-container',  # Common pattern
-                    'item-list': 'item-list',  # Common pattern
-                    'item-grid': 'item-grid',  # Common pattern
-                    'catalog': 'catalog',  # Another generic term
-                    'shop-container': 'shop-container'
+                    'product-table': 'product-table'  # Only look for product-table pattern
                 }
                 
                 # Additional product-related words that might indicate product listings
@@ -546,7 +548,7 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             'found': None,
             'class_name': None,
             'detection_method': 'cloud_api_timeout',
-            'message': f'Error - ScrapingBee request timed out after {timeout} seconds'
+            'message': f'Unknown - check manually to verify - request timed out after {timeout}s'
         }
     
     except requests.exceptions.RequestException as request_error:
@@ -742,7 +744,7 @@ def check_with_browserless(url: str, timeout: int) -> Dict[str, Any]:
             'found': None,
             'class_name': None,
             'detection_method': 'cloud_api_timeout',
-            'message': f'Error - Browserless request timed out after {timeout} seconds'
+            'message': f'Unknown - check manually to verify - request timed out after {timeout}s'
         }
     
     except requests.exceptions.RequestException as request_error:
