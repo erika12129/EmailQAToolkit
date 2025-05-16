@@ -369,16 +369,17 @@ async def check_product_tables(
     logger.info(f"Product table check - Browserless API key available: {bool(BROWSERLESS_API_KEY)}")
     logger.info(f"Product table check - Cloud browser available: {CLOUD_BROWSER_AVAILABLE}")
     
-    # For cloud browser API, use a different timeout
-    if CLOUD_BROWSER_AVAILABLE and (timeout < 30 or timeout is None):
-        cloud_timeout = 30  # Minimum 30 seconds for cloud API
+    # For cloud browser API, use a shorter timeout to prevent hanging
+    if CLOUD_BROWSER_AVAILABLE:
+        # Use a much shorter timeout to prevent UI hanging
+        cloud_timeout = 15  # Only 15 seconds for cloud API to prevent UI hanging
         logger.info(f"Setting cloud browser timeout to {cloud_timeout}s (was {timeout}s)")
         timeout = cloud_timeout
     
     # Enforce a maximum timeout to prevent hanging
-    if timeout > 90:
-        logger.warning(f"Requested timeout of {timeout}s exceeds maximum, limiting to 90s")
-        timeout = 90  # Never allow more than 90 seconds
+    if timeout > 20:
+        logger.warning(f"Requested timeout of {timeout}s exceeds maximum, limiting to 20s")
+        timeout = 20  # Never allow more than 20 seconds to prevent UI hanging
     
     # Log the timeout being used
     logger.info(f"Using product table timeout of {timeout} seconds for {len(urls)} URLs")
