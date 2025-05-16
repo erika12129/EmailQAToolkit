@@ -122,113 +122,23 @@ def detect_product_page_from_html(html_content, url):
 
 def check_for_product_tables_with_text_analysis(url: str) -> dict:
     """
-    Enhanced function that checks for product tables using HTML parsing.
-    Unlike the old version, this actually performs detection instead of returning a fixed message.
+    Function that ALWAYS returns a standardized message about browser automation
+    being unavailable, and NEVER relies on text analysis fallbacks.
     
     Args:
         url: The URL to check
         
     Returns:
-        dict: Detection results including found status, class name, and error messages
+        dict: Standard response indicating browser automation is unavailable
     """
-    logger.info(f"Starting enhanced product detection for: {url}")
+    logger.info(f"Browser automation unavailable message for {url} - no text analysis performed")
     
-    # First check URL path patterns (very reliable indicator)
-    parsed_url = urlparse(url)
-    path_lower = parsed_url.path.lower()
-    
-    # Check for URL patterns that almost always indicate product pages
-    product_url_patterns = [
-        # Common product endpoints
-        ('/products' in path_lower and (path_lower.endswith('/products') or path_lower.endswith('/products/'))),
-        ('/product' in path_lower and not '/product-' in path_lower),  # product directory but not product-info etc.
-        ('/catalog' in path_lower and (path_lower.endswith('/catalog') or path_lower.endswith('/catalog/'))),
-        ('/shop' in path_lower and (path_lower.endswith('/shop') or path_lower.endswith('/shop/'))),
-        ('/items' in path_lower and (path_lower.endswith('/items') or path_lower.endswith('/items/'))),
-        
-        # Common e-commerce category patterns
-        '/collection/' in path_lower,
-        '/category/' in path_lower,
-        '/department/' in path_lower,
-        '/listing/' in path_lower,
-        
-        # Common e-commerce special product listings
-        '/deals/' in path_lower and not '/deals/policy' in path_lower,
-        '/sale/' in path_lower and not '/sale/terms' in path_lower,
-        '/offer/' in path_lower and not '/offer/terms' in path_lower,
-        
-        # Additional common patterns
-        '/merchandise/' in path_lower,
-        '/store/' in path_lower,
-    ]
-    
-    # If any pattern matches, we can confidently say this is a product page
-    if any(product_url_patterns):
-        logger.info(f"URL pattern indicates product page: {url}")
-        return {
-            'found': True,
-            'class_name': 'product-page-url-pattern',
-            'detection_method': 'url_pattern_analysis',
-            'message': f'Product page detected from URL pattern: {path_lower}',
-            'is_test_domain': False,
-            'confidence': 'high'
-        }
-    
-    # Try to get actual HTML content
-    try:
-        # Set a short timeout to prevent hanging
-        timeout = 3  # 3 seconds max
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        
-        response = requests.get(url, timeout=timeout, headers=headers)
-        if response.status_code != 200:
-            logger.warning(f"Got status code {response.status_code} for {url}")
-            return {
-                'found': None,
-                'class_name': None,
-                'detection_method': 'http_status_error',
-                'message': f'HTTP request failed with status {response.status_code}',
-                'is_test_domain': False
-            }
-            
-        # Check HTML content for product indicators
-        is_product_page = detect_product_page_from_html(response.text, url)
-        if is_product_page:
-            return {
-                'found': True,
-                'class_name': 'product-page-html-indicators',
-                'detection_method': 'html_analysis',
-                'message': 'Product page detected from HTML content analysis',
-                'is_test_domain': False,
-                'confidence': 'medium'
-            }
-            
-        # If we get here, we didn't find any product indicators
-        return {
-            'found': False,
-            'class_name': None,
-            'detection_method': 'html_analysis',
-            'message': 'No product indicators found in HTML content',
-            'is_test_domain': False,
-            'confidence': 'medium' 
-        }
-    except requests.Timeout:
-        logger.warning(f"Request timeout when checking {url}")
-        return {
-            'found': None,
-            'class_name': None,
-            'detection_method': 'http_timeout',
-            'message': 'HTTP request timed out',
-            'is_test_domain': False
-        }
-    except Exception as e:
-        logger.error(f"Error checking for product page: {str(e)}")
-        return {
-            'found': None,
-            'class_name': None,
-            'detection_method': 'error',
-            'message': f'Error analyzing page: {str(e)}',
-            'is_test_domain': False
-        }
+    # IMPORTANT: Always return the standard message that browser automation is unavailable
+    # This ensures we NEVER perform any text-based analysis or URL pattern matching
+    return {
+        'found': None,
+        'class_name': None, 
+        'detection_method': 'browser_unavailable',
+        'message': 'Unknown - Browser automation unavailable - manual verification required',
+        'is_test_domain': False
+    }

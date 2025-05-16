@@ -577,9 +577,12 @@ def check_for_product_tables(url, timeout=None):
     # Just use production mode for consistency
     runtime_mode = 'production'
     
-    # Set a short timeout to prevent hanging
-    if timeout is None or timeout > 1:
-        timeout = 1  # Very short timeout to avoid hanging in Replit environment
+    # Set a very short timeout to prevent hanging 
+    if timeout is None:
+        timeout = 3  # 3 seconds is enough for basic checking
+    elif timeout > 10:
+        # Cap timeout at 10 seconds to prevent UI hanging
+        timeout = 10
         
     # Check if we're in a Replit environment
     repl_id = os.environ.get('REPL_ID')

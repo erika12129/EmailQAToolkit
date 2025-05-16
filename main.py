@@ -247,7 +247,7 @@ async def run_qa(
     email: UploadFile = File(...), 
     requirements: UploadFile = File(...),
     check_product_tables: Optional[bool] = Query(False, description="Whether to check for product tables"),
-    product_table_timeout: Optional[int] = Query(None, description="Timeout for product table checks in seconds")
+    product_table_timeout: Optional[int] = Query(5, description="Timeout for product table checks in seconds")
 ):
     """
     Run QA validation on the uploaded email HTML against the provided requirements JSON.
@@ -384,16 +384,13 @@ async def check_product_tables(
         # This is the critical requirement regardless of environment variables
         
         for url in urls:
-            # Check if this is a product URL - if so, handle specially
-            is_product_url = '/products/' in url or '/product/' in url or url.endswith('/products')
-            
             # Check for Replit environment
             repl_id = os.environ.get('REPL_ID')
             replit_env = os.environ.get('REPLIT_ENVIRONMENT')
             is_replit = repl_id is not None or replit_env is not None
                 
-            # For all product URLs with cloud browser, try using cloud API directly
-            if is_product_url and CLOUD_BROWSER_AVAILABLE:
+            # For all URLs with cloud browser available, use cloud browser API
+            if CLOUD_BROWSER_AVAILABLE:
                 logger.info(f"Product URL with cloud browser available - attempting DIRECT cloud API detection: {url}")
                 
                 try:
