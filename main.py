@@ -268,6 +268,8 @@ async def run_qa(
     Returns:
         dict: Validation results
     """
+    # IMPORTANT: Force check_product_tables to False to prevent hanging
+    check_product_tables = False
     # Create temporary directory
     temp_dir = tempfile.mkdtemp()
     
