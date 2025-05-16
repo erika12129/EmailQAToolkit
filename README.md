@@ -248,47 +248,65 @@ The system checks destination pages for product display tables using an improved
 
 ## Current System Architecture
 
-The Email QA System now features a streamlined architecture with simplified workflow and improved UI:
+The Email QA System features a streamlined architecture with cloud browser integration for product detection:
 
 1. **Core Components**:
    - `simple_mode_switcher.py`: Main FastAPI application with integrated mode switching
-   - `email_qa_enhanced.py`: Improved email validation with better error handling and bot detection
+   - `email_qa_enhanced.py`: Improved email validation with better error handling
    - `runtime_config.py`: Configuration manager with mode switching capability
    - `run_servers.py`: Unified server launcher with simple workflow
+   - `cloud_browser_automation.py`: Cloud-based browser automation for product table detection
+   - `browser_automation.py`: Browser automation wrapper with fallback handling
+   - `api_endpoints.py`: API endpoints for cloud browser configuration
 
-2. **Key Features**:
+2. **Active Files**:
+   - **FastAPI Application**: `simple_mode_switcher.py`, `main.py`
+   - **Email Validation**: `email_qa_enhanced.py`
+   - **Configuration**: `runtime_config.py`, `config.py`
+   - **Browser Automation**: `browser_automation.py`, `browser_detection.py`
+   - **Cloud Integration**: `cloud_browser_automation.py`, `cloud_api_test.py`
+   - **Test Website**: `test_website.py`
+   - **Server Management**: `run_servers.py`, `run_servers_prod.py`
+
+3. **Key Features**:
+   - **Cloud Browser Integration**: Uses ScrapingBee API for reliable browser automation in cloud environments
    - **Two-Phase Validation**: Fast initial link validation followed by optional product table detection
    - **Selective Product Table Checking**: User-selectable URLs for product table validation
    - **Image Alt Text Validation**: Extracts standalone images and validates proper alt text for accessibility
-   - **Bot Detection**: Identifies when websites are blocking automated requests
    - **Configurable Timeouts**: User-adjustable timeout settings for product table checks
    - **UI Improvements**: Clearer status indicators and more intuitive workflow
 
-3. **Running the System**:
+4. **Running the System**:
    ```bash
-   # Start the application
+   # Start the application (development mode)
    python run_servers.py
+   
+   # Start the application (production mode)
+   python run_servers_prod.py
    ```
 
-4. **API Endpoints**:
+5. **API Endpoints**:
    - `/run-qa`: Main validation endpoint with multiple options
    - `/check-product-tables`: Dedicated endpoint for product table checking
    - `/set-mode/development` or `/set-mode/production`: Mode switching
    - `/config`: View current configuration
+   - `/api/set-cloud-api-key`: Set a cloud browser API key
+   - `/api/test-cloud-api`: Test a cloud browser API key
 
-5. **Product Table Detection Workflow**:
-   - Initial validation performs fast link checking only
-   - User selects which links to perform product table checks on
-   - Dedicated check runs with configurable timeout
-   - Results display clear status including bot detection
+6. **Product Table Detection**:
+   - Focused on specific class-based detection:
+     - Classes starting with "product-table" (product-table*)
+     - Classes ending with "productListContainer" (*productListContainer)
+     - "noPartsPhrase" class for negative detection
+   - Cloud browser automation for environments where local browsers aren't available
+   - Fast detection with configurable timeouts to prevent UI hanging
    
-6. **Image Alt Text Validation**:
+7. **Image Alt Text Validation**:
    - Extracts all standalone images not contained within links
    - Validates presence of alt text attributes for accessibility compliance
    - Displays warning icons (⚠️) for images missing alt text 
    - Shows image thumbnails alongside location and dimension information
    - Provides count of accessibility warnings in the interface
-   - Helps identify and fix missing image descriptions for screen readers
 
 ## Troubleshooting
 
