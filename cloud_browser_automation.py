@@ -174,7 +174,7 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     
     # JavaScript code to execute in the page to find product tables
     # FIXED: Simplified script to avoid "Illegal return statement" errors with ScrapingBee
-    # Updated to strictly check only for specific class names and patterns
+    # Updated to strictly check only for specific class names
     js_script = """
     // Script to detect product tables with strict class name checks only
     var results = {
@@ -191,39 +191,61 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         results.class_name = 'noPartsPhrase';
         results.definitely_no_products = true;
     } else {
-        // STRICT DETECTION: Only look for exact class patterns
+        // STRICT DETECTION: Only look for exact class matches
         
-        // Check for class names starting with "product-table"
-        var productTableElements = document.querySelectorAll('*[class*="product-table"]');
+        // Check for exact "product-table" class
+        var productTableElements = document.querySelectorAll('.product-table');
         if (productTableElements.length > 0) {
-            // Verify if any of the matched elements actually has a class starting with "product-table"
-            for (var i = 0; i < productTableElements.length; i++) {
-                var element = productTableElements[i];
-                for (var j = 0; j < element.classList.length; j++) {
-                    if (element.classList[j].startsWith('product-table')) {
-                        results.found = true;
-                        results.class_name = element.classList[j];
-                        results.pattern = 'product-table*';
-                        results.element_tag = element.tagName;
-                        break;
+            results.found = true;
+            results.class_name = 'product-table';
+            results.pattern = 'exact-match';
+            results.element_tag = productTableElements[0].tagName;
+        }
+        
+        // Check for classes containing "product-table" (if exact match wasn't found)
+        if (!results.found) {
+            var productTableContainingElements = document.querySelectorAll('*[class*="product-table"]');
+            if (productTableContainingElements.length > 0) {
+                for (var i = 0; i < productTableContainingElements.length; i++) {
+                    var element = productTableContainingElements[i];
+                    for (var j = 0; j < element.classList.length; j++) {
+                        var className = element.classList[j];
+                        if (className.indexOf('product-table') !== -1) {
+                            results.found = true;
+                            results.class_name = className;
+                            results.pattern = 'contains-product-table';
+                            results.element_tag = element.tagName;
+                            break;
+                        }
                     }
+                    if (results.found) break;
                 }
-                if (results.found) break;
             }
         }
         
-        // If not found yet, check for class names ending with "productListContainer"
+        // Check for exact "productListContainer" class
         if (!results.found) {
-            var productListElements = document.querySelectorAll('*[class*="productListContainer"]');
+            var productListElements = document.querySelectorAll('.productListContainer');
             if (productListElements.length > 0) {
-                // Verify if any of the matched elements actually has a class ending with "productListContainer"
-                for (var i = 0; i < productListElements.length; i++) {
-                    var element = productListElements[i];
+                results.found = true;
+                results.class_name = 'productListContainer';
+                results.pattern = 'exact-match';
+                results.element_tag = productListElements[0].tagName;
+            }
+        }
+        
+        // Check for classes containing "productListContainer" (if exact match wasn't found)
+        if (!results.found) {
+            var productListContainingElements = document.querySelectorAll('*[class*="productListContainer"]');
+            if (productListContainingElements.length > 0) {
+                for (var i = 0; i < productListContainingElements.length; i++) {
+                    var element = productListContainingElements[i];
                     for (var j = 0; j < element.classList.length; j++) {
-                        if (element.classList[j].endsWith('productListContainer')) {
+                        var className = element.classList[j];
+                        if (className.indexOf('productListContainer') !== -1) {
                             results.found = true;
-                            results.class_name = element.classList[j];
-                            results.pattern = '*productListContainer';
+                            results.class_name = className;
+                            results.pattern = 'contains-productListContainer';
                             results.element_tag = element.tagName;
                             break;
                         }
