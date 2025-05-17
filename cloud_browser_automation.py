@@ -147,6 +147,7 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     """
     Check for product tables using ScrapingBee's API.
     This implementation has been completely rewritten to ensure reliable detection.
+    Enhanced with detailed debugging to diagnose class detection issues.
     
     Args:
         url: The URL to check
@@ -155,6 +156,22 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     Returns:
         dict: Detection results with found status, class names, and messages
     """
+    # Reset global debug storage for this request
+    global last_scrapingbee_raw_response
+    last_scrapingbee_raw_response = {
+        'url': url,
+        'timestamp': time.time(),
+        'status_code': 0,
+        'content_type': '',
+        'content_length': 0,
+        'content_preview': '',
+        'headers': {},
+        'js_execution_success': False,
+        'html_snippet': '',
+        'found_classes': [],
+        'raw_class_matches': [],
+        'debug_info': {}
+    }
     import base64
     
     # Enforce a safe timeout to prevent indefinite hanging
@@ -403,6 +420,37 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         # Log response details for debugging
         logger.info(f"ScrapingBee response content type: {content_type}")
         logger.info(f"ScrapingBee response preview: {response_preview}")
+        
+        # Enhanced debugging - directly scan for target classes in response_text
+        target_classes = ["product-table", "productListContainer", "noPartsPhrase"]
+        raw_class_matches = []
+        
+        for target_class in target_classes:
+            if target_class in response_text:
+                context_before = response_text.split(target_class)[0][-50:] if len(response_text.split(target_class)[0]) > 50 else response_text.split(target_class)[0]
+                context_after = response_text.split(target_class)[1][:50] if len(response_text.split(target_class)[1]) > 50 else response_text.split(target_class)[1]
+                match_info = {
+                    'class': target_class,
+                    'context': f"...{context_before}[{target_class}]{context_after}...",
+                    'position': response_text.find(target_class)
+                }
+                raw_class_matches.append(match_info)
+                logger.info(f"DEBUG - Found raw class match for '{target_class}' at position {match_info['position']}")
+                logger.info(f"DEBUG - Match context: {match_info['context']}")
+            else:
+                logger.info(f"DEBUG - Class '{target_class}' NOT found in raw response text")
+        
+        # Update the global debug object
+        global last_scrapingbee_raw_response
+        last_scrapingbee_raw_response.update({
+            'status_code': response.status_code,
+            'content_type': content_type,
+            'content_length': len(response_text),
+            'content_preview': response_preview,
+            'html_snippet': response_text[:5000] if len(response_text) > 0 else "EMPTY",
+            'raw_class_matches': raw_class_matches,
+            'headers': dict(response.headers)
+        })
         
         # Handle empty responses
         if not response_text:

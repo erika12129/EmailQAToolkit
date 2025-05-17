@@ -180,3 +180,40 @@ async def test_cloud_api_endpoint(
             status_code=500,
             content={"error": f"Failed to test cloud API key: {str(e)}"}
         )
+
+@router.get("/debug/last-scrapingbee-response")
+async def get_last_scrapingbee_response():
+    """
+    Get the raw data from the last ScrapingBee API call for debugging purposes.
+    This endpoint is useful for diagnosing why class detection might not be working.
+    """
+    try:
+        # Import the module that contains the last response
+        from cloud_browser_automation import last_scrapingbee_raw_response
+        
+        # Prepare response with essential information
+        response_data = {
+            "timestamp": last_scrapingbee_raw_response.get('timestamp', 0),
+            "url": last_scrapingbee_raw_response.get('url', ''),
+            "status_code": last_scrapingbee_raw_response.get('status_code', 0),
+            "content_type": last_scrapingbee_raw_response.get('content_type', ''),
+            "content_length": last_scrapingbee_raw_response.get('content_length', 0),
+            "content_preview": last_scrapingbee_raw_response.get('content_preview', ''),
+            "js_execution_success": last_scrapingbee_raw_response.get('js_execution_success', False),
+            "raw_class_matches": last_scrapingbee_raw_response.get('raw_class_matches', []),
+            "found_classes": last_scrapingbee_raw_response.get('found_classes', []),
+            "html_snippet": last_scrapingbee_raw_response.get('html_snippet', '')
+        }
+        
+        return JSONResponse(content=response_data)
+    except ImportError:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "Cloud browser automation module not available"}
+        )
+    except Exception as e:
+        logger.error(f"Error getting last ScrapingBee response: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to get last ScrapingBee response: {str(e)}"}
+        )
