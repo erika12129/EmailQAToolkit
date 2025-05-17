@@ -298,16 +298,29 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     
     # Construct the API URL with improved parameters for better React/SPA handling
     # Fixed parameters according to ScrapingBee API documentation
+    # Simplified approach - ask for raw HTML instead of JavaScript execution
+    # This increases reliability at the cost of some dynamic content
     api_url = (
         f"https://app.scrapingbee.com/api/v1/?"
         f"api_key={SCRAPINGBEE_API_KEY}&"
         f"url={quote(url)}&"
-        f"render_js=true&"
+        f"render_js=true&"  # Still render JS for SPA apps
         f"js_snippet={url_encoded_js}&"
         f"timeout={timeout * 1000}&"
         f"premium_proxy=true&"
         f"wait_for=domcontentloaded&"  # Wait until DOM is fully loaded
         f"extract_rules={quote(json.dumps({'result': 'body'}))}"  # Extract body as JSON
+    )
+    
+    # Also create a simpler backup URL that just gets the raw HTML without JavaScript
+    # This is more reliable but might miss dynamically rendered content
+    backup_api_url = (
+        f"https://app.scrapingbee.com/api/v1/?"
+        f"api_key={SCRAPINGBEE_API_KEY}&"
+        f"url={quote(url)}&"
+        f"render_js=false&"  # Skip JS rendering for more reliability
+        f"timeout={timeout * 1000}&"
+        f"premium_proxy=true"
     )
     
     try:
@@ -318,11 +331,35 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         # Use a slightly larger timeout for the request itself
         request_timeout = min(timeout + 5, 35)  # Never exceed 35 seconds total
         
-        # Make the request with detailed logging
-        response = requests.get(api_url, timeout=request_timeout)
-        duration = time.time() - start_time
+        # Try the main API URL first
+        try:
+            logger.info(f"Trying primary request method with JavaScript rendering")
+            response = requests.get(api_url, timeout=request_timeout)
+            duration = time.time() - start_time
+            js_execution_success = True
+            
+            logger.info(f"Primary ScrapingBee response received in {duration:.2f}s with status code {response.status_code}")
+            
+            # Check if we got a valid response
+            if response.status_code != 200:
+                raise Exception(f"Primary request failed with status {response.status_code}")
+                
+        except Exception as e:
+            # If the first attempt fails, try the backup URL without JavaScript
+            logger.warning(f"Primary ScrapingBee request failed: {str(e)}")
+            logger.info(f"Trying backup request method with direct HTML extraction")
+            
+            # Use remaining timeout for backup request
+            remaining_time = max(timeout - (time.time() - start_time), 5)
+            backup_request_timeout = min(remaining_time + 5, 20)  # Keep backup timeout shorter
+            
+            response = requests.get(backup_api_url, timeout=backup_request_timeout)
+            duration = time.time() - start_time
+            js_execution_success = False
+            
+            logger.info(f"Backup ScrapingBee response received in {duration:.2f}s with status code {response.status_code}")
         
-        logger.info(f"ScrapingBee response received in {duration:.2f}s with status code {response.status_code}")
+        # Continue with common logging for both methods
         logger.info(f"Response content type: {response.headers.get('content-type', 'unknown')}")
         
         # Check for errors in the response
@@ -396,12 +433,18 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             product_list_container_found = False
             no_parts_phrase_found = False
             
-            # Check for class="product-table" or variations
+            # More comprehensive patterns to catch class names in various formats
+            # This handles when classes are in lists with spaces, or have modifiers like mx-auto
             product_table_patterns = [
                 'class="product-table"', 
                 "class='product-table'", 
                 'class="product-table ', 
-                "class='product-table "
+                "class='product-table ",
+                ' product-table"',
+                " product-table'",
+                ' product-table ',
+                'data-testid="product-table"',
+                'id="product-table"'
             ]
             
             # Check for class="productListContainer" or variations
@@ -409,7 +452,12 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                 'class="productListContainer"', 
                 "class='productListContainer'", 
                 'class="productListContainer ', 
-                "class='productListContainer "
+                "class='productListContainer ",
+                ' productListContainer"',
+                " productListContainer'",
+                ' productListContainer ',
+                'data-testid="productListContainer"',
+                'id="productListContainer"'
             ]
             
             # Check for class="noPartsPhrase" or variations
@@ -417,7 +465,12 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                 'class="noPartsPhrase"', 
                 "class='noPartsPhrase'", 
                 'class="noPartsPhrase ', 
-                "class='noPartsPhrase "
+                "class='noPartsPhrase ",
+                ' noPartsPhrase"',
+                " noPartsPhrase'",
+                ' noPartsPhrase ',
+                'data-testid="noPartsPhrase"',
+                'id="noPartsPhrase"'
             ]
             
             # Check each pattern in the response text
@@ -470,36 +523,13 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                     'content_type': content_type
                 }
             
-            # Check if we got HTML instead of JSON (common error case)
+            # We can still check HTML for direct class detection
             if '<html' in response_text.lower() or '<!doctype html' in response_text.lower():
-                logger.warning("ScrapingBee returned HTML instead of JSON - using enhanced HTML parsing")
+                logger.warning("ScrapingBee returned HTML instead of JSON - using direct HTML inspection")
                 
-                # First check the URL path - this is a strong indicator
-                parsed_url = urlparse(url)
-                path_lower = parsed_url.path.lower()
-                
-                # Direct check for product URL paths
-                is_product_path = any(pattern in path_lower for pattern in [
-                    '/products', 
-                    '/product/', 
-                    '/shop', 
-                    '/catalog', 
-                    '/items',
-                    '/merchandise'
-                ])
-                
-                # Do NOT use URL patterns to infer product tables - this is misleading
-                # Instead, indicate Unknown status requiring manual verification
-                if '/products' in path_lower:
-                    logger.info(f"URL path suggests products but we need class-based verification: {parsed_url.path}")
-                    return {
-                        'found': None,
-                        'class_name': None,
-                        'detection_method': 'browser_unavailable',
-                        'message': 'Unknown - check manually to verify - URL suggests products but no class detection available',
-                        'confidence': 'none',
-                        'url_pattern': 'products-path'
-                    }
+                # DO NOT use URL path patterns to detect product tables
+                # This approach was explicitly requested to be removed
+                # Only rely on class-based detection
                 
                 # TRY TO EXTRACT INFORMATION FROM THE HTML RESPONSE INSTEAD OF FAILING
                 # Look ONLY for specific product table indicators in the HTML
