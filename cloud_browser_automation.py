@@ -132,13 +132,14 @@ def check_for_product_tables_cloud(url: str, timeout: Optional[int] = None) -> D
 def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     """
     Check for product tables using ScrapingBee's API.
+    This implementation has been completely rewritten to ensure reliable detection.
     
     Args:
         url: The URL to check
         timeout: Timeout in seconds
         
     Returns:
-        dict: Detection results
+        dict: Detection results with found status, class names, and messages
     """
     import base64
     
@@ -172,92 +173,22 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             'message': 'Error - ScrapingBee API key not configured'
         }
     
-    # JavaScript code to execute in the page to find product tables
-    # FIXED: Simplified script to avoid "Illegal return statement" errors with ScrapingBee
-    # Updated to strictly check only for specific class names
+    # SIMPLIFIED JavaScript code focused only on directly detecting the class names
+    # This is more reliable than complex DOM analysis and avoids JavaScript errors
     js_script = """
-    // Script to detect product tables with strict class name checks only
-    var results = {
-        found: false,
-        class_name: null,
-        pattern: null,
-        definitely_no_products: false
+    // Check specifically for the required classes in the DOM
+    let output = {
+        hasProductTable: document.querySelector('.product-table') !== null || 
+                        document.getElementsByClassName('product-table').length > 0,
+        hasProductListContainer: document.querySelector('.productListContainer') !== null || 
+                               document.getElementsByClassName('productListContainer').length > 0,
+        hasNoPartsPhrase: document.querySelector('.noPartsPhrase') !== null || 
+                         document.getElementsByClassName('noPartsPhrase').length > 0,
+        documentHTML: document.documentElement.outerHTML
     };
     
-    // Check for "noPartsPhrase" class which definitely indicates NO products
-    var noProductsElements = document.querySelectorAll('.noPartsPhrase');
-    if (noProductsElements.length > 0) {
-        results.found = false;
-        results.class_name = 'noPartsPhrase';
-        results.definitely_no_products = true;
-    } else {
-        // STRICT DETECTION: Only look for exact class matches
-        
-        // Check for exact "product-table" class
-        var productTableElements = document.querySelectorAll('.product-table');
-        if (productTableElements.length > 0) {
-            results.found = true;
-            results.class_name = 'product-table';
-            results.pattern = 'exact-match';
-            results.element_tag = productTableElements[0].tagName;
-        }
-        
-        // Check for classes containing "product-table" (if exact match wasn't found)
-        if (!results.found) {
-            var productTableContainingElements = document.querySelectorAll('*[class*="product-table"]');
-            if (productTableContainingElements.length > 0) {
-                for (var i = 0; i < productTableContainingElements.length; i++) {
-                    var element = productTableContainingElements[i];
-                    for (var j = 0; j < element.classList.length; j++) {
-                        var className = element.classList[j];
-                        if (className.indexOf('product-table') !== -1) {
-                            results.found = true;
-                            results.class_name = className;
-                            results.pattern = 'contains-product-table';
-                            results.element_tag = element.tagName;
-                            break;
-                        }
-                    }
-                    if (results.found) break;
-                }
-            }
-        }
-        
-        // Check for exact "productListContainer" class
-        if (!results.found) {
-            var productListElements = document.querySelectorAll('.productListContainer');
-            if (productListElements.length > 0) {
-                results.found = true;
-                results.class_name = 'productListContainer';
-                results.pattern = 'exact-match';
-                results.element_tag = productListElements[0].tagName;
-            }
-        }
-        
-        // Check for classes containing "productListContainer" (if exact match wasn't found)
-        if (!results.found) {
-            var productListContainingElements = document.querySelectorAll('*[class*="productListContainer"]');
-            if (productListContainingElements.length > 0) {
-                for (var i = 0; i < productListContainingElements.length; i++) {
-                    var element = productListContainingElements[i];
-                    for (var j = 0; j < element.classList.length; j++) {
-                        var className = element.classList[j];
-                        if (className.indexOf('productListContainer') !== -1) {
-                            results.found = true;
-                            results.class_name = className;
-                            results.pattern = 'contains-productListContainer';
-                            results.element_tag = element.tagName;
-                            break;
-                        }
-                    }
-                    if (results.found) break;
-                }
-            }
-        }
-    }
-    
-    // Return results object without using a return statement (avoids ScrapingBee issues)
-    results;
+    // Return as JSON for reliable parsing
+    JSON.stringify(output);
     """
     
     # Properly encode JavaScript with base64 for ScrapingBee
@@ -431,60 +362,59 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                     'shop now', 'in stock', 'out of stock', 'inventory'
                 ]
                 
-                # Check if any product indicators are present in the HTML
-                found_indicator = None
-                for indicator, display_name in html_indicators.items():
-                    if indicator.lower() in response_text.lower():
-                        found_indicator = display_name
-                        logger.info(f"Found product indicator '{indicator}' in HTML response")
-                        break
+                # REVISED APPROACH: STRICT CLASS-BASED DETECTION ONLY
+                # Specifically check for exact class names as requested
+                logger.info("Performing strict class-based detection only...")
                 
-                # If no specific class indicators found, check for product-related content
-                if not found_indicator:
-                    word_matches = []
-                    for word in product_related_words:
-                        if word.lower() in response_text.lower():
-                            word_matches.append(word)
-                    
-                    # If we found multiple product-related words, this is likely a product page
-                    if len(word_matches) >= 3:  # Require at least 3 matches for confidence
-                        found_indicator = 'content-based-detection'
-                        logger.info(f"Found product-related content with words: {word_matches}")
+                # Check for noPartsPhrase class - this definitively indicates NO products
+                has_no_parts_phrase = 'noPartsPhrase' in response_text
                 
-                # URL-based fallback detection as absolute last resort
-                is_likely_product_url = False
-                if '/product' in url.lower() or '/item' in url.lower() or '/shop' in url.lower():
-                    is_likely_product_url = True
-                    logger.info(f"URL contains product-related path: {url}")
-                
-                if found_indicator:
-                    logger.info(f"Found product indicator '{found_indicator}' in HTML response")
+                if has_no_parts_phrase:
+                    logger.info(f"Found 'noPartsPhrase' class - definitively no product tables")
                     return {
-                        'found': True,
-                        'class_name': found_indicator,
+                        'found': False,
+                        'class_name': 'noPartsPhrase',
                         'detection_method': 'cloud_api_html_analysis',
-                        'message': f'Product table likely present - found indicator: {found_indicator} in HTML',
+                        'message': 'No product table found - confirmed by noPartsPhrase class',
                         'content_type': content_type
                     }
-                elif is_likely_product_url:
-                    # URL-based detection as fallback when we're pretty confident
-                    logger.info(f"Using URL-based detection as fallback for {url}")
+                
+                # Check for product-table class (EXACT match only)
+                has_product_table = 'product-table' in response_text
+                
+                # Check for productListContainer class (EXACT match only)
+                has_product_list_container = 'productListContainer' in response_text
+                
+                # Log what we found for debugging
+                logger.info(f"Class detection results: product-table={has_product_table}, " +
+                            f"productListContainer={has_product_list_container}")
+                
+                # Return result based on strict class detection
+                if has_product_table:
                     return {
                         'found': True,
-                        'class_name': 'url-pattern-detection',
-                        'detection_method': 'cloud_api_url_analysis',
-                        'message': f'Product content likely present based on URL pattern analysis',
-                        'confidence': 'medium',
+                        'class_name': 'product-table',
+                        'detection_method': 'cloud_api_html_analysis',
+                        'message': 'Product table found - product-table class detected',
+                        'content_type': content_type
+                    }
+                
+                if has_product_list_container:
+                    return {
+                        'found': True,
+                        'class_name': 'productListContainer',
+                        'detection_method': 'cloud_api_html_analysis',
+                        'message': 'Product table found - productListContainer class detected',
                         'content_type': content_type
                     }
                 else:
-                    # Still no indicators found, return the original error
-                    logger.warning(f"No product indicators found in HTML response from ScrapingBee")
+                    # No specific class indicators found, return "Unknown" status for manual verification
+                    logger.warning(f"No product table classes found in HTML, returning Unknown status")
                     return {
                         'found': None,
                         'class_name': None,
-                        'detection_method': 'cloud_api_html_response',
-                        'message': 'Error - ScrapingBee returned HTML instead of JSON. Analyzed HTML but found no product indicators.',
+                        'detection_method': 'cloud_api_html_analysis',
+                        'message': 'Unknown - check manually to verify - required classes not found',
                         'content_type': content_type
                     }
             else:
@@ -514,27 +444,41 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                     'content_type': content_type
                 }
             
-            # Extract results from the JavaScript execution
-            found = result.get('found', False)
-            class_name = result.get('class_name')
-            pattern = result.get('pattern')
-            definitely_no_products = result.get('definitely_no_products', False)
+            # Extract results from the JavaScript execution using our new format
+            has_product_table = result.get('hasProductTable', False)
+            has_product_list_container = result.get('hasProductListContainer', False)
+            has_no_parts_phrase = result.get('hasNoPartsPhrase', False)
             
-            if definitely_no_products:
-                logger.info(f"Definitely no products found on {url}: class='{class_name}'")
+            # Log detailed results for debugging
+            logger.info(f"JS detection results for {url}: productTable={has_product_table}, " +
+                       f"productListContainer={has_product_list_container}, " +
+                       f"noPartsPhrase={has_no_parts_phrase}")
+            
+            # First check the definitive "no products" case
+            if has_no_parts_phrase:
+                logger.info(f"Definitely no products found on {url} - noPartsPhrase class detected")
                 return {
                     'found': False,
-                    'class_name': class_name,
+                    'class_name': 'noPartsPhrase',
                     'detection_method': 'cloud_browser_api',
-                    'message': f'No products found - detected class: {class_name}'
+                    'message': 'No product table found - confirmed by noPartsPhrase class'
                 }
-            elif found and class_name:
-                logger.info(f"Product table found on {url}: class='{class_name}', pattern='{pattern}'")
+            # Then check for product table classes
+            elif has_product_table:
+                logger.info(f"Product table found on {url} - product-table class detected")
                 return {
                     'found': True,
-                    'class_name': class_name,
+                    'class_name': 'product-table',
+                    'detection_method': 'cloud_browser_api', 
+                    'message': 'Product table found - product-table class detected'
+                }
+            elif has_product_list_container:
+                logger.info(f"Product table found on {url} - productListContainer class detected")
+                return {
+                    'found': True,
+                    'class_name': 'productListContainer',
                     'detection_method': 'cloud_browser_api',
-                    'message': f'Product table found - class: {class_name}, pattern: {pattern}'
+                    'message': 'Product table found - productListContainer class detected'
                 }
             else:
                 logger.info(f"No product table found on {url}")
@@ -729,27 +673,39 @@ def check_with_browserless(url: str, timeout: int) -> Dict[str, Any]:
                 'message': f'Error - Browserless returned error: {result["error"]}'
             }
         
-        # Extract results
-        found = result.get('found', False)
-        class_name = result.get('class_name')
-        pattern = result.get('pattern')
-        definitely_no_products = result.get('definitely_no_products', False)
+        # Our new script doesn't use these results, but we'll check for them
+        # in case we're getting data from a different JavaScript snippet
+        # Look for the class detection results from our specific script first
         
-        if definitely_no_products:
-            logger.info(f"Definitely no products found on {url}")
+        # Check if our script's JSON output format exists
+        has_product_table = result.get('hasProductTable', False)
+        has_product_list_container = result.get('hasProductListContainer', False)
+        has_no_parts_phrase = result.get('hasNoPartsPhrase', False)
+        
+        # If we have our expected format results, use them
+        if has_no_parts_phrase:
+            logger.info(f"Definitely no products found on {url} - noPartsPhrase detected")
             return {
                 'found': False,
-                'class_name': class_name,
+                'class_name': 'noPartsPhrase',
                 'detection_method': 'cloud_browser_api',
-                'message': f'No products found - detected "no products" indicator'
+                'message': 'No product table found - confirmed by noPartsPhrase class'
             }
-        elif found and class_name:
-            logger.info(f"Product table found on {url}: class='{class_name}', pattern='{pattern}'")
+        elif has_product_table:
+            logger.info(f"Product table found on {url} - product-table class detected")
             return {
                 'found': True,
-                'class_name': class_name,
+                'class_name': 'product-table',
                 'detection_method': 'cloud_browser_api',
-                'message': f'Product table found - class: {class_name}, pattern: {pattern}'
+                'message': 'Product table found - product-table class detected'
+            }
+        elif has_product_list_container:
+            logger.info(f"Product table found on {url} - productListContainer class detected")
+            return {
+                'found': True,
+                'class_name': 'productListContainer',
+                'detection_method': 'cloud_browser_api',
+                'message': 'Product table found - productListContainer class detected'
             }
         else:
             logger.info(f"No product table found on {url}")

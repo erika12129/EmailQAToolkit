@@ -378,10 +378,13 @@ async def check_product_tables(
         logger.info(f"Setting cloud browser timeout to {cloud_timeout}s (was {timeout}s)")
         timeout = cloud_timeout
     
-    # Enforce a maximum timeout to prevent hanging
-    if timeout > 20:
-        logger.warning(f"Requested timeout of {timeout}s exceeds maximum, limiting to 20s")
-        timeout = 20  # Never allow more than 20 seconds to prevent UI hanging
+    # Enforce a reasonable timeout to prevent hanging and save API credits
+    if timeout is None or timeout <= 0:
+        timeout = 8  # Default reasonable timeout
+        logger.info(f"Using default timeout of {timeout}s")
+    elif timeout > 15:
+        logger.warning(f"Requested timeout of {timeout}s exceeds recommended maximum, limiting to 15s to save API credits")
+        timeout = 15  # Shorter timeout to save API credits and prevent hanging
     
     # Log the timeout being used
     logger.info(f"Using product table timeout of {timeout} seconds for {len(urls)} URLs")
@@ -399,9 +402,14 @@ async def check_product_tables(
             replit_env = os.environ.get('REPLIT_ENVIRONMENT')
             is_replit = repl_id is not None or replit_env is not None
                 
+            # Check if this might be a product-related URL (but don't assume it has a product table!)
+            # We only use this to determine whether to show "Unknown" vs "No" when browser checks are unavailable
+            is_product_url = '/products/' in url or '/product/' in url or url.endswith('/products')
+            logger.info(f"URL classification for {url}: product-related={is_product_url}")
+                
             # For all URLs with cloud browser available, use cloud browser API
             if CLOUD_BROWSER_AVAILABLE:
-                logger.info(f"Product URL with cloud browser available - attempting DIRECT cloud API detection: {url}")
+                logger.info(f"URL with cloud browser available - attempting DIRECT cloud API detection: {url}")
                 
                 try:
                     # Import and use the cloud browser API directly
@@ -430,32 +438,8 @@ async def check_product_tables(
                     # Fall back to manual verification if cloud browser fails
             
             # Force manual verification message for product pages without cloud browser or if cloud failed
-            # Special handling for partly-products-showcase URL patterns
-            if 'partly-products-showcase.lovable.app' in url:
-                # For /products URLs, mark as having product tables
-                if '/products' in url:
-                    logger.info(f"Specifically handling partly-products-showcase products URL: {url}")
-                    results[url] = {
-                        "found": True,
-                        "class_name": "product-table", 
-                        "detection_method": "direct_domain_pattern",
-                        "message": "Product table found - class: product-table",
-                        "is_test_domain": False
-                    }
-                else:
-                    # Homepage doesn't have product tables
-                    logger.info(f"Specifically handling partly-products-showcase non-products URL: {url}")
-                    results[url] = {
-                        "found": False,
-                        "class_name": None, 
-                        "detection_method": "direct_domain_pattern",
-                        "message": "No product table found - not a product page",
-                        "is_test_domain": False
-                    }
-                continue  # Skip all other checks for this URL
-            
-            # Use manual verification message for other product URLs
-            elif is_product_url:
+            # Use manual verification message for product URLs
+            if is_product_url:
                 logger.info(f"Using manual verification for product URL (cloud not available or failed): {url}")
                 results[url] = {
                     "found": None,

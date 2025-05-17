@@ -144,16 +144,22 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
             # If we return here, we don't continue to fallback below
     
     # Standard unavailability messages if cloud browser is not available or failed
-    if is_replit:
-        logger.info(f"Running in Replit with no cloud browser - automation unavailable for URL: {url}")
-        message = 'Unknown - Browser automation unavailable in Replit - manual verification required'
-    else:
-        logger.warning(f"Browser automation expected but failed in deployment environment for URL: {url}")
-        message = 'Error - Browser automation failed in deployment - check server configuration'
+    # Base message on whether this is likely a product URL or not
+    # For product URLs - always return "Unknown - check manually"
+    # For non-product URLs - can safely return "No product table found"
     
-    # Return standardized message about unavailability
+    if is_product_url:
+        logger.info(f"Product URL detected, returning 'Unknown' status requiring manual check: {url}")
+        message = 'Unknown - check manually to verify - browser automation unavailable'
+        found_status = None  # NULL indicates "Unknown" status
+    else:
+        logger.info(f"Non-product URL detected, returning 'No' status: {url}")
+        message = 'No product table found - browser automation unavailable'
+        found_status = False  # FALSE indicates definitive "No"
+    
+    # Return standardized message about unavailability with appropriate found status
     return {
-        'found': None,  # Use None to indicate unknown status
+        'found': found_status,
         'class_name': None,
         'error': 'No compatible browsers available',
         'detection_method': 'browser_unavailable',
