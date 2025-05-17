@@ -173,22 +173,90 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             'message': 'Error - ScrapingBee API key not configured'
         }
     
-    # SIMPLIFIED JavaScript code focused only on directly detecting the class names
-    # This is more reliable than complex DOM analysis and avoids JavaScript errors
+    # IMPROVED JavaScript code with render wait time and exact class name matching
+    # Waits for the page to fully render and specifically checks for exact class names
     js_script = """
-    // Check specifically for the required classes in the DOM
-    let output = {
-        hasProductTable: document.querySelector('.product-table') !== null || 
-                        document.getElementsByClassName('product-table').length > 0,
-        hasProductListContainer: document.querySelector('.productListContainer') !== null || 
-                               document.getElementsByClassName('productListContainer').length > 0,
-        hasNoPartsPhrase: document.querySelector('.noPartsPhrase') !== null || 
-                         document.getElementsByClassName('noPartsPhrase').length > 0,
-        documentHTML: document.documentElement.outerHTML
-    };
+    // Function to wait for page to be fully rendered
+    function waitForPageToRender(timeout = 3000) {
+        return new Promise(resolve => {
+            // First check if the page already has our target classes
+            const checkNow = () => {
+                const hasProductTable = document.querySelector('.product-table') !== null || 
+                                      document.getElementsByClassName('product-table').length > 0;
+                const hasProductListContainer = document.querySelector('.productListContainer') !== null || 
+                                             document.getElementsByClassName('productListContainer').length > 0;
+                
+                if (hasProductTable || hasProductListContainer) {
+                    console.log('Found target classes immediately, no need to wait');
+                    return true;
+                }
+                return false;
+            };
+            
+            // If classes already exist, resolve immediately
+            if (checkNow()) {
+                resolve();
+                return;
+            }
+            
+            // Otherwise wait for a few seconds to let SPAs and React apps render
+            console.log('Waiting for page to fully render...');
+            setTimeout(resolve, timeout);
+        });
+    }
     
-    // Return as JSON for reliable parsing
-    JSON.stringify(output);
+    // Main function to check for product tables
+    async function checkForProductTables() {
+        // Wait for the page to render (particularly important for React/SPAs)
+        await waitForPageToRender(3000);
+        
+        // Log what we're looking for
+        console.log('Searching for exact class names: "product-table" and "productListContainer"');
+        
+        // Perform thorough DOM search with multiple methods
+        const allElements = document.getElementsByTagName('*');
+        let foundClasses = [];
+        
+        // Check all elements for our target classes
+        for (let i = 0; i < allElements.length; i++) {
+            const classes = allElements[i].className;
+            if (typeof classes === 'string' && classes.includes('product-table')) {
+                foundClasses.push('product-table');
+                console.log('Found product-table class on element:', allElements[i]);
+            }
+            if (typeof classes === 'string' && classes.includes('productListContainer')) {
+                foundClasses.push('productListContainer');
+                console.log('Found productListContainer class on element:', allElements[i]);
+            }
+            if (typeof classes === 'string' && classes.includes('noPartsPhrase')) {
+                foundClasses.push('noPartsPhrase');
+                console.log('Found noPartsPhrase class on element:', allElements[i]);
+            }
+        }
+        
+        // Log what we found for debugging
+        console.log('Classes found:', foundClasses);
+        
+        // Return the results
+        return {
+            hasProductTable: document.querySelector('.product-table') !== null || 
+                            document.getElementsByClassName('product-table').length > 0 ||
+                            foundClasses.includes('product-table'),
+            hasProductListContainer: document.querySelector('.productListContainer') !== null || 
+                                   document.getElementsByClassName('productListContainer').length > 0 ||
+                                   foundClasses.includes('productListContainer'),
+            hasNoPartsPhrase: document.querySelector('.noPartsPhrase') !== null || 
+                             document.getElementsByClassName('noPartsPhrase').length > 0 ||
+                             foundClasses.includes('noPartsPhrase'),
+            foundClasses: foundClasses,
+            documentHTML: document.documentElement.outerHTML
+        };
+    }
+    
+    // Execute the check and return the result as JSON
+    checkForProductTables().then(result => {
+        return JSON.stringify(result);
+    });
     """
     
     # Properly encode JavaScript with base64 for ScrapingBee
@@ -228,8 +296,8 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         logger.warning(f"Limiting timeout from {timeout}s to 30s to prevent hanging requests")
         timeout = 30
     
-    # Construct the API URL with properly encoded parameters and additional parameters for reliability
-    # FIX: Added parameter to request JSON response format explicitly
+    # Construct the API URL with improved parameters for better React/SPA handling
+    # Fixed parameters according to ScrapingBee API documentation
     api_url = (
         f"https://app.scrapingbee.com/api/v1/?"
         f"api_key={SCRAPINGBEE_API_KEY}&"
@@ -238,6 +306,7 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         f"js_snippet={url_encoded_js}&"
         f"timeout={timeout * 1000}&"
         f"premium_proxy=true&"
+        f"wait_for=domcontentloaded&"  # Wait until DOM is fully loaded
         f"extract_rules={quote(json.dumps({'result': 'body'}))}"  # Extract body as JSON
     )
     
@@ -448,11 +517,22 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             has_product_table = result.get('hasProductTable', False)
             has_product_list_container = result.get('hasProductListContainer', False)
             has_no_parts_phrase = result.get('hasNoPartsPhrase', False)
+            found_classes = result.get('foundClasses', [])
             
-            # Log detailed results for debugging
+            # Enhanced logging with detailed class information
             logger.info(f"JS detection results for {url}: productTable={has_product_table}, " +
                        f"productListContainer={has_product_list_container}, " +
                        f"noPartsPhrase={has_no_parts_phrase}")
+            logger.info(f"All found classes: {found_classes}")
+            
+            # Double-check if found_classes contains our target classes
+            if 'product-table' in found_classes and not has_product_table:
+                logger.info("Found 'product-table' in classes list but hasProductTable was false, correcting")
+                has_product_table = True
+                
+            if 'productListContainer' in found_classes and not has_product_list_container:
+                logger.info("Found 'productListContainer' in classes list but hasProductListContainer was false, correcting")
+                has_product_list_container = True
             
             # First check the definitive "no products" case
             if has_no_parts_phrase:
