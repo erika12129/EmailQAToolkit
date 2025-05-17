@@ -10,7 +10,21 @@ import json
 import time
 from urllib.parse import urlparse, quote
 import requests
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+
+# Global variable to store the last raw response for debugging
+last_scrapingbee_raw_response = {
+    'url': '',
+    'timestamp': 0,
+    'status_code': 0,
+    'content_type': '',
+    'content_length': 0,
+    'content_preview': '',
+    'headers': {},
+    'js_execution_success': False,
+    'html_snippet': '',
+    'found_classes': []
+}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
