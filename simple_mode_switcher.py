@@ -295,6 +295,39 @@ async def get_cloud_browser_status():
             "message": f"Error getting cloud browser status: {str(e)}"
         })
 
+@app.get("/debug/scrapingbee")
+async def debug_scrapingbee():
+    """
+    Debug endpoint to view the last ScrapingBee API response.
+    This helps diagnose why class detection might not be working properly.
+    """
+    try:
+        # Import the global variable from the module
+        from cloud_browser_automation import last_scrapingbee_raw_response
+        
+        # Create a copy to avoid modifying the original
+        debug_data = dict(last_scrapingbee_raw_response)
+        
+        # Add some basic information about the target classes we're looking for
+        debug_data['target_classes'] = ["product-table", "productListContainer", "noPartsPhrase"]
+        
+        # Add timestamp information
+        import datetime
+        debug_data['debug_timestamp'] = datetime.datetime.now().isoformat()
+        
+        return JSONResponse(content=debug_data)
+    except ImportError as e:
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Cloud browser automation module not available: {str(e)}"}
+        )
+    except Exception as e:
+        logger.error(f"Error getting ScrapingBee debug data: {str(e)}")
+        return JSONResponse(
+            status_code=500, 
+            content={"error": f"Failed to get ScrapingBee debug data: {str(e)}"}
+        )
+
 @app.get("/api/production-domain-status")
 @app.get("/production-domain-status")
 async def production_domain_status(request: Request):

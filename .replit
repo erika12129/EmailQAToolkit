@@ -25,7 +25,7 @@ agentRequireRestartOnSave = false
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python run_servers.py"
+args = "python -c \"import uvicorn; import simple_mode_switcher; uvicorn.run(simple_mode_switcher.app, host='0.0.0.0', port=5000)\""
 waitForPort = 5000
 
 [deployment]

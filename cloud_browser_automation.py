@@ -441,7 +441,6 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                 logger.info(f"DEBUG - Class '{target_class}' NOT found in raw response text")
         
         # Update the global debug object
-        global last_scrapingbee_raw_response
         last_scrapingbee_raw_response.update({
             'status_code': response.status_code,
             'content_type': content_type,
