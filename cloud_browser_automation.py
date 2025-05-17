@@ -385,6 +385,90 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                     logger.info(f"RESPONSE END: {response_text[-500:]}")
             except Exception as log_error:
                 logger.error(f"Error logging response: {log_error}")
+                
+            # DIRECT HTML CLASS DETECTION - Critical fallback method
+            # Check directly for the presence of our target class names in the raw HTML
+            # This should work even when JavaScript execution fails
+            logger.info("Performing direct HTML inspection for product table classes...")
+            
+            # Look for class="product-table" or class='product-table' patterns
+            product_table_class_found = False
+            product_list_container_found = False
+            no_parts_phrase_found = False
+            
+            # Check for class="product-table" or variations
+            product_table_patterns = [
+                'class="product-table"', 
+                "class='product-table'", 
+                'class="product-table ', 
+                "class='product-table "
+            ]
+            
+            # Check for class="productListContainer" or variations
+            product_list_container_patterns = [
+                'class="productListContainer"', 
+                "class='productListContainer'", 
+                'class="productListContainer ', 
+                "class='productListContainer "
+            ]
+            
+            # Check for class="noPartsPhrase" or variations
+            no_parts_phrase_patterns = [
+                'class="noPartsPhrase"', 
+                "class='noPartsPhrase'", 
+                'class="noPartsPhrase ', 
+                "class='noPartsPhrase "
+            ]
+            
+            # Check each pattern in the response text
+            for pattern in product_table_patterns:
+                if pattern in response_text:
+                    product_table_class_found = True
+                    logger.info(f"Found product-table class in raw HTML with pattern: {pattern}")
+                    break
+                    
+            for pattern in product_list_container_patterns:
+                if pattern in response_text:
+                    product_list_container_found = True
+                    logger.info(f"Found productListContainer class in raw HTML with pattern: {pattern}")
+                    break
+            
+            for pattern in no_parts_phrase_patterns:
+                if pattern in response_text:
+                    no_parts_phrase_found = True
+                    logger.info(f"Found noPartsPhrase class in raw HTML with pattern: {pattern}")
+                    break
+            
+            # Return result based on direct HTML inspection
+            if no_parts_phrase_found:
+                logger.info(f"Direct HTML inspection: Found noPartsPhrase class - definitively no product tables")
+                return {
+                    'found': False,
+                    'class_name': 'noPartsPhrase',
+                    'detection_method': 'direct_html_inspection',
+                    'message': 'No product table found - confirmed by noPartsPhrase class',
+                    'content_type': content_type
+                }
+                
+            if product_table_class_found:
+                logger.info(f"Direct HTML inspection: Found product-table class - confirming product table")
+                return {
+                    'found': True,
+                    'class_name': 'product-table',
+                    'detection_method': 'direct_html_inspection',
+                    'message': 'Product table found - product-table class detected in HTML',
+                    'content_type': content_type
+                }
+                
+            if product_list_container_found:
+                logger.info(f"Direct HTML inspection: Found productListContainer class - confirming product table")
+                return {
+                    'found': True,
+                    'class_name': 'productListContainer',
+                    'detection_method': 'direct_html_inspection',
+                    'message': 'Product table found - productListContainer class detected in HTML',
+                    'content_type': content_type
+                }
             
             # Check if we got HTML instead of JSON (common error case)
             if '<html' in response_text.lower() or '<!doctype html' in response_text.lower():
