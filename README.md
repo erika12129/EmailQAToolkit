@@ -250,33 +250,55 @@ The system checks destination pages for product display tables using an improved
 
 The Email QA System features a streamlined architecture with cloud browser integration for product detection:
 
-1. **Core Components**:
-   - `simple_mode_switcher.py`: Main FastAPI application with integrated mode switching
-   - `email_qa_enhanced.py`: Improved email validation with better error handling
-   - `runtime_config.py`: Configuration manager with mode switching capability
-   - `run_servers.py`: Unified server launcher with simple workflow
-   - `cloud_browser_automation.py`: Cloud-based browser automation for product table detection
-   - `browser_automation.py`: Browser automation wrapper with fallback handling
-   - `api_endpoints.py`: API endpoints for cloud browser configuration
+1. **Core Components and File Relationships**:
+   - **Main Application Entry Point**: `simple_mode_switcher.py` - FastAPI application with integrated mode switching that routes to the appropriate endpoints
+   - **Email Processing**: `email_qa_enhanced.py` - Core email validation logic with improved error handling and cloud browser detection
+   - **Configuration Management**: 
+     - `config.py` - Handles domain-specific settings and environment configuration
+     - `runtime_config.py` - Dynamic configuration manager with mode switching capability
+     - `domain_config.json` - Defines domain rules, product table classes, and environment settings
+   - **Server Management**:
+     - `run_servers.py` - Development mode server launcher
+     - `run_servers_prod.py` - Production mode server launcher optimized for deployment
+   - **Browser Automation**:
+     - `browser_automation.py` - Central wrapper that dispatches to appropriate detection method
+     - `browser_detection.py` - Detects and configures available browsers in the environment
+     - `cloud_browser_automation.py` - Cloud-based product table detection using ScrapingBee API
+     - `selenium_automation.py` - Local browser automation using Selenium (backup method)
+   - **API Components**:
+     - `api_endpoints.py` - Cloud browser API configuration endpoints
+     - `cloud_api_test.py` - Testing functionality for ScrapingBee API key validation
+     - `main.py` - Supporting API endpoints for the main application
 
-2. **Active Files**:
-   - **FastAPI Application**: `simple_mode_switcher.py`, `main.py`
-   - **Email Validation**: `email_qa_enhanced.py`
-   - **Configuration**: `runtime_config.py`, `config.py`
-   - **Browser Automation**: `browser_automation.py`, `browser_detection.py`
-   - **Cloud Integration**: `cloud_browser_automation.py`, `cloud_api_test.py`
-   - **Test Website**: `test_website.py`
-   - **Server Management**: `run_servers.py`, `run_servers_prod.py`
+2. **File Flow in Product Table Detection**:
+   1. User initiates product table check in the web interface (`static/index.html`)
+   2. Request flows through `simple_mode_switcher.py` to the product table checking endpoint
+   3. The endpoint in `main.py` calls `check_for_product_tables` from `email_qa_enhanced.py`
+   4. This function calls `check_for_product_tables_sync` from `browser_automation.py`
+   5. `browser_automation.py` determines whether to use cloud or local browser automation
+   6. For cloud detection, it calls `check_for_product_tables_cloud` in `cloud_browser_automation.py`
+   7. `cloud_browser_automation.py` uses ScrapingBee API to fetch and analyze the HTML
+   8. Results flow back through the chain to be displayed in the web interface
 
-3. **Key Features**:
-   - **Cloud Browser Integration**: Uses ScrapingBee API for reliable browser automation in cloud environments
+3. **Test and Debugging Tools**:
+   - `demo_cloud_detector.py` - Simple standalone script to test cloud detection functionality
+   - `cloud_detection_test.py` - Command-line tool for testing cloud browser API directly
+   - `direct_cloud_test_server.py` - Minimal server for testing cloud detection
+   - `test_cloud_detection_api.py` - Tests the API endpoints for cloud detection
+   - `test_direct_cloud.py` - Direct test of cloud detection outside of the main application
+   - `test_react_detection.py` - Specialized test for React-rendered content detection
+   - `web_scraper.py` - Utility for extracting text content from web pages
+
+4. **Key Features**:
+   - **Cloud Browser Integration**: Uses ScrapingBee API for reliable browser automation in cloud environments, focusing on detecting specific CSS class names like "product-table", "productListContainer", and "noPartsPhrase"
+   - **Smart Detection Logic**: Properly handles React-rendered content that requires JavaScript execution
    - **Two-Phase Validation**: Fast initial link validation followed by optional product table detection
    - **Selective Product Table Checking**: User-selectable URLs for product table validation
    - **Image Alt Text Validation**: Extracts standalone images and validates proper alt text for accessibility
    - **Configurable Timeouts**: User-adjustable timeout settings for product table checks
    - **UI Improvements**: Clearer status indicators and more intuitive workflow
 
-4. **Running the System**:
+5. **Running the System**:
    ```bash
    # Start the application (development mode)
    python run_servers.py
@@ -285,7 +307,7 @@ The Email QA System features a streamlined architecture with cloud browser integ
    python run_servers_prod.py
    ```
 
-5. **API Endpoints**:
+6. **API Endpoints**:
    - `/run-qa`: Main validation endpoint with multiple options
    - `/check-product-tables`: Dedicated endpoint for product table checking
    - `/set-mode/development` or `/set-mode/production`: Mode switching
@@ -293,7 +315,7 @@ The Email QA System features a streamlined architecture with cloud browser integ
    - `/api/set-cloud-api-key`: Set a cloud browser API key
    - `/api/test-cloud-api`: Test a cloud browser API key
 
-6. **Product Table Detection**:
+7. **Product Table Detection**:
    - Focused on specific class-based detection:
      - Classes starting with "product-table" (product-table*)
      - Classes ending with "productListContainer" (*productListContainer)
@@ -301,7 +323,7 @@ The Email QA System features a streamlined architecture with cloud browser integ
    - Cloud browser automation for environments where local browsers aren't available
    - Fast detection with configurable timeouts to prevent UI hanging
    
-7. **Image Alt Text Validation**:
+8. **Image Alt Text Validation**:
    - Extracts all standalone images not contained within links
    - Validates presence of alt text attributes for accessibility compliance
    - Displays warning icons (⚠️) for images missing alt text 
