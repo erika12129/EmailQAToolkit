@@ -8,6 +8,7 @@ import os
 import shutil
 import tempfile
 import logging
+from typing import Dict, Any, List, Optional
 import json
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -544,19 +545,38 @@ async def check_product_tables(
                             if text_result.get('found', True) and text_result.get('confidence') in ['high', 'medium']:
                                 logger.info(f"Text analysis found product content with {text_result.get('confidence')} confidence for {url}")
                                 results[url] = text_result
-                            # CRITICAL FIX: For URLs in the /products/ path, we should NEVER use URL pattern matching
-                            # in Replit environment - always return Unknown result requiring manual verification
-                            # Using more specific matching to ensure we only catch actual product paths
+                            # FIXED: For URLs in the /products/ path, we now use actual cloud detection results
+                            # instead of always returning Unknown status
                             elif '/products/' in url or '/product/' in url or url.endswith('/products'):
-                                logger.info(f"CRITICAL FIX: URL {url} contains product path - NOT using URL pattern matching")
-                                # Return Unknown result that requires manual verification
-                                results[url] = {
-                                    'found': None,
-                                    'class_name': None,
-                                    'detection_method': 'browser_unavailable',
-                                    'message': 'Unknown - Browser automation unavailable - manual verification required',
-                                    'is_test_domain': False
-                                }
+                                logger.info(f"IMPROVED: URL {url} contains product path - using cloud detection results")
+                                
+                                # Use cloud browser API if available (check for API key directly)
+                                if os.environ.get('SCRAPINGBEE_API_KEY'):
+                                    try:
+                                        from cloud_browser_automation import check_for_product_tables_cloud
+                                        cloud_result = check_for_product_tables_cloud(url, timeout=20)
+                                        # Use the cloud detection result directly
+                                        results[url] = cloud_result
+                                        logger.info(f"Cloud detection found: {cloud_result.get('found')} for {url}")
+                                    except Exception as e:
+                                        logger.error(f"Error with cloud detection for {url}: {str(e)}")
+                                        # Only use fallback if cloud detection fails
+                                        results[url] = {
+                                            'found': None,
+                                            'class_name': None,
+                                            'detection_method': 'cloud_error',
+                                            'message': f'Cloud detection error: {str(e)}',
+                                            'is_test_domain': False
+                                        }
+                                else:
+                                    # Only if cloud browser is not available
+                                    results[url] = {
+                                        'found': None,
+                                        'class_name': None,
+                                        'detection_method': 'browser_unavailable',
+                                        'message': 'Unknown - Browser automation unavailable - manual verification required',
+                                        'is_test_domain': False
+                                    }
                             # Otherwise, keep the current result
                         except Exception as text_error:
                             logger.warning(f"Text analysis failed for {url}: {str(text_error)}")

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #results {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cloud Detection Test</h1>
+    <div class="input-group">
+        <label for="url">URL to Test:</label>
+        <input type="text" id="url" name="url" value="https://partly-products-showcase.lovable.app/products">
+    </div>
+    <div class="input-group">
+        <label for="timeout">Timeout (seconds):</label>
+        <input type="number" id="timeout" name="timeout" value="20" min="1" max="60">
+    </div>
+    <button id="testButton">Run Test</button>
+    <div id="status"></div>
+    <pre id="results">Results will appear here...</pre>
+
+    <script>
+        document.getElementById('testButton').addEventListener('click', async function() {
+            const url = document.getElementById('url').value;
+            const timeout = document.getElementById('timeout').value;
+            const statusElement = document.getElementById('status');
+            const resultsElement = document.getElementById('results');
+            
+            // Validate input
+            if (!url || url.trim() === '') {
+                resultsElement.textContent = 'Please enter a valid URL';
+                resultsElement.className = 'error';
+                return;
+            }
+            
+            // Show loading status
+            statusElement.textContent = 'Testing...';
+            resultsElement.textContent = 'Running test...';
+            resultsElement.className = '';
+            
+            try {
+                // Make API request to our cloud detection endpoint
+                const response = await fetch('/api/check_product_tables', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        urls: [url],
+                        timeout: parseInt(timeout, 10)
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Display formatted results
+                statusElement.textContent = 'Test completed!';
+                
+                // Format the raw results
+                const formattedResult = JSON.stringify(data, null, 2);
+                
+                // Check if product table was found
+                const result = data.results[url];
+                if (result && result.found === true) {
+                    resultsElement.innerHTML = `<span class="success">PRODUCT TABLE FOUND!</span>\nClass: ${result.class_name}\nMethod: ${result.detection_method}\n\nComplete Response:\n${formattedResult}`;
+                } else {
+                    resultsElement.innerHTML = `<span class="error">Product table NOT found or error occurred</span>\n\nComplete Response:\n${formattedResult}`;
+                }
+            } catch (error) {
+                statusElement.textContent = 'Error running test';
+                resultsElement.textContent = `Error: ${error.message}`;
+                resultsElement.className = 'error';
+            }
+        });
+    </script>
+</body>
+</html>

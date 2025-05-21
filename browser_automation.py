@@ -46,19 +46,13 @@ def check_for_product_tables_sync(url: str, timeout: Optional[int] = None) -> Di
     # Check if we're in Replit environment or in a deployed environment
     is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
     
-    # SPECIAL CASE: For example.com and partly-products-showcase.lovable.app test domains only
-    # This is to verify our system is working correctly with test cases
+    # FIXED: We no longer use special case handling for test domains
+    # Instead, we'll rely on the actual cloud detection results for all domains
+    logger.info(f"IMPROVED: Using actual detection for domain: {domain}")
+    
+    # Check if test domain (for logging purposes only)
     if domain == 'example.com' or 'partly-products-showcase.lovable.app' in domain:
-        # Still use the test domains but don't rely on URL patterns
-        logger.info(f"SPECIAL CASE: {domain} test domain detected - returning positive result for testing")
-        return {
-            'found': True,
-            'class_name': 'product-table',
-            'detection_method': 'special_test_case',
-            'message': 'Product table found - special test case for this domain',
-            'is_test_domain': True,
-            'special_test_case': True
-        }
+        logger.info(f"TEST DOMAIN: {domain} - Using real cloud detection (not special case)")
     
     # CRITICAL CHANGE: Check for cloud browser availability
     scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')

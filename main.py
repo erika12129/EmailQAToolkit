@@ -16,6 +16,8 @@ import logging
 
 # Import the email_qa module
 from email_qa_enhanced import validate_email
+from cloud_browser_automation import check_for_product_tables_cloud
+from browser_automation import check_for_product_tables_sync
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -336,6 +338,10 @@ async def check_product_tables(
     This endpoint allows for checking selected links after initial validation,
     with an adjustable timeout to prevent hanging the main validation process.
     
+    This version uses the cloud-based detection method to find product tables
+    in React-rendered applications, focusing on specific class names like
+    'product-table', 'productListContainer', 'noPartsPhrase'.
+    
     Args:
         urls: List of URLs to check for product tables
         timeout: Timeout for each check in seconds (defaults to config setting)
@@ -343,9 +349,11 @@ async def check_product_tables(
     Returns:
         dict: Results of product table detection for each URL
     """
-    from email_qa_enhanced import check_for_product_tables
-    from runtime_config import RuntimeConfig
-    import logging
+    # Import the simplified cloud detection endpoint handler
+    from simplified_cloud_endpoint import check_product_tables_endpoint
+    
+    # Use the simplified implementation that directly uses cloud detection
+    return check_product_tables_endpoint(urls, timeout)
     
     # Set up logging
     logger = logging.getLogger(__name__)
@@ -397,65 +405,50 @@ async def check_product_tables(
         # This is the critical requirement regardless of environment variables
         
         for url in urls:
-            # Check for Replit environment
-            repl_id = os.environ.get('REPL_ID')
-            replit_env = os.environ.get('REPLIT_ENVIRONMENT')
-            is_replit = repl_id is not None or replit_env is not None
-                
-            # Check if this might be a product-related URL (but don't assume it has a product table!)
-            # We only use this to determine whether to show "Unknown" vs "No" when browser checks are unavailable
+            # Check if this might be a product-related URL
             is_product_url = '/products/' in url or '/product/' in url or url.endswith('/products')
             logger.info(f"URL classification for {url}: product-related={is_product_url}")
-                
-            # For all URLs with cloud browser available, use cloud browser API
+            
+            # SIMPLIFIED DIRECT APPROACH: Use cloud detection for all URLs when available
             if CLOUD_BROWSER_AVAILABLE:
-                logger.info(f"URL with cloud browser available - attempting DIRECT cloud API detection: {url}")
+                logger.info(f"Cloud browser available - using direct detection for URL: {url}")
                 
                 try:
-                    # Import and use the cloud browser API directly
-                    from cloud_browser_automation import check_for_product_tables_cloud
-                    
-                    # Re-check API keys to ensure they're available in this context
+                    # Log API key availability
                     scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
-                    browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
-                    
-                    # Log available keys (prefix only)
                     if scrapingbee_key:
                         logger.info(f"Using ScrapingBee API key: {scrapingbee_key[:4]}...")
-                    if browserless_key:
-                        logger.info(f"Using Browserless API key: {browserless_key[:4]}...")
                     
-                    # Call cloud browser directly, bypassing check_for_product_tables
-                    logger.info(f"DIRECT CLOUD BROWSER CALL for URL: {url}")
+                    # Call cloud browser directly
+                    logger.info(f"Making direct cloud browser call for URL: {url}")
                     result = check_for_product_tables_cloud(url, timeout)
                     
-                    logger.info(f"DIRECT Cloud browser result for product URL: {result}")
+                    # Add debugging info
+                    logger.info(f"Cloud detection result: found={result.get('found')}, method={result.get('detection_method')}")
+                    
+                    if result.get('found') is True:
+                        logger.info(f"✅ SUCCESS: Product table detected at {url} via {result.get('detection_method')}")
+                    elif result.get('found') is False:
+                        logger.info(f"Product table NOT found at {url}")
+                    else:
+                        logger.info(f"Product table detection UNKNOWN for {url}")
+                    
+                    # Store the result directly - this is key to fixing the issue
                     results[url] = result
                     continue  # Skip the rest of processing for this URL
                 except Exception as e:
-                    logger.error(f"Error using direct cloud browser for product URL: {str(e)}")
-                    logger.exception("Full traceback for cloud browser error:")
+                    logger.error(f"Error using cloud browser: {str(e)}")
                     # Fall back to manual verification if cloud browser fails
-                    if is_product_url:
-                        logger.info(f"Cloud browser failed for product URL, using manual verification: {url}")
-                        results[url] = {
-                            "found": None,
-                            "class_name": None, 
-                            "detection_method": "browser_unavailable",
-                            "message": "Unknown - Browser automation unavailable - manual verification required",
-                            "is_test_domain": False
-                        }
-                        continue  # Skip all other checks for this URL
             
-            # We only reach here if cloud browser is not available at all
-            # Force manual verification message for product pages without cloud browser
+            # We only reach here if cloud browser is not available or fails
+            # For product URLs, use manual verification message
             if is_product_url:
-                logger.info(f"No cloud browser available for product URL: {url}")
+                logger.info(f"Using manual verification for product URL: {url}")
                 results[url] = {
                     "found": None,
                     "class_name": None, 
                     "detection_method": "browser_unavailable",
-                    "message": "Unknown - Cloud browser not available - manual verification required",
+                    "message": "Unknown - Browser automation unavailable - manual verification required",
                     "is_test_domain": False
                 }
                 continue  # Skip all other checks for this URL
@@ -547,7 +540,7 @@ async def check_product_tables(
                 # In production mode, use real detection
                 if is_production:
                     logger.info(f"Using HTTP detection for domain in PRODUCTION mode: {url}")
-                    result = check_for_product_tables(url, timeout=timeout)
+                    result = check_for_product_tables_cloud(url, timeout=timeout)
                     results[url] = result
                 else:
                     # In development mode, use simulation
@@ -561,11 +554,12 @@ async def check_product_tables(
             else:
                 # Normal processing for external URLs in non-Replit environments
                 # (we already checked for Replit environment at the beginning)
-                result = check_for_product_tables(url, timeout=timeout)
+                result = check_for_product_tables_cloud(url, timeout=timeout)
                 
-                # Use standardized message if browser automation is unavailable
-                if result.get("found") is None or result.get("message", "").startswith("Browser automation unavailable"):
+                # Only override with standardized message if cloud browser detection failed
+                if result.get("found") is None and not result.get("class_name"):
                     result["message"] = "Unknown - Browser automation unavailable - manual verification required"
+                    result["detection_method"] = "browser_unavailable"
                     
                 results[url] = result
         

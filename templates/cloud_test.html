@@ -1,0 +1,98 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cloud Detection Test</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            h1 {
+                color: #333;
+            }
+            .input-group {
+                margin-bottom: 20px;
+            }
+            label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+            input[type="text"], input[type="number"] {
+                width: 100%;
+                padding: 8px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+            }
+            button {
+                background-color: #4CAF50;
+                color: white;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #45a049;
+            }
+            pre {
+                margin-top: 20px;
+                padding: 15px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background-color: #f9f9f9;
+                white-space: pre-wrap;
+                max-height: 400px;
+                overflow-y: auto;
+            }
+            .success {
+                color: green;
+                font-weight: bold;
+            }
+            .error {
+                color: red;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Direct Cloud Detection Test</h1>
+        <form action="/test" method="post">
+            <div class="input-group">
+                <label for="url">URL to Test:</label>
+                <input type="text" id="url" name="url" value="https://partly-products-showcase.lovable.app/products" required>
+            </div>
+            <div class="input-group">
+                <label for="timeout">Timeout (seconds):</label>
+                <input type="number" id="timeout" name="timeout" value="20" min="1" max="60">
+            </div>
+            <button type="submit">Run Test</button>
+        </form>
+        
+        {% if result %}
+        <h2>Test Results</h2>
+        <p>
+            <strong>Product Table Found:</strong> 
+            {% if result.found %}
+            <span class="success">YES</span>
+            {% elif result.found is none %}
+            <span class="error">UNKNOWN</span>
+            {% else %}
+            <span class="error">NO</span>
+            {% endif %}
+        </p>
+        <p><strong>Class Name:</strong> {{ result.class_name or "None" }}</p>
+        <p><strong>Detection Method:</strong> {{ result.detection_method or "None" }}</p>
+        <p><strong>Message:</strong> {{ result.message or "None" }}</p>
+        
+        <h3>Raw Response</h3>
+        <pre>{{ raw_result }}</pre>
+        {% endif %}
+    </body>
+    </html>
+    
