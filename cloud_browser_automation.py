@@ -204,11 +204,12 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             'message': 'Error - ScrapingBee API key not configured'
         }
     
-    # IMPROVED JavaScript code with render wait time and exact class name matching
+    # IMPROVED JavaScript code with enhanced React SPA support and longer render wait time
     # Waits for the page to fully render and specifically checks for exact class names
     js_script = """
-    // Function to wait for page to be fully rendered
-    function waitForPageToRender(timeout = 3000) {
+    // Function to wait for page to fully render with special handling for React apps
+    function waitForPageToRender(timeout = 8000) {
+        console.log('Starting page render wait with timeout:', timeout, 'ms');
         return new Promise(resolve => {
             // First check if the page already has our target classes
             const checkNow = () => {
@@ -230,43 +231,107 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                 return;
             }
             
-            // Otherwise wait for a few seconds to let SPAs and React apps render
-            console.log('Waiting for page to fully render...');
-            setTimeout(resolve, timeout);
+            // For React apps, we need a more sophisticated approach to waiting
+            const isReactApp = document.getElementById('root') !== null;
+            console.log('Detected React application:', isReactApp);
+            
+            if (isReactApp) {
+                console.log('React app detected - using enhanced waiting strategy');
+                
+                // Set up a mutation observer to watch for DOM changes
+                const observer = new MutationObserver(mutations => {
+                    for (const mutation of mutations) {
+                        if (mutation.type === 'childList' || mutation.type === 'attributes') {
+                            if (checkNow()) {
+                                console.log('Target classes found after DOM mutation!');
+                                observer.disconnect();
+                                resolve();
+                                return;
+                            }
+                        }
+                    }
+                });
+                
+                // Start observing the root element for all changes
+                observer.observe(document.getElementById('root'), { 
+                    childList: true, 
+                    subtree: true,
+                    attributes: true,
+                    characterData: true
+                });
+                
+                // Still set a timeout as a fallback
+                console.log('Setting up enhanced wait for React with longer timeout:', timeout, 'ms');
+                setTimeout(() => {
+                    observer.disconnect();
+                    console.log('React wait timeout reached, continuing with detection');
+                    resolve();
+                }, timeout);
+            } else {
+                // Standard wait for non-React pages
+                console.log('Standard wait for page to render:', timeout, 'ms');
+                setTimeout(resolve, timeout);
+            }
         });
     }
     
     // Main function to check for product tables
     async function checkForProductTables() {
-        // Wait for the page to render (particularly important for React/SPAs)
-        await waitForPageToRender(3000);
+        // Wait for the page to render with enhanced React support
+        await waitForPageToRender(8000);
         
-        // Log what we're looking for
-        console.log('Searching for exact class names: "product-table" and "productListContainer"');
+        console.log('Page render wait complete, searching for target classes');
+        console.log('Searching for exact class names: "product-table", "productListContainer", and "noPartsPhrase"');
         
         // Perform thorough DOM search with multiple methods
         const allElements = document.getElementsByTagName('*');
+        console.log('Total elements to scan:', allElements.length);
         let foundClasses = [];
         
+        // Enhanced React-aware DOM search - check within the React root first
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+            console.log('Performing React-aware search within #root element first');
+            const reactElements = rootElement.getElementsByTagName('*');
+            console.log('Elements within React root:', reactElements.length);
+            
+            // Log some debug info about the React structure
+            console.log('React root children:', rootElement.children.length);
+            if (rootElement.children.length > 0) {
+                console.log('First child class names:', rootElement.children[0].className);
+            }
+        }
+        
         // Check all elements for our target classes
+        console.log('Starting comprehensive scan of all DOM elements');
         for (let i = 0; i < allElements.length; i++) {
-            const classes = allElements[i].className;
-            if (typeof classes === 'string' && classes.includes('product-table')) {
-                foundClasses.push('product-table');
-                console.log('Found product-table class on element:', allElements[i]);
-            }
-            if (typeof classes === 'string' && classes.includes('productListContainer')) {
-                foundClasses.push('productListContainer');
-                console.log('Found productListContainer class on element:', allElements[i]);
-            }
-            if (typeof classes === 'string' && classes.includes('noPartsPhrase')) {
-                foundClasses.push('noPartsPhrase');
-                console.log('Found noPartsPhrase class on element:', allElements[i]);
+            const element = allElements[i];
+            const classes = element.className;
+            
+            // Enhanced class detection - try different methods
+            if (typeof classes === 'string') {
+                // Direct class name check
+                if (classes.includes('product-table')) {
+                    foundClasses.push('product-table');
+                    console.log('Found product-table class on element:', element.tagName, element);
+                    console.log('Element HTML:', element.outerHTML.substring(0, 200) + '...');
+                }
+                if (classes.includes('productListContainer')) {
+                    foundClasses.push('productListContainer');
+                    console.log('Found productListContainer class on element:', element.tagName, element);
+                    console.log('Element HTML:', element.outerHTML.substring(0, 200) + '...');
+                }
+                if (classes.includes('noPartsPhrase')) {
+                    foundClasses.push('noPartsPhrase');
+                    console.log('Found noPartsPhrase class on element:', element.tagName, element);
+                    console.log('Element HTML:', element.outerHTML.substring(0, 200) + '...');
+                }
             }
         }
         
         // Log what we found for debugging
         console.log('Classes found:', foundClasses);
+        console.log('Detection complete');
         
         // Return the results
         return {
