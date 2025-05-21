@@ -392,31 +392,24 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         logger.warning(f"Limiting timeout from {timeout}s to 30s to prevent hanging requests")
         timeout = 30
     
-    # Construct the API URL with improved parameters for better React/SPA handling
-    # Fixed parameters according to ScrapingBee API documentation
-    # Simplified approach - ask for raw HTML instead of JavaScript execution
-    # This increases reliability at the cost of some dynamic content
+    # Use the most reliable configuration for ScrapingBee free tier
+    # Simple direct HTML extraction without attempting JavaScript rendering
     api_url = (
         f"https://app.scrapingbee.com/api/v1/?"
         f"api_key={SCRAPINGBEE_API_KEY}&"
         f"url={quote(url)}&"
-        f"render_js=true&"  # Still render JS for SPA apps
-        f"js_snippet={url_encoded_js}&"
-        f"timeout={timeout * 1000}&"
-        f"premium_proxy=true&"
-        f"wait_for=domcontentloaded&"  # Wait until DOM is fully loaded
-        f"extract_rules={quote(json.dumps({'result': 'body'}))}"  # Extract body as JSON
+        f"render_js=false&"  # Skip JavaScript rendering to avoid timeouts and save credits
+        f"extract_rules={quote(json.dumps({'content': 'body'}))}&"  # Only extract the body content
+        f"timeout=5000"  # Use a short timeout to prevent hanging
     )
     
-    # Also create a simpler backup URL that just gets the raw HTML without JavaScript
-    # This is more reliable but might miss dynamically rendered content
+    # Create a direct URL request as backup (no special parameters)
+    # Simplest possible approach to ensure we get a response
     backup_api_url = (
         f"https://app.scrapingbee.com/api/v1/?"
         f"api_key={SCRAPINGBEE_API_KEY}&"
         f"url={quote(url)}&"
-        f"render_js=false&"  # Skip JS rendering for more reliability
-        f"timeout={timeout * 1000}&"
-        f"premium_proxy=true"
+        f"render_js=false"  # Absolute minimum parameters
     )
     
     try:
@@ -688,31 +681,70 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
                         'content_type': content_type
                     }
                 
-                # Check for product-table class (EXACT match only)
-                has_product_table = 'product-table' in response_text
+                # ENHANCED CLASS DETECTION for React components
+                found_classes = []
                 
-                # Check for productListContainer class (EXACT match only)
-                has_product_list_container = 'productListContainer' in response_text
+                # Direct string match for the target classes
+                if 'product-table' in response_text:
+                    found_classes.append('product-table')
                 
-                # Log what we found for debugging
-                logger.info(f"Class detection results: product-table={has_product_table}, " +
-                            f"productListContainer={has_product_list_container}")
+                if 'productListContainer' in response_text:
+                    found_classes.append('productListContainer')
                 
-                # Return result based on strict class detection
-                if has_product_table:
+                # Add pattern-based detection for React components and complex class attributes
+                import re
+                
+                # React-specific patterns
+                react_patterns = [
+                    # React className attributes
+                    r'className=(["\'])[^"\']*product-table[^"\']*\1',
+                    r'className=(["\'])[^"\']*productListContainer[^"\']*\1',
+                    
+                    # HTML class with spaces/quotes
+                    r'class=(["\'])[^"\']*product-table[^"\']*\1',
+                    r'class=(["\'])[^"\']*productListContainer[^"\']*\1',
+                    
+                    # JSX class name patterns
+                    r'className=\{[^\}]*["\']product-table["\'][^\}]*\}',
+                    r'className=\{[^\}]*["\']productListContainer["\'][^\}]*\}'
+                ]
+                
+                # Use pattern matching if direct match failed
+                if not found_classes:
+                    logger.info("No direct class matches, trying pattern-based detection...")
+                    
+                    for pattern in react_patterns:
+                        if re.search(pattern, response_text):
+                            class_name = 'product-table' if 'product-table' in pattern else 'productListContainer'
+                            logger.info(f"Found {class_name} using pattern matching: {pattern}")
+                            found_classes.append(class_name)
+                
+                # Log enhanced detection results
+                logger.info(f"Enhanced class detection results: found_classes={found_classes}")
+                
+                # Update the response JSON with enhanced detection results
+                last_scrapingbee_raw_response.update({
+                    'found_classes': found_classes,
+                    'js_execution_success': js_execution_success
+                })
+                
+                # Return result based on enhanced class detection
+                if 'product-table' in found_classes:
                     return {
                         'found': True,
                         'class_name': 'product-table',
-                        'detection_method': 'cloud_api_html_analysis',
+                        'all_found_classes': found_classes,
+                        'detection_method': 'cloud_api_enhanced_detection',
                         'message': 'Product table found - product-table class detected',
                         'content_type': content_type
                     }
                 
-                if has_product_list_container:
+                if 'productListContainer' in found_classes:
                     return {
                         'found': True,
                         'class_name': 'productListContainer',
-                        'detection_method': 'cloud_api_html_analysis',
+                        'all_found_classes': found_classes,
+                        'detection_method': 'cloud_api_enhanced_detection',
                         'message': 'Product table found - productListContainer class detected',
                         'content_type': content_type
                     }
