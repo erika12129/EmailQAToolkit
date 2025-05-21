@@ -436,16 +436,26 @@ async def check_product_tables(
                     logger.error(f"Error using direct cloud browser for product URL: {str(e)}")
                     logger.exception("Full traceback for cloud browser error:")
                     # Fall back to manual verification if cloud browser fails
+                    if is_product_url:
+                        logger.info(f"Cloud browser failed for product URL, using manual verification: {url}")
+                        results[url] = {
+                            "found": None,
+                            "class_name": None, 
+                            "detection_method": "browser_unavailable",
+                            "message": "Unknown - Browser automation unavailable - manual verification required",
+                            "is_test_domain": False
+                        }
+                        continue  # Skip all other checks for this URL
             
-            # Force manual verification message for product pages without cloud browser or if cloud failed
-            # Use manual verification message for product URLs
+            # We only reach here if cloud browser is not available at all
+            # Force manual verification message for product pages without cloud browser
             if is_product_url:
-                logger.info(f"Using manual verification for product URL (cloud not available or failed): {url}")
+                logger.info(f"No cloud browser available for product URL: {url}")
                 results[url] = {
                     "found": None,
                     "class_name": None, 
                     "detection_method": "browser_unavailable",
-                    "message": "Unknown - Browser automation unavailable - manual verification required",
+                    "message": "Unknown - Cloud browser not available - manual verification required",
                     "is_test_domain": False
                 }
                 continue  # Skip all other checks for this URL

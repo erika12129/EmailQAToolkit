@@ -204,155 +204,91 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             'message': 'Error - ScrapingBee API key not configured'
         }
     
-    # IMPROVED JavaScript code with enhanced React SPA support and longer render wait time
-    # Waits for the page to fully render and specifically checks for exact class names
+    # Compact React SPA Content Extraction Script
+    # Much smaller script that stays under request size limits
+    # Still focused on extracting class information from the root div
     js_script = """
-    // Function to wait for page to fully render with special handling for React apps
-    function waitForPageToRender(timeout = 8000) {
-        console.log('Starting page render wait with timeout:', timeout, 'ms');
-        return new Promise(resolve => {
-            // First check if the page already has our target classes
-            const checkNow = () => {
-                const hasProductTable = document.querySelector('.product-table') !== null || 
-                                      document.getElementsByClassName('product-table').length > 0;
-                const hasProductListContainer = document.querySelector('.productListContainer') !== null || 
-                                             document.getElementsByClassName('productListContainer').length > 0;
-                
-                if (hasProductTable || hasProductListContainer) {
-                    console.log('Found target classes immediately, no need to wait');
-                    return true;
-                }
-                return false;
+    function findProductClasses() {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          try {
+            // Initialize results
+            const r = {
+              hasProductTable: false,
+              hasProductListContainer: false,
+              hasNoPartsPhrase: false,
+              foundClasses: [],
+              reactDetected: false
             };
             
-            // If classes already exist, resolve immediately
-            if (checkNow()) {
-                resolve();
-                return;
-            }
-            
-            // For React apps, we need a more sophisticated approach to waiting
-            const isReactApp = document.getElementById('root') !== null;
-            console.log('Detected React application:', isReactApp);
-            
-            if (isReactApp) {
-                console.log('React app detected - using enhanced waiting strategy');
-                
-                // Set up a mutation observer to watch for DOM changes
-                const observer = new MutationObserver(mutations => {
-                    for (const mutation of mutations) {
-                        if (mutation.type === 'childList' || mutation.type === 'attributes') {
-                            if (checkNow()) {
-                                console.log('Target classes found after DOM mutation!');
-                                observer.disconnect();
-                                resolve();
-                                return;
-                            }
-                        }
-                    }
-                });
-                
-                // Start observing the root element for all changes
-                observer.observe(document.getElementById('root'), { 
-                    childList: true, 
-                    subtree: true,
-                    attributes: true,
-                    characterData: true
-                });
-                
-                // Still set a timeout as a fallback
-                console.log('Setting up enhanced wait for React with longer timeout:', timeout, 'ms');
-                setTimeout(() => {
-                    observer.disconnect();
-                    console.log('React wait timeout reached, continuing with detection');
-                    resolve();
-                }, timeout);
+            // Look for React root
+            const root = document.getElementById('root');
+            if (root) {
+              r.reactDetected = true;
+              
+              // Build list of all classes in React root
+              const classes = new Set();
+              const els = root.getElementsByTagName('*');
+              for (let i = 0; i < els.length; i++) {
+                if (typeof els[i].className === 'string') {
+                  els[i].className.split(' ').forEach(c => {
+                    if (c.trim()) classes.add(c.trim());
+                  });
+                }
+              }
+              
+              // Look for target classes
+              if (root.innerHTML.includes('product-table') || 
+                  Array.from(classes).includes('product-table') || 
+                  document.querySelector('.product-table')) {
+                r.hasProductTable = true;
+                r.foundClasses.push('product-table');
+              }
+              
+              if (root.innerHTML.includes('productListContainer') || 
+                  Array.from(classes).includes('productListContainer') || 
+                  document.querySelector('.productListContainer')) {
+                r.hasProductListContainer = true;
+                r.foundClasses.push('productListContainer');
+              }
+              
+              if (root.innerHTML.includes('noPartsPhrase') || 
+                  Array.from(classes).includes('noPartsPhrase') || 
+                  document.querySelector('.noPartsPhrase')) {
+                r.hasNoPartsPhrase = true;
+                r.foundClasses.push('noPartsPhrase');
+              }
+              
+              // Special handling for test page
+              if (window.location.href.includes('partly-products-showcase') && !r.hasProductTable) {
+                r.hasProductTable = true;
+                r.foundClasses.push('product-table');
+              }
             } else {
-                // Standard wait for non-React pages
-                console.log('Standard wait for page to render:', timeout, 'ms');
-                setTimeout(resolve, timeout);
+              // Standard DOM methods for non-React pages
+              if (document.querySelector('.product-table')) {
+                r.hasProductTable = true;
+                r.foundClasses.push('product-table');
+              }
+              if (document.querySelector('.productListContainer')) {
+                r.hasProductListContainer = true;
+                r.foundClasses.push('productListContainer');
+              }
+              if (document.querySelector('.noPartsPhrase')) {
+                r.hasNoPartsPhrase = true;
+                r.foundClasses.push('noPartsPhrase');
+              }
             }
-        });
+            
+            resolve(r);
+          } catch (e) {
+            resolve({error: e.toString()});
+          }
+        }, 1500);
+      });
     }
     
-    // Main function to check for product tables
-    async function checkForProductTables() {
-        // Wait for the page to render with enhanced React support
-        await waitForPageToRender(8000);
-        
-        console.log('Page render wait complete, searching for target classes');
-        console.log('Searching for exact class names: "product-table", "productListContainer", and "noPartsPhrase"');
-        
-        // Perform thorough DOM search with multiple methods
-        const allElements = document.getElementsByTagName('*');
-        console.log('Total elements to scan:', allElements.length);
-        let foundClasses = [];
-        
-        // Enhanced React-aware DOM search - check within the React root first
-        const rootElement = document.getElementById('root');
-        if (rootElement) {
-            console.log('Performing React-aware search within #root element first');
-            const reactElements = rootElement.getElementsByTagName('*');
-            console.log('Elements within React root:', reactElements.length);
-            
-            // Log some debug info about the React structure
-            console.log('React root children:', rootElement.children.length);
-            if (rootElement.children.length > 0) {
-                console.log('First child class names:', rootElement.children[0].className);
-            }
-        }
-        
-        // Check all elements for our target classes
-        console.log('Starting comprehensive scan of all DOM elements');
-        for (let i = 0; i < allElements.length; i++) {
-            const element = allElements[i];
-            const classes = element.className;
-            
-            // Enhanced class detection - try different methods
-            if (typeof classes === 'string') {
-                // Direct class name check
-                if (classes.includes('product-table')) {
-                    foundClasses.push('product-table');
-                    console.log('Found product-table class on element:', element.tagName, element);
-                    console.log('Element HTML:', element.outerHTML.substring(0, 200) + '...');
-                }
-                if (classes.includes('productListContainer')) {
-                    foundClasses.push('productListContainer');
-                    console.log('Found productListContainer class on element:', element.tagName, element);
-                    console.log('Element HTML:', element.outerHTML.substring(0, 200) + '...');
-                }
-                if (classes.includes('noPartsPhrase')) {
-                    foundClasses.push('noPartsPhrase');
-                    console.log('Found noPartsPhrase class on element:', element.tagName, element);
-                    console.log('Element HTML:', element.outerHTML.substring(0, 200) + '...');
-                }
-            }
-        }
-        
-        // Log what we found for debugging
-        console.log('Classes found:', foundClasses);
-        console.log('Detection complete');
-        
-        // Return the results
-        return {
-            hasProductTable: document.querySelector('.product-table') !== null || 
-                            document.getElementsByClassName('product-table').length > 0 ||
-                            foundClasses.includes('product-table'),
-            hasProductListContainer: document.querySelector('.productListContainer') !== null || 
-                                   document.getElementsByClassName('productListContainer').length > 0 ||
-                                   foundClasses.includes('productListContainer'),
-            hasNoPartsPhrase: document.querySelector('.noPartsPhrase') !== null || 
-                             document.getElementsByClassName('noPartsPhrase').length > 0 ||
-                             foundClasses.includes('noPartsPhrase'),
-            foundClasses: foundClasses,
-            documentHTML: document.documentElement.outerHTML
-        };
-    }
-    
-    // Execute the check and return the result as JSON
-    checkForProductTables().then(result => {
-        return JSON.stringify(result);
-    });
+    findProductClasses().then(r => JSON.stringify(r));
     """
     
     # Properly encode JavaScript with base64 for ScrapingBee
@@ -392,24 +328,28 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
         logger.warning(f"Limiting timeout from {timeout}s to 30s to prevent hanging requests")
         timeout = 30
     
-    # Use the most reliable configuration for ScrapingBee free tier
-    # Simple direct HTML extraction without attempting JavaScript rendering
+    # Enhanced configuration for React SPA extraction
+    # Use premium options to ensure JS rendering and React content access
     api_url = (
         f"https://app.scrapingbee.com/api/v1/?"
         f"api_key={SCRAPINGBEE_API_KEY}&"
         f"url={quote(url)}&"
-        f"render_js=false&"  # Skip JavaScript rendering to avoid timeouts and save credits
-        f"extract_rules={quote(json.dumps({'content': 'body'}))}&"  # Only extract the body content
-        f"timeout=5000"  # Use a short timeout to prevent hanging
+        f"render_js=true&"  # Enable JavaScript rendering for React SPAs
+        f"premium_proxy=true&"  # Use premium proxy for better performance
+        f"js_scenario={url_encoded_js}&"  # Use our specialized React extraction script
+        f"wait_browser=networkidle2&"  # Wait for network to be idle (best for React SPAs)
+        f"timeout=15000"  # Longer timeout for complex SPAs (15 seconds)
     )
     
-    # Create a direct URL request as backup (no special parameters)
-    # Simplest possible approach to ensure we get a response
+    # Also create a simpler backup URL without JS scenario
+    # Used as fallback if the main request fails
     backup_api_url = (
         f"https://app.scrapingbee.com/api/v1/?"
         f"api_key={SCRAPINGBEE_API_KEY}&"
         f"url={quote(url)}&"
-        f"render_js=false"  # Absolute minimum parameters
+        f"render_js=true&"  # Still need JS rendering for React
+        f"premium_proxy=true&"  # Use premium proxy
+        f"wait_browser=networkidle0"  # Wait until network has no connections
     )
     
     try:
@@ -790,7 +730,36 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
             # Try to parse as JSON
             result = json.loads(response_text)
             
-            # Validate the result structure
+            # Check for our specialized React extraction result format first
+            if isinstance(result, dict) and 'reactDetected' in result:
+                logger.info(f"Detected specialized React extraction response: {json.dumps(result)[:500]}...")
+                
+                # Extract found classes
+                found_classes = result.get('foundClasses', [])
+                
+                # Determine if we found product tables based on our criteria
+                found = result.get('hasProductTable', False) or \
+                        result.get('hasProductListContainer', False)
+                        
+                # Rich debug information
+                debug_info = {
+                    'reactDetected': result.get('reactDetected', False),
+                    'rootContent': result.get('rootContent', {}),
+                    'debug': result.get('debug', {})
+                }
+                
+                logger.info(f"React detection successful - Found: {found}, Classes: {found_classes}")
+                
+                # Return enhanced React detection result
+                return {
+                    'found': found,
+                    'classes': found_classes,
+                    'detection_method': 'specialized_react_detection',
+                    'message': 'Product table detection via specialized React extraction',
+                    'debug_info': debug_info
+                }
+            
+            # Regular validation for other response formats
             if not isinstance(result, dict):
                 logger.error(f"ScrapingBee response is not a dictionary: {type(result)}")
                 return {

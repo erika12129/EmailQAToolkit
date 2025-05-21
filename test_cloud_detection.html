@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Table Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            display: inline-block;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 100px;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Product Table Detection Test</h1>
+        
+        <div class="test-section">
+            <h2>Test URLs</h2>
+            <p>Test cloud-based product table detection using our specialized React detection.</p>
+            
+            <div>
+                <label for="url-input">URL to Test:</label>
+                <input type="text" id="url-input" placeholder="Enter URL to test" value="https://partly-products-showcase.lovable.app/products">
+            </div>
+            
+            <div>
+                <button id="test-button">Test URL</button>
+            </div>
+            
+            <div>
+                <h3>Result:</h3>
+                <div id="result" class="result">Results will appear here...</div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>React Component Test</h2>
+            <p>This section contains a component with the product-table class to test direct detection.</p>
+            
+            <div id="root">
+                <!-- React app would render here -->
+                <div class="product-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Product Name</th>
+                                <th>SKU</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Test Product 1</td>
+                                <td>TP-001</td>
+                                <td>$19.99</td>
+                                <td>10</td>
+                            </tr>
+                            <tr>
+                                <td>Test Product 2</td>
+                                <td>TP-002</td>
+                                <td>$29.99</td>
+                                <td>5</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div>
+                <button id="local-test-button">Test Local Component</button>
+            </div>
+            
+            <div>
+                <h3>Local Test Result:</h3>
+                <div id="local-result" class="result">Local results will appear here...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Function to test remote URL
+        document.getElementById('test-button').addEventListener('click', async function() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing URL, please wait...';
+            
+            const url = document.getElementById('url-input').value;
+            if (!url) {
+                resultEl.textContent = 'Please enter a URL to test';
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/cloud/check-product-tables', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        urls: [url],
+                        timeout: 20
+                    })
+                });
+                
+                const data = await response.json();
+                resultEl.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent = `Error: ${error.message}`;
+            }
+        });
+        
+        // Function to test local component
+        document.getElementById('local-test-button').addEventListener('click', function() {
+            const localResultEl = document.getElementById('local-result');
+            
+            // Similar to our findProductClasses function in the ScrapingBee script
+            function detectProductClasses() {
+                const result = {
+                    hasProductTable: false,
+                    hasProductListContainer: false,
+                    hasNoPartsPhrase: false,
+                    foundClasses: [],
+                    reactDetected: !!document.getElementById('root')
+                };
+                
+                // Look for target classes
+                if (document.querySelector('.product-table')) {
+                    result.hasProductTable = true;
+                    result.foundClasses.push('product-table');
+                }
+                
+                if (document.querySelector('.productListContainer')) {
+                    result.hasProductListContainer = true; 
+                    result.foundClasses.push('productListContainer');
+                }
+                
+                if (document.querySelector('.noPartsPhrase')) {
+                    result.hasNoPartsPhrase = true;
+                    result.foundClasses.push('noPartsPhrase');
+                }
+                
+                return result;
+            }
+            
+            const result = detectProductClasses();
+            localResultEl.textContent = JSON.stringify(result, null, 2);
+        });
+    </script>
+</body>
+</html>
