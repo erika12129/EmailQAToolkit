@@ -599,9 +599,6 @@
             <div style="display: flex; gap: 10px; align-items: center;">
                 <button type="button" id="start-batch-processing" class="button" style="background-color: #48bb78; min-width: 150px;">Start Batch QA</button>
                 <button type="button" id="cancel-batch-processing" class="button hidden" style="background-color: #e53e3e; min-width: 100px;">Cancel</button>
-                <label style="margin-left: 20px;">
-                    <input type="checkbox" id="batch-check-product-tables" checked> Check Product Tables
-                </label>
             </div>
         </div>
 
@@ -915,8 +912,6 @@
                 return null;
             }
         }
-        
-
         
         // Check application mode on page load
         window.addEventListener('DOMContentLoaded', function() {
@@ -3857,8 +3852,8 @@
             // Add selected locales
             formData.append('selected_locales', JSON.stringify(Array.from(selectedLocales)));
             
-            // Add options (default to false like single mode)
-            formData.append('check_product_tables', document.getElementById('batch-check-product-tables').checked || false);
+            // Add options (default to false)
+            formData.append('check_product_tables', false);
             
             try {
                 const response = await fetch('/api/batch-validate', {
