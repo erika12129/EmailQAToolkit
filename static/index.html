@@ -2312,7 +2312,10 @@
                 // Campaign code mappings
                 'footer_campaign_code': 'footer_campaign_code',
                 'campaign_code': 'footer_campaign_code',
-                'Campaign Code - Country': 'footer_campaign_code'
+                'Campaign Code - Country': 'footer_campaign_code',
+                
+                // Copyright year mapping
+                'copyright_year': 'Copyright Year'
             };
             
             // Get expected metadata values from requirements JSON first, then form inputs as fallback
@@ -2364,6 +2367,10 @@
                             } else if (campaignCodeInput.value) {
                                 expected = campaignCodeInput.value;
                             }
+                            console.log(`For ${key}, expected value: ${expected}`);
+                        } else if (key === 'copyright_year') {
+                            // Copyright year should always be current year (2025)
+                            expected = '2025';
                             console.log(`For ${key}, expected value: ${expected}`);
                         }
                         
