@@ -3893,9 +3893,12 @@
                     };
                     reader.readAsText(file);
                 }
-            });
+                });
+            }
             
-            document.getElementById('right-edit-requirements').addEventListener('click', function() {
+            const rightEditReqs = document.getElementById('right-edit-requirements');
+            if (rightEditReqs) {
+                rightEditReqs.addEventListener('click', function() {
                 const editor = document.getElementById('right-requirements-editor');
                 const button = document.getElementById('right-edit-requirements');
                 const uploadButton = document.getElementById('right-upload-requirements');
@@ -3922,9 +3925,12 @@
                     button.style.backgroundColor = '#a0aec0';
                     uploadButton.style.backgroundColor = '#4299e1';
                 }
-            });
+                });
+            }
             
-            document.getElementById('validate-right-requirements').addEventListener('click', function() {
+            const validateRightReqs = document.getElementById('validate-right-requirements');
+            if (validateRightReqs) {
+                validateRightReqs.addEventListener('click', function() {
                 const textarea = document.getElementById('right-requirements-textarea');
                 const validation = document.getElementById('right-requirements-validation');
                 
@@ -3952,9 +3958,12 @@
                 } catch (error) {
                     validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
                 }
-            });
+                });
+            }
             
-            document.getElementById('reset-right-requirements').addEventListener('click', async function() {
+            const resetRightReqs = document.getElementById('reset-right-requirements');
+            if (resetRightReqs) {
+                resetRightReqs.addEventListener('click', async function() {
                 if (rightSideLocale === 'en_US') {
                     alert('Cannot reset base requirements. Please upload or edit manually.');
                     return;
@@ -3965,14 +3974,22 @@
                 document.getElementById('right-requirements-file').value = '';
                 document.getElementById('right-requirements-validation').innerHTML = '';
                 await updateRightSidePreview();
-            });
+                });
+            }
             
             // Batch processing controls
-            document.getElementById('start-batch-processing').addEventListener('click', startBatchProcessing);
-            document.getElementById('cancel-batch-processing').addEventListener('click', cancelBatchProcessing);
+            const startBatchBtn = document.getElementById('start-batch-processing');
+            const cancelBatchBtn = document.getElementById('cancel-batch-processing');
+            const exportResultsBtn = document.getElementById('export-batch-results');
             
-            // Export results
-            document.getElementById('export-batch-results').addEventListener('click', function() {
+            if (startBatchBtn) {
+                startBatchBtn.addEventListener('click', startBatchProcessing);
+            }
+            if (cancelBatchBtn) {
+                cancelBatchBtn.addEventListener('click', cancelBatchProcessing);
+            }
+            if (exportResultsBtn) {
+                exportResultsBtn.addEventListener('click', function() {
                 if (currentBatchId) {
                     fetch(`/api/batch-result/${currentBatchId}`)
                         .then(response => response.json())
@@ -3987,7 +4004,8 @@
                         })
                         .catch(error => console.error('Export error:', error));
                 }
-            });
+                });
+            }
         });
         
         // Start batch processing
