@@ -11,6 +11,7 @@ import logging
 import requests
 import threading
 import queue
+from datetime import datetime
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 from runtime_config import config
@@ -344,6 +345,43 @@ def extract_email_metadata(soup):
         logger.info(f"Removing 'r' prefix from campaign code: {footer_campaign_code}")
         footer_campaign_code = footer_campaign_code[1:]
         logger.info(f"Cleaned campaign code: {footer_campaign_code}")
+    
+    # Extract copyright year from footer
+    copyright_year = "Not found"
+    current_year = str(datetime.now().year)
+    
+    # Look for copyright symbol followed by year in various formats
+    copyright_patterns = [
+        r'©\s*(\d{4})',  # © 2025
+        r'&copy;\s*(\d{4})',  # &copy; 2025
+        r'copyright\s*©?\s*(\d{4})',  # copyright © 2025 or copyright 2025
+        r'copyright\s*&copy;\s*(\d{4})',  # copyright &copy; 2025
+        r'\(c\)\s*(\d{4})',  # (c) 2025
+        r'©.*?(\d{4})',  # © Company Name 2025 (more flexible)
+        r'copyright.*?(\d{4})',  # copyright text 2025 (more flexible)
+    ]
+    
+    # Search through all text content for copyright year
+    html_content = str(soup)
+    text_content = soup.get_text()
+    
+    for pattern in copyright_patterns:
+        # Check in HTML content first (handles HTML entities)
+        match = re.search(pattern, html_content, re.IGNORECASE)
+        if match:
+            copyright_year = match.group(1)
+            logger.info(f"Found copyright year in HTML: {copyright_year} using pattern: {pattern}")
+            break
+        
+        # Also check in plain text content
+        match = re.search(pattern, text_content, re.IGNORECASE)
+        if match:
+            copyright_year = match.group(1)
+            logger.info(f"Found copyright year in text: {copyright_year} using pattern: {pattern}")
+            break
+    
+    if copyright_year == "Not found":
+        logger.info("No copyright year found in email content")
         
     # Create metadata dictionary with clean field names
     metadata_dict = {
@@ -352,7 +390,8 @@ def extract_email_metadata(soup):
         'reply_address': safe_extract(reply_to) or 'Not found',
         'subject': safe_extract(subject) or 'Not found',
         'preheader': preheader_text,
-        'footer_campaign_code': footer_campaign_code
+        'footer_campaign_code': footer_campaign_code,
+        'copyright_year': copyright_year
     }
     
     return metadata_dict
