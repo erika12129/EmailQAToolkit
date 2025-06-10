@@ -539,25 +539,9 @@
             </div>
         </div>
 
-        <!-- Base Requirements -->
-        <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">3. Base Requirements (en_US)</h3>
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <button type="button" id="batch-upload-requirements" class="button" style="background-color: #4299e1;">Upload JSON File</button>
-                <button type="button" id="batch-edit-requirements" class="button" style="background-color: #a0aec0;">Edit JSON</button>
-            </div>
-            <input type="file" id="batch-requirements-file" accept=".json" style="display: none;">
-            <div id="batch-requirements-editor" style="display: none;">
-                <textarea id="batch-requirements-textarea" style="width: 100%; height: 300px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
-                <button type="button" id="validate-batch-requirements" class="button" style="background-color: #48bb78; margin-top: 10px;">Validate JSON</button>
-                <div id="batch-requirements-validation" style="margin-top: 10px;"></div>
-            </div>
-            <div id="batch-requirements-file-name" class="file-name"></div>
-        </div>
-
         <!-- Requirements Comparison -->
         <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">4. Requirements Preview - Side by Side Comparison</h3>
+            <h3 style="margin-bottom: 15px;">3. Requirements Preview - Side by Side Comparison</h3>
             <div style="display: flex; gap: 20px;">
                 <!-- Left Side -->
                 <div style="flex: 1;">
@@ -576,7 +560,7 @@
                         <textarea id="left-requirements-textarea" style="width: 100%; height: 200px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
                         <div style="display: flex; gap: 5px; margin-top: 5px;">
                             <button type="button" id="validate-left-requirements" class="button" style="background-color: #48bb78; font-size: 0.85em; padding: 4px 8px;">Validate JSON</button>
-                            <button type="button" id="reset-left-requirements" class="button" style="background-color: #e53e3e; font-size: 0.85em; padding: 4px 8px;">Reset to Auto-Generated</button>
+                            <button type="button" id="reset-left-requirements" class="button" style="background-color: #e53e3e; font-size: 0.85em; padding: 4px 8px; display: none;">Reset to Auto-Generated</button>
                         </div>
                         <div id="left-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
                     </div>
@@ -613,7 +597,7 @@
 
         <!-- Batch Processing Controls -->
         <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">5. Process Batch</h3>
+            <h3 style="margin-bottom: 15px;">4. Process Batch</h3>
             <div style="display: flex; gap: 10px; align-items: center;">
                 <button type="button" id="start-batch-processing" class="button" style="background-color: #48bb78; min-width: 150px;">Start Batch QA</button>
                 <button type="button" id="cancel-batch-processing" class="button hidden" style="background-color: #e53e3e; min-width: 100px;">Cancel</button>
@@ -3601,130 +3585,24 @@
                 batchModeBtn.addEventListener('click', switchToBatchMode);
             }
             
-            // Batch requirements handling
-            const batchUploadReqs = document.getElementById('batch-upload-requirements');
-            const batchReqsFile = document.getElementById('batch-requirements-file');
-            
-            if (batchUploadReqs && batchReqsFile) {
-                batchUploadReqs.addEventListener('click', function() {
-                    batchReqsFile.click();
-                });
-                
-                batchReqsFile.addEventListener('change', function(event) {
-                const file = event.target.files[0];
-                const uploadButton = document.getElementById('batch-upload-requirements');
-                const editButton = document.getElementById('batch-edit-requirements');
-                const validation = document.getElementById('batch-requirements-validation');
-                
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        try {
-                            const jsonContent = JSON.parse(e.target.result);
-                            
-                            // Basic requirements validation (same as single template)
-                            if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
-                                alert('Invalid JSON file: Missing required fields (sender_address, subject, preheader)');
-                                return;
-                            }
-                            
-                            baseRequirements = jsonContent;
-                            document.getElementById('batch-requirements-file-name').textContent = `✓ ${file.name}`;
-                            
-                            // Hide editor and reset button states
-                            const editor = document.getElementById('batch-requirements-editor');
-                            editor.style.display = 'none';
-                            editor.classList.add('hidden');
-                            editButton.textContent = 'Edit JSON';
-                            editButton.style.backgroundColor = '#a0aec0';
-                            uploadButton.style.backgroundColor = '#4299e1';
-                            
-                            // Clear validation message
-                            validation.innerHTML = '';
-                            
-                            // Update both side previews
-                            updateLeftSidePreview();
-                            updateRightSidePreview();
-                            
-                        } catch (error) {
-                            alert(`Invalid JSON file: ${error.message}`);
-                        }
-                    };
-                    reader.readAsText(file);
-                }
-                });
-            }
-            
-            const batchEditReqs = document.getElementById('batch-edit-requirements');
-            if (batchEditReqs) {
-                batchEditReqs.addEventListener('click', function() {
-                const editor = document.getElementById('batch-requirements-editor');
-                const button = document.getElementById('batch-edit-requirements');
-                const uploadButton = document.getElementById('batch-upload-requirements');
-                const fileNameDiv = document.getElementById('batch-requirements-file-name');
-                
-                if (editor.style.display === 'none' || !editor.style.display) {
-                    // Show editor mode
-                    editor.style.display = 'block';
-                    editor.classList.remove('hidden');
-                    document.getElementById('batch-requirements-textarea').value = baseRequirements ? JSON.stringify(baseRequirements, null, 2) : '';
-                    button.textContent = 'Hide Editor';
-                    button.style.backgroundColor = '#48bb78'; // Green when active
-                    uploadButton.style.backgroundColor = '#a0aec0'; // Gray when inactive
-                    
-                    // Clear file upload state
-                    fileNameDiv.textContent = '';
-                    document.getElementById('batch-requirements-file').value = '';
-                } else {
-                    // Hide editor mode
-                    editor.style.display = 'none';
-                    editor.classList.add('hidden');
-                    button.textContent = 'Edit JSON';
-                    button.style.backgroundColor = '#a0aec0'; // Gray when inactive
-                    uploadButton.style.backgroundColor = '#4299e1'; // Blue when active
-                }
-                });
-            }
-            
-            const validateBatchReqs = document.getElementById('validate-batch-requirements');
-            if (validateBatchReqs) {
-                validateBatchReqs.addEventListener('click', function() {
-                const textarea = document.getElementById('batch-requirements-textarea');
-                const validation = document.getElementById('batch-requirements-validation');
-                
-                if (!textarea.value.trim()) {
-                    validation.innerHTML = '<span style="color: #e53e3e;">✗ Please enter JSON requirements</span>';
-                    return;
-                }
-                
-                try {
-                    const jsonContent = JSON.parse(textarea.value);
-                    
-                    // Basic requirements validation (same as single template)
-                    if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
-                        validation.innerHTML = '<span style="color: #e53e3e;">✗ JSON requirements must include sender_address, subject, and preheader fields</span>';
-                        return;
-                    }
-                    
-                    // Validation passed
-                    baseRequirements = jsonContent;
-                    validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON requirements</span>';
-                    
-                    // Update both side previews
-                    updateLeftSidePreview();
-                    updateRightSidePreview();
-                    
-                } catch (error) {
-                    validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
-                }
-                });
-            }
+            // Note: Removed section 3 "Base Requirements" - now handled directly in left/right comparison
             
             // Left and Right side locale selectors
             const leftLocaleSelect = document.getElementById('left-locale-select');
             if (leftLocaleSelect) {
                 leftLocaleSelect.addEventListener('change', async function(event) {
                 leftSideLocale = event.target.value;
+                
+                // Show/hide reset button based on locale selection
+                const resetButton = document.getElementById('reset-left-requirements');
+                if (resetButton) {
+                    if (leftSideLocale === 'en_US') {
+                        resetButton.style.display = 'none';
+                    } else {
+                        resetButton.style.display = 'inline-block';
+                    }
+                }
+                
                 await updateLeftSidePreview();
                 });
             }
@@ -3733,6 +3611,17 @@
             if (rightLocaleSelect) {
                 rightLocaleSelect.addEventListener('change', async function(event) {
                 rightSideLocale = event.target.value;
+                
+                // Show/hide reset button based on locale selection
+                const resetButton = document.getElementById('reset-right-requirements');
+                if (resetButton) {
+                    if (rightSideLocale === 'en_US') {
+                        resetButton.style.display = 'none';
+                    } else {
+                        resetButton.style.display = 'inline-block';
+                    }
+                }
+                
                 await updateRightSidePreview();
                 });
             }
