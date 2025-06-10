@@ -314,11 +314,19 @@ async def run_qa(
         )
     
     except Exception as e:
-        error_detail = f"QA validation failed: {str(e)}"
+        error_detail = f"Failed to validate email: {str(e)}"
         logger.error(error_detail)
+        
+        # Return error in the expected format for the frontend
         return JSONResponse(
-            status_code=500,
-            content={"detail": error_detail},
+            content={
+                "results": {
+                    "error": error_detail,
+                    "mode": config.get_mode() if 'config' in globals() else "production",
+                    "requirements": requirements_json if 'requirements_json' in locals() else {},
+                    "product_tables_checked": bool(check_product_tables)
+                }
+            },
             media_type="application/json"
         )
     
