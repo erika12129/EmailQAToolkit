@@ -3726,19 +3726,27 @@
                 leftLocaleSelect.addEventListener('change', async function(event) {
                 leftSideLocale = event.target.value;
                 await updateLeftSidePreview();
-            });
+                });
+            }
             
-            document.getElementById('right-locale-select').addEventListener('change', async function(event) {
+            const rightLocaleSelect = document.getElementById('right-locale-select');
+            if (rightLocaleSelect) {
+                rightLocaleSelect.addEventListener('change', async function(event) {
                 rightSideLocale = event.target.value;
                 await updateRightSidePreview();
-            });
+                });
+            }
             
             // Left side editor functionality
-            document.getElementById('left-upload-requirements').addEventListener('click', function() {
-                document.getElementById('left-requirements-file').click();
-            });
+            const leftUploadReqs = document.getElementById('left-upload-requirements');
+            const leftReqsFile = document.getElementById('left-requirements-file');
             
-            document.getElementById('left-requirements-file').addEventListener('change', function(event) {
+            if (leftUploadReqs && leftReqsFile) {
+                leftUploadReqs.addEventListener('click', function() {
+                    leftReqsFile.click();
+                });
+                
+                leftReqsFile.addEventListener('change', function(event) {
                 const file = event.target.files[0];
                 if (file) {
                     const reader = new FileReader();
@@ -3765,9 +3773,12 @@
                     };
                     reader.readAsText(file);
                 }
-            });
+                });
+            }
             
-            document.getElementById('left-edit-requirements').addEventListener('click', function() {
+            const leftEditReqs = document.getElementById('left-edit-requirements');
+            if (leftEditReqs) {
+                leftEditReqs.addEventListener('click', function() {
                 const editor = document.getElementById('left-requirements-editor');
                 const button = document.getElementById('left-edit-requirements');
                 const uploadButton = document.getElementById('left-upload-requirements');
@@ -3794,9 +3805,12 @@
                     button.style.backgroundColor = '#a0aec0';
                     uploadButton.style.backgroundColor = '#4299e1';
                 }
-            });
+                });
+            }
             
-            document.getElementById('validate-left-requirements').addEventListener('click', function() {
+            const validateLeftReqs = document.getElementById('validate-left-requirements');
+            if (validateLeftReqs) {
+                validateLeftReqs.addEventListener('click', function() {
                 const textarea = document.getElementById('left-requirements-textarea');
                 const validation = document.getElementById('left-requirements-validation');
                 
@@ -3824,9 +3838,12 @@
                 } catch (error) {
                     validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
                 }
-            });
+                });
+            }
             
-            document.getElementById('reset-left-requirements').addEventListener('click', async function() {
+            const resetLeftReqs = document.getElementById('reset-left-requirements');
+            if (resetLeftReqs) {
+                resetLeftReqs.addEventListener('click', async function() {
                 if (leftSideLocale === 'en_US') {
                     alert('Cannot reset base requirements. Please upload or edit manually.');
                     return;
@@ -3837,14 +3854,19 @@
                 document.getElementById('left-requirements-file').value = '';
                 document.getElementById('left-requirements-validation').innerHTML = '';
                 await updateLeftSidePreview();
-            });
+                });
+            }
             
             // Right side editor functionality
-            document.getElementById('right-upload-requirements').addEventListener('click', function() {
-                document.getElementById('right-requirements-file').click();
-            });
+            const rightUploadReqs = document.getElementById('right-upload-requirements');
+            const rightReqsFile = document.getElementById('right-requirements-file');
             
-            document.getElementById('right-requirements-file').addEventListener('change', function(event) {
+            if (rightUploadReqs && rightReqsFile) {
+                rightUploadReqs.addEventListener('click', function() {
+                    rightReqsFile.click();
+                });
+                
+                rightReqsFile.addEventListener('change', function(event) {
                 const file = event.target.files[0];
                 if (file) {
                     const reader = new FileReader();
