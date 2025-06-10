@@ -213,6 +213,26 @@
     <div class="container">
         <h1>Email QA Automation</h1>
         
+        <!-- Mode Toggle -->
+        <div style="background-color: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 15px;">
+                <span style="font-weight: 600; color: #4a5568;">Processing Mode:</span>
+                <div style="display: flex; gap: 10px;">
+                    <button id="single-mode-btn" class="button" style="background-color: #4299e1; padding: 8px 16px; min-width: 120px;">
+                        Single Email
+                    </button>
+                    <button id="batch-mode-btn" class="button" style="background-color: #a0aec0; padding: 8px 16px; min-width: 120px;">
+                        Batch Processing
+                    </button>
+                </div>
+            </div>
+            <div id="mode-description">
+                <p style="margin: 0; color: #718096; font-size: 14px;">
+                    Single Email: Test one email template against one set of requirements.
+                </p>
+            </div>
+        </div>
+        
         <div class="mb-4 p-4" style="background-color: #ebf8ff; border-radius: 0.5rem; margin-bottom: 1rem; padding: 1rem;">
             <p style="margin-bottom: 0.5rem;">
                 This tool validates HTML emails against predefined requirements for metadata and UTM parameters.
@@ -228,6 +248,7 @@
             </div>
         </div>
         
+        <!-- Single Email Form -->
         <form id="qa-form">
             <div class="file-input-container">
                 <label>Upload Email HTML:</label>
@@ -497,6 +518,113 @@
         </div>
     </div>
 
+    <!-- Batch Processing Form (hidden by default) -->
+    <div id="batch-form" class="hidden" style="background-color: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 20px;">
+        <h2 style="margin-top: 0;">Batch Processing</h2>
+        
+        <!-- Locale Selection -->
+        <div style="margin-bottom: 25px;">
+            <h3 style="margin-bottom: 15px;">1. Select Target Locales</h3>
+            <div id="locale-selection" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                <!-- Locales will be loaded dynamically -->
+            </div>
+        </div>
+
+        <!-- Template Upload Section -->
+        <div style="margin-bottom: 25px;">
+            <h3 style="margin-bottom: 15px;">2. Upload Email Templates</h3>
+            <p style="color: #718096; margin-bottom: 15px;">Upload one HTML template for each selected locale. Templates should already have translations applied.</p>
+            <div id="template-uploads" style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                <!-- Template upload fields will be generated based on selected locales -->
+            </div>
+        </div>
+
+        <!-- Base Requirements -->
+        <div style="margin-bottom: 25px;">
+            <h3 style="margin-bottom: 15px;">3. Base Requirements (en_US)</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <button type="button" id="batch-upload-requirements" class="button" style="background-color: #4299e1;">Upload JSON File</button>
+                <button type="button" id="batch-edit-requirements" class="button" style="background-color: #a0aec0;">Edit JSON</button>
+            </div>
+            <input type="file" id="batch-requirements-file" accept=".json" style="display: none;">
+            <div id="batch-requirements-editor" style="display: none;">
+                <textarea id="batch-requirements-textarea" style="width: 100%; height: 300px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
+                <button type="button" id="validate-batch-requirements" class="button" style="background-color: #48bb78; margin-top: 10px;">Validate JSON</button>
+                <div id="batch-requirements-validation" style="margin-top: 10px;"></div>
+            </div>
+            <div id="batch-requirements-file-name" class="file-name"></div>
+        </div>
+
+        <!-- Requirements Comparison -->
+        <div style="margin-bottom: 25px;">
+            <h3 style="margin-bottom: 15px;">4. Requirements Preview</h3>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h4 style="margin-bottom: 10px;">Base Requirements (en_US)</h4>
+                    <textarea id="base-requirements-preview" readonly style="width: 100%; height: 250px; font-family: monospace; background-color: #f5f5f5; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
+                </div>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <h4 style="margin: 0;">Locale Requirements</h4>
+                        <select id="locale-preview-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                            <option value="">Select locale...</option>
+                        </select>
+                    </div>
+                    <textarea id="locale-requirements-preview" readonly style="width: 100%; height: 250px; font-family: monospace; background-color: #f5f5f5; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch Processing Controls -->
+        <div style="margin-bottom: 25px;">
+            <h3 style="margin-bottom: 15px;">5. Process Batch</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button type="button" id="start-batch-processing" class="button" style="background-color: #48bb78; min-width: 150px;">Start Batch QA</button>
+                <button type="button" id="cancel-batch-processing" class="button hidden" style="background-color: #e53e3e; min-width: 100px;">Cancel</button>
+                <label style="margin-left: 20px;">
+                    <input type="checkbox" id="batch-check-product-tables" checked> Check Product Tables
+                </label>
+            </div>
+        </div>
+
+        <!-- Batch Progress -->
+        <div id="batch-progress-section" class="hidden" style="margin-bottom: 25px;">
+            <h3 style="margin-bottom: 15px;">Processing Progress</h3>
+            <div style="background-color: #f5f5f5; border-radius: 8px; padding: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span>Progress:</span>
+                    <span id="batch-progress-text">0 of 0 completed</span>
+                </div>
+                <div style="background-color: #e2e8f0; height: 20px; border-radius: 10px; overflow: hidden;">
+                    <div id="batch-progress-bar" style="background-color: #48bb78; height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                </div>
+                <div id="locale-status-list" style="margin-top: 15px;">
+                    <!-- Per-locale status indicators -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch Results -->
+        <div id="batch-results-section" class="hidden" style="margin-bottom: 25px;">
+            <h3 style="margin-bottom: 15px;">Batch Results</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button type="button" id="export-batch-results" class="button" style="background-color: #4299e1;">Export Results (JSON)</button>
+                <select id="batch-results-filter" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="all">Show All Results</option>
+                    <option value="success">Show Successful Only</option>
+                    <option value="failed">Show Failed Only</option>
+                    <option value="warnings">Show Warnings Only</option>
+                </select>
+            </div>
+            <div id="batch-results-tabs" style="border-bottom: 1px solid #e2e8f0; margin-bottom: 15px;">
+                <!-- Locale tabs will be generated here -->
+            </div>
+            <div id="batch-results-content">
+                <!-- Individual locale results will be displayed here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         // Helper function to show/hide elements
         function showElement(element) {
@@ -560,6 +688,14 @@
         let useJsonUpload = true; // Start with JSON editor by default
         let useJsonTextarea = true; // Use JSON editor instead of file upload by default
         
+        // Batch processing state
+        let currentMode = 'single'; // 'single' or 'batch'
+        let selectedLocales = new Set();
+        let uploadedTemplates = new Map(); // locale -> file
+        let baseRequirements = null;
+        let currentBatchId = null;
+        let availableLocales = [];
+        
         // Set default values based on email type
         function setDefaultsByEmailType() {
             // Safety check - only run if the form elements exist
@@ -605,6 +741,158 @@
             showElement(requirementsForm);
             hideElement(jsonUploadContainer);
             toggleButton.textContent = 'Switch to JSON';
+        }
+        
+        // Mode switching functionality
+        function switchToSingleMode() {
+            currentMode = 'single';
+            document.getElementById('single-mode-btn').style.backgroundColor = '#4299e1';
+            document.getElementById('batch-mode-btn').style.backgroundColor = '#a0aec0';
+            document.getElementById('mode-description').innerHTML = '<p style="margin: 0; color: #718096; font-size: 14px;">Single Email: Test one email template against one set of requirements.</p>';
+            
+            showElement(document.getElementById('qa-form'));
+            hideElement(document.getElementById('batch-form'));
+        }
+        
+        function switchToBatchMode() {
+            currentMode = 'batch';
+            document.getElementById('single-mode-btn').style.backgroundColor = '#a0aec0';
+            document.getElementById('batch-mode-btn').style.backgroundColor = '#4299e1';
+            document.getElementById('mode-description').innerHTML = '<p style="margin: 0; color: #718096; font-size: 14px;">Batch Processing: Test multiple email templates across different locales simultaneously.</p>';
+            
+            hideElement(document.getElementById('qa-form'));
+            showElement(document.getElementById('batch-form'));
+            loadAvailableLocales();
+        }
+        
+        // Load available locales from API
+        async function loadAvailableLocales() {
+            try {
+                const response = await fetch('/api/locales');
+                const data = await response.json();
+                availableLocales = data.locales;
+                renderLocaleSelection();
+            } catch (error) {
+                console.error('Error loading locales:', error);
+            }
+        }
+        
+        // Render locale selection checkboxes
+        function renderLocaleSelection() {
+            const container = document.getElementById('locale-selection');
+            container.innerHTML = '';
+            
+            availableLocales.forEach(locale => {
+                const div = document.createElement('div');
+                div.style.cssText = 'display: flex; align-items: center; padding: 8px; border: 1px solid #e2e8f0; border-radius: 4px; background-color: white;';
+                
+                div.innerHTML = `
+                    <input type="checkbox" id="locale-${locale.code}" value="${locale.code}" style="margin-right: 8px;">
+                    <label for="locale-${locale.code}" style="cursor: pointer; flex-grow: 1;">
+                        <strong>${locale.display_name}</strong><br>
+                        <small style="color: #718096;">${locale.country} - ${locale.language}</small>
+                    </label>
+                `;
+                
+                const checkbox = div.querySelector('input');
+                checkbox.addEventListener('change', handleLocaleSelection);
+                
+                container.appendChild(div);
+            });
+        }
+        
+        // Handle locale selection
+        function handleLocaleSelection(event) {
+            const locale = event.target.value;
+            if (event.target.checked) {
+                selectedLocales.add(locale);
+            } else {
+                selectedLocales.delete(locale);
+                uploadedTemplates.delete(locale);
+            }
+            updateTemplateUploads();
+            updateLocalePreviewSelect();
+        }
+        
+        // Update template upload fields based on selected locales
+        function updateTemplateUploads() {
+            const container = document.getElementById('template-uploads');
+            container.innerHTML = '';
+            
+            if (selectedLocales.size === 0) {
+                container.innerHTML = '<p style="color: #718096; font-style: italic;">Select locales above to see template upload fields.</p>';
+                return;
+            }
+            
+            selectedLocales.forEach(locale => {
+                const localeConfig = availableLocales.find(l => l.code === locale);
+                const div = document.createElement('div');
+                div.style.cssText = 'display: flex; align-items: center; gap: 15px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background-color: white;';
+                
+                div.innerHTML = `
+                    <label style="min-width: 150px; font-weight: 600;">${localeConfig.display_name}:</label>
+                    <input type="file" accept=".html" data-locale="${locale}" style="flex-grow: 1;">
+                    <span class="template-status" data-locale="${locale}" style="color: #718096; font-size: 14px;">No file selected</span>
+                `;
+                
+                const fileInput = div.querySelector('input[type="file"]');
+                fileInput.addEventListener('change', handleTemplateUpload);
+                
+                container.appendChild(div);
+            });
+        }
+        
+        // Handle template file uploads
+        function handleTemplateUpload(event) {
+            const locale = event.target.dataset.locale;
+            const file = event.target.files[0];
+            const statusSpan = document.querySelector(`span[data-locale="${locale}"]`);
+            
+            if (file) {
+                uploadedTemplates.set(locale, file);
+                statusSpan.textContent = `✓ ${file.name}`;
+                statusSpan.style.color = '#48bb78';
+            } else {
+                uploadedTemplates.delete(locale);
+                statusSpan.textContent = 'No file selected';
+                statusSpan.style.color = '#718096';
+            }
+        }
+        
+        // Update locale preview select dropdown
+        function updateLocalePreviewSelect() {
+            const select = document.getElementById('locale-preview-select');
+            select.innerHTML = '<option value="">Select locale...</option>';
+            
+            selectedLocales.forEach(locale => {
+                const localeConfig = availableLocales.find(l => l.code === locale);
+                const option = document.createElement('option');
+                option.value = locale;
+                option.textContent = localeConfig.display_name;
+                select.appendChild(option);
+            });
+        }
+        
+        // Generate and display locale-specific requirements
+        async function generateLocaleRequirements(locale) {
+            if (!baseRequirements) return;
+            
+            try {
+                const response = await fetch('/api/generate-locale-requirements', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        base_requirements: baseRequirements,
+                        target_locale: locale
+                    })
+                });
+                
+                const data = await response.json();
+                return data.requirements;
+            } catch (error) {
+                console.error('Error generating locale requirements:', error);
+                return null;
+            }
         }
         
         // Check application mode on page load
