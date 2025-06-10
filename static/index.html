@@ -3508,6 +3508,273 @@
                     }
                 });
         }
+        // Add batch processing event listeners when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mode toggle buttons
+            document.getElementById('single-mode-btn').addEventListener('click', switchToSingleMode);
+            document.getElementById('batch-mode-btn').addEventListener('click', switchToBatchMode);
+            
+            // Batch requirements handling
+            document.getElementById('batch-upload-requirements').addEventListener('click', function() {
+                document.getElementById('batch-requirements-file').click();
+            });
+            
+            document.getElementById('batch-requirements-file').addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            baseRequirements = JSON.parse(e.target.result);
+                            document.getElementById('batch-requirements-file-name').textContent = `✓ ${file.name}`;
+                            document.getElementById('base-requirements-preview').value = JSON.stringify(baseRequirements, null, 2);
+                            hideElement(document.getElementById('batch-requirements-editor'));
+                        } catch (error) {
+                            alert('Invalid JSON file. Please check the format.');
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+            
+            document.getElementById('batch-edit-requirements').addEventListener('click', function() {
+                const editor = document.getElementById('batch-requirements-editor');
+                if (editor.style.display === 'none') {
+                    showElement(editor);
+                    document.getElementById('batch-requirements-textarea').value = baseRequirements ? JSON.stringify(baseRequirements, null, 2) : '';
+                } else {
+                    hideElement(editor);
+                }
+            });
+            
+            document.getElementById('validate-batch-requirements').addEventListener('click', function() {
+                const textarea = document.getElementById('batch-requirements-textarea');
+                const validation = document.getElementById('batch-requirements-validation');
+                
+                try {
+                    baseRequirements = JSON.parse(textarea.value);
+                    validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON</span>';
+                    document.getElementById('base-requirements-preview').value = JSON.stringify(baseRequirements, null, 2);
+                } catch (error) {
+                    validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
+                }
+            });
+            
+            // Locale preview select
+            document.getElementById('locale-preview-select').addEventListener('change', async function(event) {
+                const locale = event.target.value;
+                const preview = document.getElementById('locale-requirements-preview');
+                
+                if (locale && baseRequirements) {
+                    const localeReq = await generateLocaleRequirements(locale);
+                    if (localeReq) {
+                        preview.value = JSON.stringify(localeReq, null, 2);
+                    }
+                } else {
+                    preview.value = '';
+                }
+            });
+            
+            // Batch processing controls
+            document.getElementById('start-batch-processing').addEventListener('click', startBatchProcessing);
+            document.getElementById('cancel-batch-processing').addEventListener('click', cancelBatchProcessing);
+            
+            // Export results
+            document.getElementById('export-batch-results').addEventListener('click', function() {
+                if (currentBatchId) {
+                    fetch(`/api/batch-result/${currentBatchId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `batch-results-${currentBatchId}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                        })
+                        .catch(error => console.error('Export error:', error));
+                }
+            });
+        });
+        
+        // Start batch processing
+        async function startBatchProcessing() {
+            // Validate inputs
+            if (selectedLocales.size === 0) {
+                alert('Please select at least one locale.');
+                return;
+            }
+            
+            if (!baseRequirements) {
+                alert('Please upload or enter base requirements.');
+                return;
+            }
+            
+            const missingTemplates = [];
+            selectedLocales.forEach(locale => {
+                if (!uploadedTemplates.has(locale)) {
+                    const localeConfig = availableLocales.find(l => l.code === locale);
+                    missingTemplates.push(localeConfig.display_name);
+                }
+            });
+            
+            if (missingTemplates.length > 0) {
+                alert(`Missing templates for: ${missingTemplates.join(', ')}`);
+                return;
+            }
+            
+            // Start processing
+            const startBtn = document.getElementById('start-batch-processing');
+            const cancelBtn = document.getElementById('cancel-batch-processing');
+            
+            startBtn.disabled = true;
+            startBtn.textContent = 'Processing...';
+            showElement(cancelBtn);
+            showElement(document.getElementById('batch-progress-section'));
+            
+            // Prepare form data
+            const formData = new FormData();
+            
+            // Add templates
+            uploadedTemplates.forEach((file, locale) => {
+                formData.append('templates', file);
+            });
+            
+            // Create locale mapping
+            const localeMapping = {};
+            uploadedTemplates.forEach((file, locale) => {
+                localeMapping[file.name] = locale;
+            });
+            formData.append('locale_mapping', JSON.stringify(localeMapping));
+            
+            // Add base requirements
+            const reqBlob = new Blob([JSON.stringify(baseRequirements)], { type: 'application/json' });
+            formData.append('base_requirements', reqBlob, 'requirements.json');
+            
+            // Add selected locales
+            formData.append('selected_locales', JSON.stringify(Array.from(selectedLocales)));
+            
+            // Add options
+            formData.append('check_product_tables', document.getElementById('batch-check-product-tables').checked);
+            
+            try {
+                const response = await fetch('/api/batch-validate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    currentBatchId = result.batch_id;
+                    displayBatchResults(result);
+                } else {
+                    throw new Error(result.detail || 'Batch processing failed');
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                console.error('Batch processing error:', error);
+            } finally {
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Batch QA';
+                hideElement(cancelBtn);
+            }
+        }
+        
+        // Cancel batch processing
+        async function cancelBatchProcessing() {
+            if (currentBatchId) {
+                try {
+                    await fetch(`/api/batch-cancel/${currentBatchId}`, { method: 'POST' });
+                    alert('Batch processing cancelled');
+                } catch (error) {
+                    console.error('Cancel error:', error);
+                }
+            }
+        }
+        
+        // Display batch results
+        function displayBatchResults(batchResult) {
+            showElement(document.getElementById('batch-results-section'));
+            
+            // Update progress
+            const progress = batchResult.progress;
+            document.getElementById('batch-progress-text').textContent = 
+                `${progress.completed} of ${progress.total} completed`;
+            document.getElementById('batch-progress-bar').style.width = `${progress.progress_percent}%`;
+            
+            // Create locale status indicators
+            const statusList = document.getElementById('locale-status-list');
+            statusList.innerHTML = '';
+            
+            Object.entries(batchResult.results).forEach(([locale, result]) => {
+                const div = document.createElement('div');
+                div.style.cssText = 'display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #e2e8f0;';
+                
+                const localeConfig = availableLocales.find(l => l.code === locale);
+                const status = result.status === 'success' ? '✓' : '✗';
+                const statusColor = result.status === 'success' ? '#48bb78' : '#e53e3e';
+                
+                div.innerHTML = `
+                    <span>${localeConfig ? localeConfig.display_name : locale}</span>
+                    <span style="color: ${statusColor};">${status} ${result.status}</span>
+                `;
+                
+                statusList.appendChild(div);
+            });
+            
+            // Create results tabs
+            const tabsContainer = document.getElementById('batch-results-tabs');
+            const contentContainer = document.getElementById('batch-results-content');
+            
+            tabsContainer.innerHTML = '';
+            contentContainer.innerHTML = '';
+            
+            Object.entries(batchResult.results).forEach(([locale, result], index) => {
+                const localeConfig = availableLocales.find(l => l.code === locale);
+                
+                // Create tab
+                const tab = document.createElement('button');
+                tab.textContent = localeConfig ? localeConfig.display_name : locale;
+                tab.style.cssText = `
+                    padding: 10px 20px; 
+                    border: none; 
+                    background-color: ${index === 0 ? '#4299e1' : '#f7fafc'}; 
+                    color: ${index === 0 ? 'white' : '#4a5568'};
+                    cursor: pointer;
+                    border-bottom: 2px solid transparent;
+                `;
+                
+                tab.addEventListener('click', () => {
+                    // Update tab styles
+                    tabsContainer.querySelectorAll('button').forEach(btn => {
+                        btn.style.backgroundColor = '#f7fafc';
+                        btn.style.color = '#4a5568';
+                    });
+                    tab.style.backgroundColor = '#4299e1';
+                    tab.style.color = 'white';
+                    
+                    // Show content
+                    contentContainer.innerHTML = `
+                        <div style="padding: 20px; background-color: white; border: 1px solid #e2e8f0; border-radius: 4px;">
+                            <h4>${localeConfig ? localeConfig.display_name : locale} Results</h4>
+                            <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto;">
+                                ${JSON.stringify(result.result || result, null, 2)}
+                            </pre>
+                        </div>
+                    `;
+                });
+                
+                tabsContainer.appendChild(tab);
+            });
+            
+            // Show first tab by default
+            if (tabsContainer.firstChild) {
+                tabsContainer.firstChild.click();
+            }
+        }
+
     </script>
 </body>
 </html>
