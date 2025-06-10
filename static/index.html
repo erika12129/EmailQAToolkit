@@ -557,20 +557,56 @@
 
         <!-- Requirements Comparison -->
         <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">4. Requirements Preview</h3>
+            <h3 style="margin-bottom: 15px;">4. Requirements Preview - Side by Side Comparison</h3>
             <div style="display: flex; gap: 20px;">
-                <div style="flex: 1;">
-                    <h4 style="margin-bottom: 10px;">Base Requirements (en_US)</h4>
-                    <textarea id="base-requirements-preview" readonly style="width: 100%; height: 250px; font-family: monospace; background-color: #f5f5f5; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
-                </div>
+                <!-- Left Side -->
                 <div style="flex: 1;">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                        <h4 style="margin: 0;">Locale Requirements</h4>
-                        <select id="locale-preview-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                        <h4 style="margin: 0;">Left Side</h4>
+                        <select id="left-locale-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                            <option value="en_US">Base Requirements (en_US)</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                        <button type="button" id="left-upload-requirements" class="button" style="background-color: #4299e1; font-size: 0.85em; padding: 4px 8px;">Upload JSON</button>
+                        <button type="button" id="left-edit-requirements" class="button" style="background-color: #a0aec0; font-size: 0.85em; padding: 4px 8px;">Edit JSON</button>
+                    </div>
+                    <input type="file" id="left-requirements-file" accept=".json" style="display: none;">
+                    <div id="left-requirements-editor" style="display: none; margin-bottom: 10px;">
+                        <textarea id="left-requirements-textarea" style="width: 100%; height: 200px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
+                        <div style="display: flex; gap: 5px; margin-top: 5px;">
+                            <button type="button" id="validate-left-requirements" class="button" style="background-color: #48bb78; font-size: 0.85em; padding: 4px 8px;">Validate JSON</button>
+                            <button type="button" id="reset-left-requirements" class="button" style="background-color: #e53e3e; font-size: 0.85em; padding: 4px 8px;">Reset to Auto-Generated</button>
+                        </div>
+                        <div id="left-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
+                    </div>
+                    <div id="left-requirements-file-name" class="file-name" style="font-size: 0.85em; margin-bottom: 5px;"></div>
+                    <textarea id="left-requirements-preview" readonly style="width: 100%; height: 300px; font-family: monospace; background-color: #f5f5f5; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
+                </div>
+                
+                <!-- Right Side -->
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                        <h4 style="margin: 0;">Right Side</h4>
+                        <select id="right-locale-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
                             <option value="">Select locale...</option>
                         </select>
                     </div>
-                    <textarea id="locale-requirements-preview" readonly style="width: 100%; height: 250px; font-family: monospace; background-color: #f5f5f5; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
+                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                        <button type="button" id="right-upload-requirements" class="button" style="background-color: #4299e1; font-size: 0.85em; padding: 4px 8px;">Upload JSON</button>
+                        <button type="button" id="right-edit-requirements" class="button" style="background-color: #a0aec0; font-size: 0.85em; padding: 4px 8px;">Edit JSON</button>
+                    </div>
+                    <input type="file" id="right-requirements-file" accept=".json" style="display: none;">
+                    <div id="right-requirements-editor" style="display: none; margin-bottom: 10px;">
+                        <textarea id="right-requirements-textarea" style="width: 100%; height: 200px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
+                        <div style="display: flex; gap: 5px; margin-top: 5px;">
+                            <button type="button" id="validate-right-requirements" class="button" style="background-color: #48bb78; font-size: 0.85em; padding: 4px 8px;">Validate JSON</button>
+                            <button type="button" id="reset-right-requirements" class="button" style="background-color: #e53e3e; font-size: 0.85em; padding: 4px 8px;">Reset to Auto-Generated</button>
+                        </div>
+                        <div id="right-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
+                    </div>
+                    <div id="right-requirements-file-name" class="file-name" style="font-size: 0.85em; margin-bottom: 5px;"></div>
+                    <textarea id="right-requirements-preview" readonly style="width: 100%; height: 300px; font-family: monospace; background-color: #f5f5f5; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
                 </div>
             </div>
         </div>
@@ -695,6 +731,9 @@
         let baseRequirements = null;
         let currentBatchId = null;
         let availableLocales = [];
+        let customLocaleRequirements = new Map(); // locale -> custom requirements
+        let leftSideLocale = 'en_US'; // Default to base requirements
+        let rightSideLocale = null;
         
         // Set default values based on email type
         function setDefaultsByEmailType() {
@@ -811,7 +850,7 @@
                 uploadedTemplates.delete(locale);
             }
             updateTemplateUploads();
-            updateLocalePreviewSelect();
+            updateLocalePreviewSelects();
         }
         
         // Update template upload fields based on selected locales
@@ -859,17 +898,17 @@
             }
         }
         
-        // Update locale preview select dropdown
-        function updateLocalePreviewSelect() {
-            const select = document.getElementById('locale-preview-select');
-            select.innerHTML = '<option value="">Select locale...</option>';
+        // Update locale preview select dropdowns for both sides
+        function updateLocalePreviewSelects() {
+            const rightSelect = document.getElementById('right-locale-select');
+            rightSelect.innerHTML = '<option value="">Select locale...</option>';
             
             selectedLocales.forEach(locale => {
                 const localeConfig = availableLocales.find(l => l.code === locale);
                 const option = document.createElement('option');
                 option.value = locale;
                 option.textContent = localeConfig.display_name;
-                select.appendChild(option);
+                rightSelect.appendChild(option);
             });
         }
         
@@ -895,14 +934,41 @@
             }
         }
         
-        // Helper function to update locale preview
-        async function updateLocalePreview(locale) {
-            const preview = document.getElementById('locale-requirements-preview');
+        // Helper functions to update left and right side previews
+        async function updateLeftSidePreview(locale = leftSideLocale) {
+            const preview = document.getElementById('left-requirements-preview');
             
-            if (locale && baseRequirements) {
-                const localeReq = await generateLocaleRequirements(locale);
-                if (localeReq) {
-                    preview.value = JSON.stringify(localeReq, null, 2);
+            if (locale === 'en_US' && baseRequirements) {
+                preview.value = JSON.stringify(baseRequirements, null, 2);
+            } else if (locale && baseRequirements) {
+                // Check if custom requirements exist for this locale
+                if (customLocaleRequirements.has(locale)) {
+                    preview.value = JSON.stringify(customLocaleRequirements.get(locale), null, 2);
+                } else {
+                    const localeReq = await generateLocaleRequirements(locale);
+                    if (localeReq) {
+                        preview.value = JSON.stringify(localeReq, null, 2);
+                    }
+                }
+            } else {
+                preview.value = '';
+            }
+        }
+        
+        async function updateRightSidePreview(locale = rightSideLocale) {
+            const preview = document.getElementById('right-requirements-preview');
+            
+            if (locale === 'en_US' && baseRequirements) {
+                preview.value = JSON.stringify(baseRequirements, null, 2);
+            } else if (locale && baseRequirements) {
+                // Check if custom requirements exist for this locale
+                if (customLocaleRequirements.has(locale)) {
+                    preview.value = JSON.stringify(customLocaleRequirements.get(locale), null, 2);
+                } else {
+                    const localeReq = await generateLocaleRequirements(locale);
+                    if (localeReq) {
+                        preview.value = JSON.stringify(localeReq, null, 2);
+                    }
                 }
             } else {
                 preview.value = '';
@@ -3642,19 +3708,227 @@
                 }
             });
             
-            // Locale preview select
-            document.getElementById('locale-preview-select').addEventListener('change', async function(event) {
-                const locale = event.target.value;
-                const preview = document.getElementById('locale-requirements-preview');
-                
-                if (locale && baseRequirements) {
-                    const localeReq = await generateLocaleRequirements(locale);
-                    if (localeReq) {
-                        preview.value = JSON.stringify(localeReq, null, 2);
-                    }
-                } else {
-                    preview.value = '';
+            // Left and Right side locale selectors
+            document.getElementById('left-locale-select').addEventListener('change', async function(event) {
+                leftSideLocale = event.target.value;
+                await updateLeftSidePreview();
+            });
+            
+            document.getElementById('right-locale-select').addEventListener('change', async function(event) {
+                rightSideLocale = event.target.value;
+                await updateRightSidePreview();
+            });
+            
+            // Left side editor functionality
+            document.getElementById('left-upload-requirements').addEventListener('click', function() {
+                document.getElementById('left-requirements-file').click();
+            });
+            
+            document.getElementById('left-requirements-file').addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const jsonContent = JSON.parse(e.target.result);
+                            if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
+                                alert('Invalid JSON file: Missing required fields (sender_address, subject, preheader)');
+                                return;
+                            }
+                            
+                            if (leftSideLocale === 'en_US') {
+                                baseRequirements = jsonContent;
+                            } else {
+                                customLocaleRequirements.set(leftSideLocale, jsonContent);
+                            }
+                            
+                            document.getElementById('left-requirements-file-name').textContent = `✓ ${file.name}`;
+                            updateLeftSidePreview();
+                            
+                        } catch (error) {
+                            alert(`Invalid JSON file: ${error.message}`);
+                        }
+                    };
+                    reader.readAsText(file);
                 }
+            });
+            
+            document.getElementById('left-edit-requirements').addEventListener('click', function() {
+                const editor = document.getElementById('left-requirements-editor');
+                const button = document.getElementById('left-edit-requirements');
+                const uploadButton = document.getElementById('left-upload-requirements');
+                
+                if (editor.style.display === 'none' || !editor.style.display) {
+                    editor.style.display = 'block';
+                    editor.classList.remove('hidden');
+                    
+                    let currentData = null;
+                    if (leftSideLocale === 'en_US') {
+                        currentData = baseRequirements;
+                    } else if (customLocaleRequirements.has(leftSideLocale)) {
+                        currentData = customLocaleRequirements.get(leftSideLocale);
+                    }
+                    
+                    document.getElementById('left-requirements-textarea').value = currentData ? JSON.stringify(currentData, null, 2) : '';
+                    button.textContent = 'Hide Editor';
+                    button.style.backgroundColor = '#48bb78';
+                    uploadButton.style.backgroundColor = '#a0aec0';
+                } else {
+                    editor.style.display = 'none';
+                    editor.classList.add('hidden');
+                    button.textContent = 'Edit JSON';
+                    button.style.backgroundColor = '#a0aec0';
+                    uploadButton.style.backgroundColor = '#4299e1';
+                }
+            });
+            
+            document.getElementById('validate-left-requirements').addEventListener('click', function() {
+                const textarea = document.getElementById('left-requirements-textarea');
+                const validation = document.getElementById('left-requirements-validation');
+                
+                if (!textarea.value.trim()) {
+                    validation.innerHTML = '<span style="color: #e53e3e;">✗ Please enter JSON requirements</span>';
+                    return;
+                }
+                
+                try {
+                    const jsonContent = JSON.parse(textarea.value);
+                    if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
+                        validation.innerHTML = '<span style="color: #e53e3e;">✗ JSON requirements must include sender_address, subject, and preheader fields</span>';
+                        return;
+                    }
+                    
+                    if (leftSideLocale === 'en_US') {
+                        baseRequirements = jsonContent;
+                    } else {
+                        customLocaleRequirements.set(leftSideLocale, jsonContent);
+                    }
+                    
+                    validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON requirements</span>';
+                    updateLeftSidePreview();
+                    
+                } catch (error) {
+                    validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
+                }
+            });
+            
+            document.getElementById('reset-left-requirements').addEventListener('click', async function() {
+                if (leftSideLocale === 'en_US') {
+                    alert('Cannot reset base requirements. Please upload or edit manually.');
+                    return;
+                }
+                
+                customLocaleRequirements.delete(leftSideLocale);
+                document.getElementById('left-requirements-file-name').textContent = '';
+                document.getElementById('left-requirements-file').value = '';
+                document.getElementById('left-requirements-validation').innerHTML = '';
+                await updateLeftSidePreview();
+            });
+            
+            // Right side editor functionality
+            document.getElementById('right-upload-requirements').addEventListener('click', function() {
+                document.getElementById('right-requirements-file').click();
+            });
+            
+            document.getElementById('right-requirements-file').addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const jsonContent = JSON.parse(e.target.result);
+                            if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
+                                alert('Invalid JSON file: Missing required fields (sender_address, subject, preheader)');
+                                return;
+                            }
+                            
+                            if (rightSideLocale === 'en_US') {
+                                baseRequirements = jsonContent;
+                            } else {
+                                customLocaleRequirements.set(rightSideLocale, jsonContent);
+                            }
+                            
+                            document.getElementById('right-requirements-file-name').textContent = `✓ ${file.name}`;
+                            updateRightSidePreview();
+                            
+                        } catch (error) {
+                            alert(`Invalid JSON file: ${error.message}`);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+            
+            document.getElementById('right-edit-requirements').addEventListener('click', function() {
+                const editor = document.getElementById('right-requirements-editor');
+                const button = document.getElementById('right-edit-requirements');
+                const uploadButton = document.getElementById('right-upload-requirements');
+                
+                if (editor.style.display === 'none' || !editor.style.display) {
+                    editor.style.display = 'block';
+                    editor.classList.remove('hidden');
+                    
+                    let currentData = null;
+                    if (rightSideLocale === 'en_US') {
+                        currentData = baseRequirements;
+                    } else if (customLocaleRequirements.has(rightSideLocale)) {
+                        currentData = customLocaleRequirements.get(rightSideLocale);
+                    }
+                    
+                    document.getElementById('right-requirements-textarea').value = currentData ? JSON.stringify(currentData, null, 2) : '';
+                    button.textContent = 'Hide Editor';
+                    button.style.backgroundColor = '#48bb78';
+                    uploadButton.style.backgroundColor = '#a0aec0';
+                } else {
+                    editor.style.display = 'none';
+                    editor.classList.add('hidden');
+                    button.textContent = 'Edit JSON';
+                    button.style.backgroundColor = '#a0aec0';
+                    uploadButton.style.backgroundColor = '#4299e1';
+                }
+            });
+            
+            document.getElementById('validate-right-requirements').addEventListener('click', function() {
+                const textarea = document.getElementById('right-requirements-textarea');
+                const validation = document.getElementById('right-requirements-validation');
+                
+                if (!textarea.value.trim()) {
+                    validation.innerHTML = '<span style="color: #e53e3e;">✗ Please enter JSON requirements</span>';
+                    return;
+                }
+                
+                try {
+                    const jsonContent = JSON.parse(textarea.value);
+                    if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
+                        validation.innerHTML = '<span style="color: #e53e3e;">✗ JSON requirements must include sender_address, subject, and preheader fields</span>';
+                        return;
+                    }
+                    
+                    if (rightSideLocale === 'en_US') {
+                        baseRequirements = jsonContent;
+                    } else {
+                        customLocaleRequirements.set(rightSideLocale, jsonContent);
+                    }
+                    
+                    validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON requirements</span>';
+                    updateRightSidePreview();
+                    
+                } catch (error) {
+                    validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
+                }
+            });
+            
+            document.getElementById('reset-right-requirements').addEventListener('click', async function() {
+                if (rightSideLocale === 'en_US') {
+                    alert('Cannot reset base requirements. Please upload or edit manually.');
+                    return;
+                }
+                
+                customLocaleRequirements.delete(rightSideLocale);
+                document.getElementById('right-requirements-file-name').textContent = '';
+                document.getElementById('right-requirements-file').value = '';
+                document.getElementById('right-requirements-validation').innerHTML = '';
+                await updateRightSidePreview();
             });
             
             // Batch processing controls
