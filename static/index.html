@@ -3539,11 +3539,15 @@
             
             document.getElementById('batch-edit-requirements').addEventListener('click', function() {
                 const editor = document.getElementById('batch-requirements-editor');
-                if (editor.style.display === 'none') {
+                const button = document.getElementById('batch-edit-requirements');
+                
+                if (editor.style.display === 'none' || !editor.style.display) {
                     showElement(editor);
                     document.getElementById('batch-requirements-textarea').value = baseRequirements ? JSON.stringify(baseRequirements, null, 2) : '';
+                    button.textContent = 'Hide Editor';
                 } else {
                     hideElement(editor);
+                    button.textContent = 'Edit JSON';
                 }
             });
             
@@ -3655,8 +3659,8 @@
             // Add selected locales
             formData.append('selected_locales', JSON.stringify(Array.from(selectedLocales)));
             
-            // Add options
-            formData.append('check_product_tables', document.getElementById('batch-check-product-tables').checked);
+            // Add options (default to false like single mode)
+            formData.append('check_product_tables', document.getElementById('batch-check-product-tables').checked || false);
             
             try {
                 const response = await fetch('/api/batch-validate', {

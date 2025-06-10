@@ -10,7 +10,7 @@ import tempfile
 import logging
 from typing import Dict, Any, List, Optional
 import json
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request, Header, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -986,11 +986,11 @@ async def get_supported_locales():
 @app.post("/api/batch-validate")
 async def batch_validate(
     templates: List[UploadFile] = File(..., description="Email template files"),
-    locale_mapping: str = Body(..., description="JSON mapping of template files to locale codes"),
+    locale_mapping: str = Form(..., description="JSON mapping of template files to locale codes"),
     base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
-    selected_locales: List[str] = Body(..., description="List of locale codes to process"),
-    check_product_tables: bool = Body(True, description="Whether to check for product tables"),
-    product_table_timeout: Optional[int] = Body(None, description="Timeout for product table checks")
+    selected_locales: str = Form(..., description="JSON array of locale codes to process"),
+    check_product_tables: bool = Form(False, description="Whether to check for product tables"),
+    product_table_timeout: Optional[int] = Form(None, description="Timeout for product table checks")
 ):
     """
     Process batch validation for multiple email templates across different locales.
@@ -1015,6 +1015,12 @@ async def batch_validate(
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid locale_mapping JSON format")
         
+        # Parse selected locales
+        try:
+            selected_locales_list = json.loads(selected_locales)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid selected_locales JSON format")
+        
         # Parse base requirements
         base_req_content = await base_requirements.read()
         try:
@@ -1028,11 +1034,11 @@ async def batch_validate(
             filename = template.filename
             if filename in mapping:
                 locale = mapping[filename]
-                if locale in selected_locales:
+                if locale in selected_locales_list:
                     template_dict[locale] = template
         
         # Validate that all selected locales have templates
-        missing_templates = [locale for locale in selected_locales if locale not in template_dict]
+        missing_templates = [locale for locale in selected_locales_list if locale not in template_dict]
         if missing_templates:
             raise HTTPException(
                 status_code=400, 
@@ -1043,7 +1049,7 @@ async def batch_validate(
         batch_request = BatchValidationRequest(
             templates=template_dict,
             base_requirements=base_req_dict,
-            selected_locales=selected_locales,
+            selected_locales=selected_locales_list,
             check_product_tables=check_product_tables,
             product_table_timeout=product_table_timeout
         )

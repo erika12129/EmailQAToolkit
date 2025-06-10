@@ -68,9 +68,9 @@ def generate_locale_requirements(base_requirements: dict, locale: str) -> dict:
     - utm_parameters
     
     Variables (locale-specific):
-    - sender_name (will be different in each template)
-    - subject (will be different in each template)
-    - preheader (will be different in each template)
+    - sender_name (customizable per template)
+    - subject (customizable per template) 
+    - preheader (customizable per template)
     - country (from locale config)
     - language (from locale config)
     - domain (with URL parameters)
@@ -80,7 +80,7 @@ def generate_locale_requirements(base_requirements: dict, locale: str) -> dict:
         locale: Target locale code
         
     Returns:
-        dict: Locale-specific requirements
+        dict: Locale-specific requirements with customizable fields
     """
     if locale not in LOCALE_CONFIGS:
         raise ValueError(f"Unsupported locale: {locale}")
@@ -88,9 +88,12 @@ def generate_locale_requirements(base_requirements: dict, locale: str) -> dict:
     locale_config = LOCALE_CONFIGS[locale]
     locale_req = base_requirements.copy()
     
-    # Update locale-specific fields
+    # Update locale-specific fields that change automatically
     locale_req["country"] = locale_config["country"]
     locale_req["language"] = locale_config["language"]
+    
+    # Note: sender_name, subject, and preheader remain as-is from base
+    # These should be customized manually per template since they contain translations
     
     # Update domain with URL parameters
     base_domain = locale_req.get("domain", "")
