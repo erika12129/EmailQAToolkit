@@ -3619,7 +3619,6 @@
                             
                             baseRequirements = jsonContent;
                             document.getElementById('batch-requirements-file-name').textContent = `✓ ${file.name}`;
-                            document.getElementById('base-requirements-preview').value = JSON.stringify(baseRequirements, null, 2);
                             
                             // Hide editor and reset button states
                             const editor = document.getElementById('batch-requirements-editor');
@@ -3632,11 +3631,9 @@
                             // Clear validation message
                             validation.innerHTML = '';
                             
-                            // Update locale requirements preview if a locale is selected
-                            const localeSelect = document.getElementById('locale-preview-select');
-                            if (localeSelect.value) {
-                                updateLocalePreview(localeSelect.value);
-                            }
+                            // Update both side previews
+                            updateLeftSidePreview();
+                            updateRightSidePreview();
                             
                         } catch (error) {
                             alert(`Invalid JSON file: ${error.message}`);
@@ -3695,13 +3692,10 @@
                     // Validation passed
                     baseRequirements = jsonContent;
                     validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON requirements</span>';
-                    document.getElementById('base-requirements-preview').value = JSON.stringify(baseRequirements, null, 2);
                     
-                    // Update locale requirements preview if a locale is selected
-                    const localeSelect = document.getElementById('locale-preview-select');
-                    if (localeSelect.value) {
-                        updateLocalePreview(localeSelect.value);
-                    }
+                    // Update both side previews
+                    updateLeftSidePreview();
+                    updateRightSidePreview();
                     
                 } catch (error) {
                     validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
