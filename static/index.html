@@ -895,6 +895,20 @@
             }
         }
         
+        // Helper function to update locale preview
+        async function updateLocalePreview(locale) {
+            const preview = document.getElementById('locale-requirements-preview');
+            
+            if (locale && baseRequirements) {
+                const localeReq = await generateLocaleRequirements(locale);
+                if (localeReq) {
+                    preview.value = JSON.stringify(localeReq, null, 2);
+                }
+            } else {
+                preview.value = '';
+            }
+        }
+        
         // Check application mode on page load
         window.addEventListener('DOMContentLoaded', function() {
             // Fetch the current configuration to determine mode
@@ -3521,16 +3535,45 @@
             
             document.getElementById('batch-requirements-file').addEventListener('change', function(event) {
                 const file = event.target.files[0];
+                const uploadButton = document.getElementById('batch-upload-requirements');
+                const editButton = document.getElementById('batch-edit-requirements');
+                const validation = document.getElementById('batch-requirements-validation');
+                
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         try {
-                            baseRequirements = JSON.parse(e.target.result);
+                            const jsonContent = JSON.parse(e.target.result);
+                            
+                            // Basic requirements validation (same as single template)
+                            if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
+                                alert('Invalid JSON file: Missing required fields (sender_address, subject, preheader)');
+                                return;
+                            }
+                            
+                            baseRequirements = jsonContent;
                             document.getElementById('batch-requirements-file-name').textContent = `✓ ${file.name}`;
                             document.getElementById('base-requirements-preview').value = JSON.stringify(baseRequirements, null, 2);
-                            hideElement(document.getElementById('batch-requirements-editor'));
+                            
+                            // Hide editor and reset button states
+                            const editor = document.getElementById('batch-requirements-editor');
+                            editor.style.display = 'none';
+                            editor.classList.add('hidden');
+                            editButton.textContent = 'Edit JSON';
+                            editButton.style.backgroundColor = '#a0aec0';
+                            uploadButton.style.backgroundColor = '#4299e1';
+                            
+                            // Clear validation message
+                            validation.innerHTML = '';
+                            
+                            // Update locale requirements preview if a locale is selected
+                            const localeSelect = document.getElementById('locale-preview-select');
+                            if (localeSelect.value) {
+                                updateLocalePreview(localeSelect.value);
+                            }
+                            
                         } catch (error) {
-                            alert('Invalid JSON file. Please check the format.');
+                            alert(`Invalid JSON file: ${error.message}`);
                         }
                     };
                     reader.readAsText(file);
@@ -3540,14 +3583,28 @@
             document.getElementById('batch-edit-requirements').addEventListener('click', function() {
                 const editor = document.getElementById('batch-requirements-editor');
                 const button = document.getElementById('batch-edit-requirements');
+                const uploadButton = document.getElementById('batch-upload-requirements');
+                const fileNameDiv = document.getElementById('batch-requirements-file-name');
                 
                 if (editor.style.display === 'none' || !editor.style.display) {
-                    showElement(editor);
+                    // Show editor mode
+                    editor.style.display = 'block';
+                    editor.classList.remove('hidden');
                     document.getElementById('batch-requirements-textarea').value = baseRequirements ? JSON.stringify(baseRequirements, null, 2) : '';
                     button.textContent = 'Hide Editor';
+                    button.style.backgroundColor = '#48bb78'; // Green when active
+                    uploadButton.style.backgroundColor = '#a0aec0'; // Gray when inactive
+                    
+                    // Clear file upload state
+                    fileNameDiv.textContent = '';
+                    document.getElementById('batch-requirements-file').value = '';
                 } else {
-                    hideElement(editor);
+                    // Hide editor mode
+                    editor.style.display = 'none';
+                    editor.classList.add('hidden');
                     button.textContent = 'Edit JSON';
+                    button.style.backgroundColor = '#a0aec0'; // Gray when inactive
+                    uploadButton.style.backgroundColor = '#4299e1'; // Blue when active
                 }
             });
             
@@ -3555,10 +3612,31 @@
                 const textarea = document.getElementById('batch-requirements-textarea');
                 const validation = document.getElementById('batch-requirements-validation');
                 
+                if (!textarea.value.trim()) {
+                    validation.innerHTML = '<span style="color: #e53e3e;">✗ Please enter JSON requirements</span>';
+                    return;
+                }
+                
                 try {
-                    baseRequirements = JSON.parse(textarea.value);
-                    validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON</span>';
+                    const jsonContent = JSON.parse(textarea.value);
+                    
+                    // Basic requirements validation (same as single template)
+                    if (!jsonContent.sender_address || !jsonContent.subject || !jsonContent.preheader) {
+                        validation.innerHTML = '<span style="color: #e53e3e;">✗ JSON requirements must include sender_address, subject, and preheader fields</span>';
+                        return;
+                    }
+                    
+                    // Validation passed
+                    baseRequirements = jsonContent;
+                    validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON requirements</span>';
                     document.getElementById('base-requirements-preview').value = JSON.stringify(baseRequirements, null, 2);
+                    
+                    // Update locale requirements preview if a locale is selected
+                    const localeSelect = document.getElementById('locale-preview-select');
+                    if (localeSelect.value) {
+                        updateLocalePreview(localeSelect.value);
+                    }
+                    
                 } catch (error) {
                     validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
                 }
