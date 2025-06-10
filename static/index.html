@@ -2331,6 +2331,10 @@
                 } else {
                     // Convert object format to array format
                     for (const [key, value] of Object.entries(data.metadata)) {
+                        // Skip internal fields that start with underscore
+                        if (key.startsWith('_')) {
+                            continue;
+                        }
                         // Get expected value directly from requirements JSON, then form fields as fallback
                         let expected = '';
                         let status = 'FAIL';

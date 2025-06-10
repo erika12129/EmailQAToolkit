@@ -1429,7 +1429,7 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
         copyright_year = metadata.get('_copyright_year', 'Not found')
         
         # Check if copyright year matches current year
-        if copyright_year != 'Not found':
+        if copyright_year and copyright_year != 'Not found':
             if copyright_year == current_year:
                 metadata_issues.append(f"copyright_year: PASS - Current year ({current_year}) found")
             else:
