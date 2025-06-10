@@ -1422,6 +1422,19 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
                 # Also set footer_campaign_code to match the same format
                 expected_metadata['footer_campaign_code'] = f"{campaign_code} - {country}"
         
+        # Add copyright year validation
+        current_year = str(datetime.now().year)
+        copyright_year = metadata.get('copyright_year', 'Not found')
+        
+        # Check if copyright year matches current year
+        if copyright_year != 'Not found':
+            if copyright_year == current_year:
+                metadata_issues.append(f"copyright_year: PASS - Current year ({current_year}) found")
+            else:
+                metadata_issues.append(f"copyright_year: FAIL - Expected '{current_year}', found '{copyright_year}'")
+        else:
+            metadata_issues.append(f"copyright_year: FAIL - No copyright year found in email")
+        
         # Compare actual vs expected values
         for key, expected_value in expected_metadata.items():
             if expected_value and key in metadata:
