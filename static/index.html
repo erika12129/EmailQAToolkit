@@ -2298,7 +2298,6 @@
             const fieldNameMap = {
                 // Sender field mappings
                 'sender': 'sender_address',
-                'copyright_year': 'Copyright Year', 
                 'sender_address': 'sender_address',
                 'sender_name': 'sender_name',
                 
@@ -2440,31 +2439,7 @@
                 }
             }
             
-            // Add copyright year check to metadata
-            if (data.metadata && data.metadata.copyright_year !== undefined) {
-                const currentYear = new Date().getFullYear().toString();
-                const copyrightYear = data.metadata.copyright_year;
-                
-                let status = 'FAIL';
-                let expected = currentYear;
-                let actual = copyrightYear;
-                
-                if (copyrightYear === 'Not found') {
-                    status = 'FAIL';
-                    actual = 'No copyright year found';
-                } else if (copyrightYear === currentYear) {
-                    status = 'PASS';
-                } else {
-                    status = 'FAIL';
-                }
-                
-                allMetadata.push({
-                    field: 'copyright_year',
-                    expected: expected,
-                    actual: actual,
-                    status: status
-                });
-            }
+
             
             // Display metadata results
             allMetadata.forEach(item => {

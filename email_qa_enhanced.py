@@ -390,9 +390,11 @@ def extract_email_metadata(soup):
         'reply_address': safe_extract(reply_to) or 'Not found',
         'subject': safe_extract(subject) or 'Not found',
         'preheader': preheader_text,
-        'footer_campaign_code': footer_campaign_code,
-        'copyright_year': copyright_year
+        'footer_campaign_code': footer_campaign_code
     }
+    
+    # Store copyright year separately for validation (not in metadata display)
+    metadata_dict['_copyright_year'] = copyright_year
     
     return metadata_dict
 
@@ -1424,7 +1426,7 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
         
         # Add copyright year validation
         current_year = str(datetime.now().year)
-        copyright_year = metadata.get('copyright_year', 'Not found')
+        copyright_year = metadata.get('_copyright_year', 'Not found')
         
         # Check if copyright year matches current year
         if copyright_year != 'Not found':
