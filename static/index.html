@@ -3591,15 +3591,26 @@
         // Add batch processing event listeners when DOM is loaded
         document.addEventListener('DOMContentLoaded', function() {
             // Mode toggle buttons
-            document.getElementById('single-mode-btn').addEventListener('click', switchToSingleMode);
-            document.getElementById('batch-mode-btn').addEventListener('click', switchToBatchMode);
+            const singleModeBtn = document.getElementById('single-mode-btn');
+            const batchModeBtn = document.getElementById('batch-mode-btn');
+            
+            if (singleModeBtn) {
+                singleModeBtn.addEventListener('click', switchToSingleMode);
+            }
+            if (batchModeBtn) {
+                batchModeBtn.addEventListener('click', switchToBatchMode);
+            }
             
             // Batch requirements handling
-            document.getElementById('batch-upload-requirements').addEventListener('click', function() {
-                document.getElementById('batch-requirements-file').click();
-            });
+            const batchUploadReqs = document.getElementById('batch-upload-requirements');
+            const batchReqsFile = document.getElementById('batch-requirements-file');
             
-            document.getElementById('batch-requirements-file').addEventListener('change', function(event) {
+            if (batchUploadReqs && batchReqsFile) {
+                batchUploadReqs.addEventListener('click', function() {
+                    batchReqsFile.click();
+                });
+                
+                batchReqsFile.addEventListener('change', function(event) {
                 const file = event.target.files[0];
                 const uploadButton = document.getElementById('batch-upload-requirements');
                 const editButton = document.getElementById('batch-edit-requirements');
@@ -3641,9 +3652,12 @@
                     };
                     reader.readAsText(file);
                 }
-            });
+                });
+            }
             
-            document.getElementById('batch-edit-requirements').addEventListener('click', function() {
+            const batchEditReqs = document.getElementById('batch-edit-requirements');
+            if (batchEditReqs) {
+                batchEditReqs.addEventListener('click', function() {
                 const editor = document.getElementById('batch-requirements-editor');
                 const button = document.getElementById('batch-edit-requirements');
                 const uploadButton = document.getElementById('batch-upload-requirements');
@@ -3669,9 +3683,12 @@
                     button.style.backgroundColor = '#a0aec0'; // Gray when inactive
                     uploadButton.style.backgroundColor = '#4299e1'; // Blue when active
                 }
-            });
+                });
+            }
             
-            document.getElementById('validate-batch-requirements').addEventListener('click', function() {
+            const validateBatchReqs = document.getElementById('validate-batch-requirements');
+            if (validateBatchReqs) {
+                validateBatchReqs.addEventListener('click', function() {
                 const textarea = document.getElementById('batch-requirements-textarea');
                 const validation = document.getElementById('batch-requirements-validation');
                 
@@ -3700,10 +3717,13 @@
                 } catch (error) {
                     validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
                 }
-            });
+                });
+            }
             
             // Left and Right side locale selectors
-            document.getElementById('left-locale-select').addEventListener('change', async function(event) {
+            const leftLocaleSelect = document.getElementById('left-locale-select');
+            if (leftLocaleSelect) {
+                leftLocaleSelect.addEventListener('change', async function(event) {
                 leftSideLocale = event.target.value;
                 await updateLeftSidePreview();
             });
