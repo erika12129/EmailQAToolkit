@@ -366,14 +366,7 @@ def extract_email_metadata(soup):
     html_content = str(soup)
     text_content = soup.get_text()
     
-    # Debug: Log the content being searched
-    logger.info(f"DEBUG: Starting copyright search in email content")
-    logger.info(f"DEBUG: Text content length: {len(text_content)}")
-    logger.info(f"DEBUG: Looking for '@2025' in text: {'@2025' in text_content}")
-    logger.info(f"DEBUG: Text content sample: {text_content[:1000]}...")
-    
-    for i, pattern in enumerate(copyright_patterns):
-        logger.info(f"DEBUG: Trying pattern {i}: {pattern}")
+    for pattern in copyright_patterns:
         # Check in HTML content first (handles HTML entities)
         match = re.search(pattern, html_content, re.IGNORECASE)
         if match:
@@ -387,7 +380,6 @@ def extract_email_metadata(soup):
             copyright_year = match.group(1)
             logger.info(f"Found copyright year in text: {copyright_year} using pattern: {pattern}")
             break
-        logger.info(f"DEBUG: Pattern {i} did not match")
     
     if copyright_year == "Not found":
         logger.info("No copyright year found in email content")
