@@ -565,7 +565,6 @@
                         <div id="left-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
                     </div>
                     <div id="left-requirements-file-name" class="file-name" style="font-size: 0.85em; margin-bottom: 5px;"></div>
-                    <textarea id="left-requirements-preview" readonly style="width: 100%; height: 300px; font-family: monospace; background-color: #f5f5f5; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
                 </div>
                 
                 <!-- Right Side -->
@@ -590,7 +589,6 @@
                         <div id="right-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
                     </div>
                     <div id="right-requirements-file-name" class="file-name" style="font-size: 0.85em; margin-bottom: 5px;"></div>
-                    <textarea id="right-requirements-preview" readonly style="width: 100%; height: 300px; font-family: monospace; background-color: #f5f5f5; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
                 </div>
             </div>
         </div>
@@ -918,46 +916,7 @@
             }
         }
         
-        // Helper functions to update left and right side previews
-        async function updateLeftSidePreview(locale = leftSideLocale) {
-            const preview = document.getElementById('left-requirements-preview');
-            
-            if (locale === 'en_US' && baseRequirements) {
-                preview.value = JSON.stringify(baseRequirements, null, 2);
-            } else if (locale && baseRequirements) {
-                // Check if custom requirements exist for this locale
-                if (customLocaleRequirements.has(locale)) {
-                    preview.value = JSON.stringify(customLocaleRequirements.get(locale), null, 2);
-                } else {
-                    const localeReq = await generateLocaleRequirements(locale);
-                    if (localeReq) {
-                        preview.value = JSON.stringify(localeReq, null, 2);
-                    }
-                }
-            } else {
-                preview.value = '';
-            }
-        }
-        
-        async function updateRightSidePreview(locale = rightSideLocale) {
-            const preview = document.getElementById('right-requirements-preview');
-            
-            if (locale === 'en_US' && baseRequirements) {
-                preview.value = JSON.stringify(baseRequirements, null, 2);
-            } else if (locale && baseRequirements) {
-                // Check if custom requirements exist for this locale
-                if (customLocaleRequirements.has(locale)) {
-                    preview.value = JSON.stringify(customLocaleRequirements.get(locale), null, 2);
-                } else {
-                    const localeReq = await generateLocaleRequirements(locale);
-                    if (localeReq) {
-                        preview.value = JSON.stringify(localeReq, null, 2);
-                    }
-                }
-            } else {
-                preview.value = '';
-            }
-        }
+
         
         // Check application mode on page load
         window.addEventListener('DOMContentLoaded', function() {
@@ -3592,7 +3551,6 @@
             if (leftLocaleSelect) {
                 leftLocaleSelect.addEventListener('change', async function(event) {
                 leftSideLocale = event.target.value;
-                await updateLeftSidePreview();
                 });
             }
             
@@ -3600,10 +3558,6 @@
             if (rightLocaleSelect) {
                 rightLocaleSelect.addEventListener('change', async function(event) {
                 rightSideLocale = event.target.value;
-                
-
-                
-                await updateRightSidePreview();
                 });
             }
             
@@ -3635,7 +3589,6 @@
                             }
                             
                             document.getElementById('left-requirements-file-name').textContent = `✓ ${file.name}`;
-                            updateLeftSidePreview();
                             
                         } catch (error) {
                             alert(`Invalid JSON file: ${error.message}`);
@@ -3740,7 +3693,6 @@
                             }
                             
                             document.getElementById('right-requirements-file-name').textContent = `✓ ${file.name}`;
-                            updateRightSidePreview();
                             
                         } catch (error) {
                             alert(`Invalid JSON file: ${error.message}`);
