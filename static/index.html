@@ -560,7 +560,7 @@
                         <textarea id="left-requirements-textarea" style="width: 100%; height: 200px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
                         <div style="display: flex; gap: 5px; margin-top: 5px;">
                             <button type="button" id="validate-left-requirements" class="button" style="background-color: #48bb78; font-size: 0.85em; padding: 4px 8px;">Validate JSON</button>
-                            <button type="button" id="reset-left-requirements" class="button" style="background-color: #e53e3e; font-size: 0.85em; padding: 4px 8px; display: none;">Reset to Auto-Generated</button>
+
                         </div>
                         <div id="left-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
                     </div>
@@ -585,7 +585,7 @@
                         <textarea id="right-requirements-textarea" style="width: 100%; height: 200px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
                         <div style="display: flex; gap: 5px; margin-top: 5px;">
                             <button type="button" id="validate-right-requirements" class="button" style="background-color: #48bb78; font-size: 0.85em; padding: 4px 8px;">Validate JSON</button>
-                            <button type="button" id="reset-right-requirements" class="button" style="background-color: #e53e3e; font-size: 0.85em; padding: 4px 8px;">Reset to Auto-Generated</button>
+
                         </div>
                         <div id="right-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
                     </div>
@@ -3592,17 +3592,6 @@
             if (leftLocaleSelect) {
                 leftLocaleSelect.addEventListener('change', async function(event) {
                 leftSideLocale = event.target.value;
-                
-                // Show/hide reset button based on locale selection
-                const resetButton = document.getElementById('reset-left-requirements');
-                if (resetButton) {
-                    if (leftSideLocale === 'en_US') {
-                        resetButton.style.display = 'none';
-                    } else {
-                        resetButton.style.display = 'inline-block';
-                    }
-                }
-                
                 await updateLeftSidePreview();
                 });
             }
@@ -3612,15 +3601,7 @@
                 rightLocaleSelect.addEventListener('change', async function(event) {
                 rightSideLocale = event.target.value;
                 
-                // Show/hide reset button based on locale selection
-                const resetButton = document.getElementById('reset-right-requirements');
-                if (resetButton) {
-                    if (rightSideLocale === 'en_US') {
-                        resetButton.style.display = 'none';
-                    } else {
-                        resetButton.style.display = 'inline-block';
-                    }
-                }
+
                 
                 await updateRightSidePreview();
                 });
@@ -3722,7 +3703,6 @@
                     }
                     
                     validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON requirements</span>';
-                    updateLeftSidePreview();
                     
                 } catch (error) {
                     validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
@@ -3730,21 +3710,7 @@
                 });
             }
             
-            const resetLeftReqs = document.getElementById('reset-left-requirements');
-            if (resetLeftReqs) {
-                resetLeftReqs.addEventListener('click', async function() {
-                if (leftSideLocale === 'en_US') {
-                    alert('Cannot reset base requirements. Please upload or edit manually.');
-                    return;
-                }
-                
-                customLocaleRequirements.delete(leftSideLocale);
-                document.getElementById('left-requirements-file-name').textContent = '';
-                document.getElementById('left-requirements-file').value = '';
-                document.getElementById('left-requirements-validation').innerHTML = '';
-                await updateLeftSidePreview();
-                });
-            }
+
             
             // Right side editor functionality
             const rightUploadReqs = document.getElementById('right-upload-requirements');
@@ -3842,7 +3808,6 @@
                     }
                     
                     validation.innerHTML = '<span style="color: #48bb78;">✓ Valid JSON requirements</span>';
-                    updateRightSidePreview();
                     
                 } catch (error) {
                     validation.innerHTML = `<span style="color: #e53e3e;">✗ Invalid JSON: ${error.message}</span>`;
@@ -3850,21 +3815,7 @@
                 });
             }
             
-            const resetRightReqs = document.getElementById('reset-right-requirements');
-            if (resetRightReqs) {
-                resetRightReqs.addEventListener('click', async function() {
-                if (rightSideLocale === 'en_US') {
-                    alert('Cannot reset base requirements. Please upload or edit manually.');
-                    return;
-                }
-                
-                customLocaleRequirements.delete(rightSideLocale);
-                document.getElementById('right-requirements-file-name').textContent = '';
-                document.getElementById('right-requirements-file').value = '';
-                document.getElementById('right-requirements-validation').innerHTML = '';
-                await updateRightSidePreview();
-                });
-            }
+
             
             // Batch processing controls
             const startBatchBtn = document.getElementById('start-batch-processing');
