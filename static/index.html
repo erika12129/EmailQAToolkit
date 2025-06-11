@@ -3952,15 +3952,8 @@
                     tab.style.backgroundColor = '#4299e1';
                     tab.style.color = 'white';
                     
-                    // Show content
-                    contentContainer.innerHTML = `
-                        <div style="padding: 20px; background-color: white; border: 1px solid #e2e8f0; border-radius: 4px;">
-                            <h4>${localeConfig ? localeConfig.display_name : locale} Results</h4>
-                            <pre style="background-color: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto;">
-                                ${JSON.stringify(result.result || result, null, 2)}
-                            </pre>
-                        </div>
-                    `;
+                    // Show detailed content matching single email QA format
+                    displayLocaleResults(contentContainer, locale, result.result || result, localeConfig);
                 });
                 
                 tabsContainer.appendChild(tab);
@@ -3970,6 +3963,356 @@
             if (tabsContainer.firstChild) {
                 tabsContainer.firstChild.click();
             }
+        }
+        
+        // Display detailed results for a specific locale in batch processing
+        function displayLocaleResults(container, locale, result, localeConfig) {
+            const localeName = localeConfig ? localeConfig.display_name : locale;
+            
+            container.innerHTML = `
+                <div style="padding: 20px; background-color: white; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <h3 style="margin-bottom: 20px; color: #2d3748;">${localeName} QA Results</h3>
+                    
+                    <!-- Metadata Section -->
+                    <div style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">📧 Email Metadata</h4>
+                        <div id="batch-metadata-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            <!-- Metadata content will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Images Section -->
+                    <div style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">🖼️ Standalone Images</h4>
+                        <div id="batch-images-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            <!-- Images content will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Links Section -->
+                    <div style="margin-bottom: 30px;">
+                        <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">🔗 Links Analysis</h4>
+                        <div id="batch-links-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            <!-- Links content will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Populate each section with actual data
+            populateBatchMetadata(locale, result);
+            populateBatchImages(locale, result);
+            populateBatchLinks(locale, result);
+        }
+        
+        // Populate metadata section for batch results
+        function populateBatchMetadata(locale, result) {
+            const container = document.getElementById(`batch-metadata-${locale}`);
+            
+            // Check if we have metadata array format (like single email QA) or need to construct it
+            let metadataItems = [];
+            
+            if (result.metadata && Array.isArray(result.metadata)) {
+                // Already in the correct format
+                metadataItems = result.metadata;
+            } else {
+                // Need to construct from individual fields - get requirements and metadata
+                const metadata = result.metadata || {};
+                const requirements = result.requirements || {};
+                
+                // Map the data into the expected format
+                const fieldMappings = [
+                    { field: 'sender_address', actual: metadata.sender_address, expected: requirements.sender_address },
+                    { field: 'sender_name', actual: metadata.sender_name, expected: requirements.sender_name },
+                    { field: 'reply_address', actual: metadata.reply_address, expected: requirements.reply_address },
+                    { field: 'subject', actual: metadata.subject, expected: requirements.subject },
+                    { field: 'preheader', actual: metadata.preheader, expected: requirements.preheader },
+                    { field: 'footer_campaign_code', actual: metadata.footer_campaign_code, expected: requirements.campaign_code },
+                    { field: 'copyright_year', actual: metadata.copyright_year, expected: '2025' }
+                ];
+                
+                metadataItems = fieldMappings.map(item => ({
+                    field: item.field,
+                    expected: item.expected,
+                    actual: item.actual || 'Not found',
+                    status: (item.actual === item.expected) ? 'PASS' : 'FAIL'
+                }));
+            }
+            
+            // Create the exact same table structure as single email QA
+            container.innerHTML = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f7fafc;">
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Field</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Expected</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Actual</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batch-metadata-table-${locale}">
+                    </tbody>
+                </table>
+            `;
+            
+            const tableBody = document.getElementById(`batch-metadata-table-${locale}`);
+            
+            // Map field names to display names (same as single email QA)
+            const fieldNameMap = {
+                'sender_address': 'sender_address',
+                'sender_name': 'sender_name', 
+                'reply_address': 'reply_address',
+                'subject': 'subject',
+                'preheader': 'preheader',
+                'footer_campaign_code': 'footer_campaign_code',
+                'copyright_year': 'Copyright Year'
+            };
+            
+            metadataItems.forEach(item => {
+                if (!item.expected && !item.actual) return;
+                
+                const row = document.createElement('tr');
+                
+                // Field name
+                const fieldCell = document.createElement('td');
+                fieldCell.style.border = '1px solid #e2e8f0';
+                fieldCell.style.padding = '8px';
+                fieldCell.textContent = fieldNameMap[item.field] || item.field;
+                row.appendChild(fieldCell);
+                
+                // Expected value
+                const expectedCell = document.createElement('td');
+                expectedCell.style.border = '1px solid #e2e8f0';
+                expectedCell.style.padding = '8px';
+                expectedCell.textContent = item.expected || '';
+                row.appendChild(expectedCell);
+                
+                // Actual value
+                const actualCell = document.createElement('td');
+                actualCell.style.border = '1px solid #e2e8f0';
+                actualCell.style.padding = '8px';
+                actualCell.textContent = item.actual || 'Not found';
+                row.appendChild(actualCell);
+                
+                // Status
+                const statusCell = document.createElement('td');
+                statusCell.style.border = '1px solid #e2e8f0';
+                statusCell.style.padding = '8px';
+                
+                statusCell.textContent = item.status || 'FAIL';
+                
+                if (item.status === 'PASS') {
+                    statusCell.style.color = '#48bb78';
+                    statusCell.style.fontWeight = 'bold';
+                } else {
+                    statusCell.style.color = '#e53e3e';
+                    statusCell.style.fontWeight = 'bold';
+                }
+                
+                row.appendChild(statusCell);
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Populate images section for batch results
+        function populateBatchImages(locale, result) {
+            const container = document.getElementById(`batch-images-${locale}`);
+            const images = result.images || [];
+            
+            if (images.length === 0) {
+                container.innerHTML = '<p style="color: #718096; font-style: italic;">No standalone images found.</p>';
+                return;
+            }
+            
+            // Create the exact same table structure as single email QA
+            container.innerHTML = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f7fafc;">
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Image</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Alt Text</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Location</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Dimensions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batch-images-table-${locale}">
+                    </tbody>
+                </table>
+            `;
+            
+            const tableBody = document.getElementById(`batch-images-table-${locale}`);
+            
+            images.forEach(image => {
+                const row = document.createElement('tr');
+                
+                // Image thumbnail cell
+                const imageCell = document.createElement('td');
+                imageCell.style.border = '1px solid #e2e8f0';
+                imageCell.style.padding = '8px';
+                
+                if (image.src) {
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = image.src;
+                    thumbnail.alt = image.alt || 'No alt text';
+                    thumbnail.style.maxWidth = '120px';
+                    thumbnail.style.maxHeight = '80px';
+                    thumbnail.style.border = '1px solid #e2e8f0';
+                    imageCell.appendChild(thumbnail);
+                } else {
+                    imageCell.textContent = 'No image source';
+                }
+                row.appendChild(imageCell);
+                
+                // Alt text cell
+                const altTextCell = document.createElement('td');
+                altTextCell.style.border = '1px solid #e2e8f0';
+                altTextCell.style.padding = '8px';
+                
+                if (image.has_alt && image.alt) {
+                    altTextCell.textContent = image.alt;
+                } else {
+                    const altTextWarning = document.createElement('div');
+                    altTextWarning.innerHTML = '⚠️ alt: none detected';
+                    altTextWarning.style.color = '#e53e3e';
+                    altTextCell.appendChild(altTextWarning);
+                }
+                row.appendChild(altTextCell);
+                
+                // Status cell
+                const statusCell = document.createElement('td');
+                statusCell.style.border = '1px solid #e2e8f0';
+                statusCell.style.padding = '8px';
+                
+                if (image.alt_warning || !image.has_alt) {
+                    statusCell.textContent = 'Missing alt text';
+                    statusCell.style.color = '#e53e3e';
+                    statusCell.style.fontWeight = 'bold';
+                } else {
+                    statusCell.textContent = 'OK';
+                    statusCell.style.color = '#48bb78';
+                    statusCell.style.fontWeight = 'bold';
+                }
+                row.appendChild(statusCell);
+                
+                // Location cell
+                const locationCell = document.createElement('td');
+                locationCell.style.border = '1px solid #e2e8f0';
+                locationCell.style.padding = '8px';
+                locationCell.textContent = image.location || 'Unknown';
+                
+                if (image.likely_purpose) {
+                    const purposeSpan = document.createElement('div');
+                    purposeSpan.textContent = image.likely_purpose;
+                    purposeSpan.style.fontSize = '12px';
+                    purposeSpan.style.color = '#718096';
+                    purposeSpan.style.marginTop = '4px';
+                    locationCell.appendChild(purposeSpan);
+                }
+                row.appendChild(locationCell);
+                
+                // Dimensions cell
+                const dimensionsCell = document.createElement('td');
+                dimensionsCell.style.border = '1px solid #e2e8f0';
+                dimensionsCell.style.padding = '8px';
+                
+                if (image.width && image.height) {
+                    dimensionsCell.textContent = `${image.width} × ${image.height}`;
+                } else {
+                    dimensionsCell.textContent = 'Not specified';
+                }
+                row.appendChild(dimensionsCell);
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Populate links section for batch results
+        function populateBatchLinks(locale, result) {
+            const container = document.getElementById(`batch-links-${locale}`);
+            const links = result.links || [];
+            
+            if (links.length === 0) {
+                container.innerHTML = '<p style="color: #718096; font-style: italic;">No links found.</p>';
+                return;
+            }
+            
+            container.innerHTML = links.map((link, index) => {
+                const statusColor = link.status === 200 ? '#48bb78' : '#e53e3e';
+                const statusIcon = link.status === 200 ? '✓' : '✗';
+                
+                const utmValidation = link.utm_validation || {};
+                const utmItems = Object.entries(utmValidation).map(([param, validation]) => {
+                    const isValid = validation.valid;
+                    const paramColor = isValid ? '#48bb78' : '#e53e3e';
+                    const paramIcon = isValid ? '✓' : '✗';
+                    
+                    return `
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                            <span><strong>${param}:</strong> ${validation.found || 'Missing'}</span>
+                            ${validation.expected ? `<span style="font-size: 0.9em; color: #718096;">(Expected: ${validation.expected})</span>` : ''}
+                            <span style="color: ${paramColor}; margin-left: 10px;">${paramIcon}</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                return `
+                    <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 15px; background-color: white;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                            <div style="flex: 1;">
+                                <div><strong>Link ${index + 1}:</strong></div>
+                                <div style="margin-top: 4px; word-break: break-all; font-family: monospace; font-size: 0.9em;">${link.url}</div>
+                                ${link.link_text ? `<div style="margin-top: 4px; color: #718096;"><strong>Text:</strong> ${link.link_text}</div>` : ''}
+                                ${link.image_context ? `<div style="margin-top: 4px; color: #718096;"><strong>Image context:</strong> ${link.image_context}</div>` : ''}
+                            </div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; margin-left: 15px;">
+                                <span style="color: ${statusColor}; font-weight: bold;">${statusIcon} ${link.status}</span>
+                                <button onclick="checkProductTable('${link.url}', '${locale}', ${index})" 
+                                        style="margin-top: 8px; padding: 4px 8px; background-color: #4299e1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
+                                    Check Product Table
+                                </button>
+                                <div id="product-table-result-${locale}-${index}" style="margin-top: 5px; font-size: 0.8em;"></div>
+                            </div>
+                        </div>
+                        
+                        ${Object.keys(utmValidation).length > 0 ? `
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
+                                <strong style="color: #4a5568;">UTM Parameters:</strong>
+                                <div style="margin-top: 5px;">
+                                    ${utmItems}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Function to check individual product tables from batch results
+        function checkProductTable(url, locale, linkIndex) {
+            const resultDiv = document.getElementById(`product-table-result-${locale}-${linkIndex}`);
+            resultDiv.innerHTML = '<span style="color: #718096;">Checking...</span>';
+            
+            fetch('/check-product-table', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const found = data.found;
+                const color = found ? '#48bb78' : '#e53e3e';
+                const icon = found ? '✓' : '✗';
+                const message = found ? `Found: ${data.class_name}` : 'Not found';
+                
+                resultDiv.innerHTML = `<span style="color: ${color};">${icon} ${message}</span>`;
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<span style="color: #e53e3e;">✗ Error checking</span>';
+                console.error('Product table check error:', error);
+            });
         }
 
     </script>
