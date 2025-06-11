@@ -1438,8 +1438,9 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
         
         # Compare actual vs expected values
         for key, expected_value in expected_metadata.items():
-            if expected_value and key in metadata:
-                actual_value = metadata[key]
+            if expected_value:  # If there's an expected value, we should validate it
+                # Get actual value from metadata, defaulting to "Not found" if key doesn't exist
+                actual_value = metadata.get(key, "Not found")
                 
                 # Special case for footer_campaign_code - handle the 'r' prefix issue
                 if key == 'footer_campaign_code' or key == 'campaign_code':
