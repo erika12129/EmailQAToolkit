@@ -4018,7 +4018,7 @@
             } else {
                 // Need to construct from individual fields - get requirements and metadata
                 const metadata = result.metadata || {};
-                const requirements = result.requirements || {};
+                const requirements = result.requirements || result.requirements_used || {};
                 
                 // Map the data into the expected format
                 const fieldMappings = [
@@ -4237,55 +4237,226 @@
                 return;
             }
             
-            container.innerHTML = links.map((link, index) => {
-                const statusColor = link.status === 200 ? '#48bb78' : '#e53e3e';
-                const statusIcon = link.status === 200 ? '✓' : '✗';
+            // Create the exact same structure as single email QA with controls
+            container.innerHTML = `
+                <div style="background-color: #e6f3ff; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+                    <p style="margin: 0 0 8px 0; color: #2563eb; font-weight: bold;">Browser Automation Status: Available (Cloud API)</p>
+                    <p style="margin: 0 0 8px 0; font-size: 0.9em;">When unavailable, you'll need to verify product tables manually for each link.</p>
+                    <p style="margin: 0; font-size: 0.9em; color: #dc2626;">Warning: Browser automation should be available in deployment - check server configuration.</p>
+                </div>
                 
+                <div style="margin-bottom: 15px;">
+                    <label for="batch-timeout-${locale}">Product Table Detection Timeout:</label>
+                    <select id="batch-timeout-${locale}" style="margin-left: 5px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="5">5 seconds (default)</option>
+                        <option value="10">10 seconds</option>
+                        <option value="30">30 seconds</option>
+                        <option value="60">60 seconds (slow connections)</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <button type="button" onclick="selectAllLinks('${locale}')" style="background-color: #4299e1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Select All</button>
+                    <button type="button" onclick="deselectAllLinks('${locale}')" style="background-color: #a0aec0; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Deselect All</button>
+                    <button type="button" onclick="checkSelectedLinks('${locale}')" style="background-color: #48bb78; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Check Selected Links</button>
+                </div>
+                <p style="font-size: 0.9em; color: #718096; margin-bottom: 15px;">
+                    Select links to check for product tables and click "Check Selected Links" to validate.
+                </p>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f7fafc;">
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Link Source</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">URL</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Product Table Detection</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Issues</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batch-links-table-${locale}">
+                    </tbody>
+                </table>
+            `;
+            
+            const tableBody = document.getElementById(`batch-links-table-${locale}`);
+            
+            links.forEach((link, index) => {
+                const row = document.createElement('tr');
+                
+                // Link Source Cell
+                const sourceCell = document.createElement('td');
+                sourceCell.style.border = '1px solid #e2e8f0';
+                sourceCell.style.padding = '8px';
+                
+                const sourceContainer = document.createElement('div');
+                
+                // Add image thumbnail if available
+                if (link.is_image_link && link.image_src) {
+                    const thumbnail = document.createElement('img');
+                    thumbnail.src = link.image_src;
+                    thumbnail.style.width = '40px';
+                    thumbnail.style.height = '40px';
+                    thumbnail.style.objectFit = 'cover';
+                    thumbnail.style.marginRight = '8px';
+                    thumbnail.style.verticalAlign = 'middle';
+                    thumbnail.style.border = '1px solid #e2e8f0';
+                    thumbnail.style.borderRadius = '4px';
+                    sourceContainer.appendChild(thumbnail);
+                }
+                
+                const textContainer = document.createElement('div');
+                textContainer.style.display = 'inline-block';
+                textContainer.style.verticalAlign = 'middle';
+                
+                let sourceText = link.link_text || link.source || 'Unknown';
+                if (link.is_image_link || link.image_context) {
+                    sourceText = `[Image] ${sourceText}`;
+                }
+                
+                const sourceSpan = document.createElement('span');
+                sourceSpan.textContent = sourceText;
+                textContainer.appendChild(sourceSpan);
+                
+                // Add utm_content below if available
+                if (link.utm_content) {
+                    const utmContentDiv = document.createElement('div');
+                    utmContentDiv.style.fontSize = '0.8em';
+                    utmContentDiv.style.color = '#718096';
+                    utmContentDiv.style.marginTop = '2px';
+                    utmContentDiv.textContent = `utm_content: ${link.utm_content}`;
+                    textContainer.appendChild(utmContentDiv);
+                } else {
+                    // Check if utm_content is missing and show warning
+                    const utmParams = new URLSearchParams(new URL(link.url).search);
+                    if (!utmParams.has('utm_content')) {
+                        const warningDiv = document.createElement('div');
+                        warningDiv.style.fontSize = '0.8em';
+                        warningDiv.style.color = '#dc2626';
+                        warningDiv.style.marginTop = '2px';
+                        warningDiv.innerHTML = '⚠ utm_content: none detected';
+                        textContainer.appendChild(warningDiv);
+                    }
+                }
+                
+                sourceContainer.appendChild(textContainer);
+                sourceCell.appendChild(sourceContainer);
+                row.appendChild(sourceCell);
+                
+                // URL Cell
+                const urlCell = document.createElement('td');
+                urlCell.style.border = '1px solid #e2e8f0';
+                urlCell.style.padding = '8px';
+                urlCell.style.wordBreak = 'break-all';
+                urlCell.style.fontSize = '0.9em';
+                urlCell.style.fontFamily = 'monospace';
+                
+                const urlLink = document.createElement('a');
+                urlLink.href = link.url;
+                urlLink.target = '_blank';
+                urlLink.style.color = '#2563eb';
+                urlLink.style.textDecoration = 'underline';
+                urlLink.textContent = link.url;
+                urlCell.appendChild(urlLink);
+                row.appendChild(urlCell);
+                
+                // Status Cell
+                const statusCell = document.createElement('td');
+                statusCell.style.border = '1px solid #e2e8f0';
+                statusCell.style.padding = '8px';
+                
+                const httpStatus = link.http_status || link.status;
+                const generalStatus = link.status;
+                
+                // Show both PASS/FAIL and HTTP code
+                let statusText = '';
+                if (httpStatus === 200 || generalStatus === 'PASS') {
+                    statusText = httpStatus === 200 ? 'PASS (200)' : (generalStatus === 'PASS' && httpStatus ? `PASS (${httpStatus})` : 'PASS');
+                    statusCell.style.color = '#48bb78';
+                    statusCell.style.fontWeight = 'bold';
+                } else if (httpStatus === 403) {
+                    statusText = 'FAIL (403)';
+                    statusCell.style.color = '#e53e3e';
+                    statusCell.style.fontWeight = 'bold';
+                } else if (httpStatus === 404) {
+                    statusText = 'FAIL (404)';
+                    statusCell.style.color = '#e53e3e';
+                    statusCell.style.fontWeight = 'bold';
+                } else {
+                    statusText = httpStatus ? `FAIL (${httpStatus})` : 'FAIL';
+                    statusCell.style.color = '#e53e3e';
+                    statusCell.style.fontWeight = 'bold';
+                }
+                
+                statusCell.textContent = statusText;
+                row.appendChild(statusCell);
+                
+                // Product Table Detection Cell
+                const productTableCell = document.createElement('td');
+                productTableCell.style.border = '1px solid #e2e8f0';
+                productTableCell.style.padding = '8px';
+                
+                const container = document.createElement('div');
+                container.style.display = 'flex';
+                container.style.alignItems = 'center';
+                container.style.gap = '8px';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'product-table-checkbox';
+                checkbox.value = link.url;
+                checkbox.style.marginRight = '5px';
+                container.appendChild(checkbox);
+                
+                const statusContainer = document.createElement('div');
+                statusContainer.style.flex = '1';
+                
+                const statusSpan = document.createElement('span');
+                statusSpan.textContent = 'Not checked';
+                statusSpan.style.color = '#718096';
+                statusContainer.appendChild(statusSpan);
+                
+                container.appendChild(statusContainer);
+                productTableCell.appendChild(container);
+                row.appendChild(productTableCell);
+                
+                // Issues Cell
+                const issuesCell = document.createElement('td');
+                issuesCell.style.border = '1px solid #e2e8f0';
+                issuesCell.style.padding = '8px';
+                
+                const utmIssues = link.utm_issues || [];
                 const utmValidation = link.utm_validation || {};
-                const utmItems = Object.entries(utmValidation).map(([param, validation]) => {
-                    const isValid = validation.valid;
-                    const paramColor = isValid ? '#48bb78' : '#e53e3e';
-                    const paramIcon = isValid ? '✓' : '✗';
-                    
-                    return `
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-                            <span><strong>${param}:</strong> ${validation.found || 'Missing'}</span>
-                            ${validation.expected ? `<span style="font-size: 0.9em; color: #718096;">(Expected: ${validation.expected})</span>` : ''}
-                            <span style="color: ${paramColor}; margin-left: 10px;">${paramIcon}</span>
-                        </div>
-                    `;
-                }).join('');
                 
-                return `
-                    <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 15px; background-color: white;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-                            <div style="flex: 1;">
-                                <div><strong>Link ${index + 1}:</strong></div>
-                                <div style="margin-top: 4px; word-break: break-all; font-family: monospace; font-size: 0.9em;">${link.url}</div>
-                                ${link.link_text ? `<div style="margin-top: 4px; color: #718096;"><strong>Text:</strong> ${link.link_text}</div>` : ''}
-                                ${link.image_context ? `<div style="margin-top: 4px; color: #718096;"><strong>Image context:</strong> ${link.image_context}</div>` : ''}
-                            </div>
-                            <div style="display: flex; flex-direction: column; align-items: flex-end; margin-left: 15px;">
-                                <span style="color: ${statusColor}; font-weight: bold;">${statusIcon} ${link.status}</span>
-                                <button onclick="checkProductTable('${link.url}', '${locale}', ${index})" 
-                                        style="margin-top: 8px; padding: 4px 8px; background-color: #4299e1; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em;">
-                                    Check Product Table
-                                </button>
-                                <div id="product-table-result-${locale}-${index}" style="margin-top: 5px; font-size: 0.8em;"></div>
-                            </div>
-                        </div>
-                        
-                        ${Object.keys(utmValidation).length > 0 ? `
-                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0;">
-                                <strong style="color: #4a5568;">UTM Parameters:</strong>
-                                <div style="margin-top: 5px;">
-                                    ${utmItems}
-                                </div>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }).join('');
+                if (utmIssues.length > 0 || Object.keys(utmValidation).length > 0) {
+                    const issuesList = document.createElement('ul');
+                    issuesList.style.paddingLeft = '20px';
+                    issuesList.style.margin = '0';
+                    
+                    // Add UTM issues from utm_issues array
+                    utmIssues.forEach(issue => {
+                        const issueItem = document.createElement('li');
+                        issueItem.textContent = issue;
+                        issuesList.appendChild(issueItem);
+                    });
+                    
+                    // Add UTM validation issues
+                    Object.entries(utmValidation).forEach(([param, validation]) => {
+                        if (!validation.valid) {
+                            const issueItem = document.createElement('li');
+                            issueItem.textContent = `${param}: Expected "${validation.expected}", got "${validation.found || 'Missing'}"`;
+                            issuesList.appendChild(issueItem);
+                        }
+                    });
+                    
+                    issuesCell.appendChild(issuesList);
+                } else {
+                    issuesCell.textContent = 'None';
+                }
+                
+                row.appendChild(issuesCell);
+                tableBody.appendChild(row);
+            });
         }
         
         // Function to check individual product tables from batch results
@@ -4312,6 +4483,63 @@
             .catch(error => {
                 resultDiv.innerHTML = '<span style="color: #e53e3e;">✗ Error checking</span>';
                 console.error('Product table check error:', error);
+            });
+        }
+        
+        // Helper functions for batch links controls
+        function selectAllLinks(locale) {
+            const checkboxes = document.querySelectorAll(`#batch-links-table-${locale} .product-table-checkbox`);
+            checkboxes.forEach(checkbox => checkbox.checked = true);
+        }
+        
+        function deselectAllLinks(locale) {
+            const checkboxes = document.querySelectorAll(`#batch-links-table-${locale} .product-table-checkbox`);
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+        }
+        
+        function checkSelectedLinks(locale) {
+            const checkboxes = document.querySelectorAll(`#batch-links-table-${locale} .product-table-checkbox:checked`);
+            const timeout = document.getElementById(`batch-timeout-${locale}`).value;
+            
+            if (checkboxes.length === 0) {
+                alert('Please select at least one link to check.');
+                return;
+            }
+            
+            checkboxes.forEach(checkbox => {
+                const url = checkbox.value;
+                const row = checkbox.closest('tr');
+                const statusCell = row.querySelector('td:nth-child(4) span');
+                
+                statusCell.textContent = 'Checking...';
+                statusCell.style.color = '#718096';
+                
+                // Make actual API call to check product tables
+                fetch('/api/cloud/check-product-tables', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        timeout: parseInt(timeout)
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.found) {
+                        statusCell.textContent = `✓ Found: ${data.class_name || 'product table'}`;
+                        statusCell.style.color = '#48bb78';
+                    } else {
+                        statusCell.textContent = '✗ Not found';
+                        statusCell.style.color = '#e53e3e';
+                    }
+                })
+                .catch(error => {
+                    statusCell.textContent = 'Error checking';
+                    statusCell.style.color = '#e53e3e';
+                    console.error('Product table check error:', error);
+                });
             });
         }
 
