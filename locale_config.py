@@ -9,7 +9,14 @@ LOCALE_CONFIGS = {
         "country": "US",
         "language": "en",
         "url_params": "",  # Default, no parameters
-        "display_name": "English (US)"
+        "display_name": "English (US)",
+        "metadata": {
+            "sender_name": "Marketing Team",
+            "subject": "Automate your QA", 
+            "preheader": "Get your time back",
+            "sender_address": "reply@partly-products-showcase.lovable.app/",
+            "reply_address": "reply@partly-products-showcase.lovable.app"
+        }
     },
     "en_CA": {
         "country": "CA", 
@@ -27,7 +34,14 @@ LOCALE_CONFIGS = {
         "country": "MX",
         "language": "es",
         "url_params": "cc=MX&lang=es", 
-        "display_name": "Español (México)"
+        "display_name": "Español (México)",
+        "metadata": {
+            "sender_name": "Equipo de Marketing",
+            "subject": "Automatiza tu QA",
+            "preheader": "Recupera tu tiempo",
+            "sender_address": "reply@partly-products-showcase.lovable.app/",
+            "reply_address": "reply@partly-products-showcase.lovable.app"
+        }
     },
     "fr_FR": {
         "country": "FR",
@@ -91,6 +105,12 @@ def generate_locale_requirements(base_requirements: dict, locale: str) -> dict:
     # Update locale-specific fields that change automatically
     locale_req["country"] = locale_config["country"]
     locale_req["language"] = locale_config["language"]
+    
+    # Update campaign_code to include country code for locale-specific validation
+    base_campaign_code = base_requirements.get("campaign_code", "")
+    if base_campaign_code and " - " not in base_campaign_code:
+        # If campaign code doesn't already have country, add it
+        locale_req["campaign_code"] = f"{base_campaign_code} - {locale_config['country']}"
     
     # Note: sender_name, subject, and preheader remain as-is from base
     # These should be customized manually per template since they contain translations

@@ -1383,6 +1383,13 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             ) else None
         }
         
+        # Preserve image properties if this is an image link
+        if isinstance(link, dict):
+            # Copy image-specific properties
+            for prop in ['is_image_link', 'image_src', 'image_alt', 'link_text']:
+                if prop in link:
+                    result[prop] = link[prop]
+        
         results.append(result)
     
     return results
