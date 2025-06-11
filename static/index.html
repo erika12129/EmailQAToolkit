@@ -3803,8 +3803,15 @@
                 return;
             }
             
-            if (!baseRequirements) {
-                alert('Please upload or enter base requirements.');
+            // Check if we have base requirements or can use custom requirements as base
+            let actualBaseRequirements = baseRequirements;
+            if (!actualBaseRequirements && customLocaleRequirements.size > 0) {
+                // Use the first available custom locale requirements as base
+                actualBaseRequirements = customLocaleRequirements.values().next().value;
+            }
+            
+            if (!actualBaseRequirements) {
+                alert('Please upload or enter base requirements. You can upload requirements for any locale to use as the base.');
                 return;
             }
             
@@ -3846,7 +3853,7 @@
             formData.append('locale_mapping', JSON.stringify(localeMapping));
             
             // Add base requirements
-            const reqBlob = new Blob([JSON.stringify(baseRequirements)], { type: 'application/json' });
+            const reqBlob = new Blob([JSON.stringify(actualBaseRequirements)], { type: 'application/json' });
             formData.append('base_requirements', reqBlob, 'requirements.json');
             
             // Add selected locales
