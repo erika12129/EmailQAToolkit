@@ -4319,17 +4319,18 @@
                 textContainer.appendChild(sourceSpan);
                 
                 // Add utm_content below if available
-                if (link.utm_content) {
-                    const utmContentDiv = document.createElement('div');
-                    utmContentDiv.style.fontSize = '0.8em';
-                    utmContentDiv.style.color = '#718096';
-                    utmContentDiv.style.marginTop = '2px';
-                    utmContentDiv.textContent = `utm_content: ${link.utm_content}`;
-                    textContainer.appendChild(utmContentDiv);
-                } else {
-                    // Check if utm_content is missing and show warning
-                    const utmParams = new URLSearchParams(new URL(link.url).search);
-                    if (!utmParams.has('utm_content')) {
+                try {
+                    const urlObj = new URL(link.url);
+                    const utmContent = urlObj.searchParams.get('utm_content');
+                    
+                    if (utmContent) {
+                        const utmContentDiv = document.createElement('div');
+                        utmContentDiv.style.fontSize = '0.8em';
+                        utmContentDiv.style.color = '#718096';
+                        utmContentDiv.style.marginTop = '2px';
+                        utmContentDiv.textContent = `utm_content: ${utmContent}`;
+                        textContainer.appendChild(utmContentDiv);
+                    } else {
                         const warningDiv = document.createElement('div');
                         warningDiv.style.fontSize = '0.8em';
                         warningDiv.style.color = '#dc2626';
@@ -4337,6 +4338,14 @@
                         warningDiv.innerHTML = '⚠ utm_content: none detected';
                         textContainer.appendChild(warningDiv);
                     }
+                } catch (urlError) {
+                    // Handle invalid URLs
+                    const warningDiv = document.createElement('div');
+                    warningDiv.style.fontSize = '0.8em';
+                    warningDiv.style.color = '#dc2626';
+                    warningDiv.style.marginTop = '2px';
+                    warningDiv.innerHTML = '⚠ utm_content: none detected';
+                    textContainer.appendChild(warningDiv);
                 }
                 
                 sourceContainer.appendChild(textContainer);
@@ -4515,20 +4524,23 @@
                 statusCell.style.color = '#718096';
                 
                 // Make actual API call to check product tables
-                fetch('/api/cloud/check-product-tables', {
+                fetch('/check-product-tables', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        url: url,
+                        urls: [url],
                         timeout: parseInt(timeout)
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.found) {
-                        statusCell.textContent = `✓ Found: ${data.class_name || 'product table'}`;
+                    // Handle the API response format which returns results for each URL
+                    const urlResult = data.results ? data.results[url] : data[url];
+                    
+                    if (urlResult && urlResult.found) {
+                        statusCell.textContent = `✓ Found: ${urlResult.class_name || 'product table'}`;
                         statusCell.style.color = '#48bb78';
                     } else {
                         statusCell.textContent = '✗ Not found';
