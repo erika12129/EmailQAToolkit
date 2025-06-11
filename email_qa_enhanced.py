@@ -1451,7 +1451,9 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
                         metadata[key] = actual_value
                         logger.info(f"Updated {key} = {actual_value}")
                 
-                if actual_value != expected_value and actual_value != 'Not found':
+                if actual_value != expected_value:
+                    # If expected value exists but actual is "Not found", it's a FAIL
+                    # If both have values but don't match, it's also a FAIL
                     metadata_issues.append(f"{key}: Expected '{expected_value}', found '{actual_value}'")
         
         # Extract and check links

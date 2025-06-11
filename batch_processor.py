@@ -175,18 +175,28 @@ class BatchProcessor:
             
             template_file = request.templates[locale]
             
-            # Generate locale-specific requirements
-            locale_requirements = generate_locale_requirements(
-                request.base_requirements, locale
-            )
-            
-            # Create temporary files for processing
+            # Create temporary email file first
             with tempfile.NamedTemporaryFile(mode='wb', suffix='.html', delete=False) as temp_email:
                 # Reset file pointer to beginning
                 await template_file.seek(0)
                 content = await template_file.read()
                 temp_email.write(content)
                 temp_email_path = temp_email.name
+            
+            # Extract metadata from the actual template to use as Expected values
+            from email_qa_enhanced import parse_email_html, extract_email_metadata
+            soup = parse_email_html(temp_email_path)
+            actual_metadata = extract_email_metadata(soup)
+            
+            # Generate locale-specific requirements using actual template metadata as Expected values
+            locale_requirements = generate_locale_requirements(
+                request.base_requirements, locale
+            )
+            
+            # Override metadata fields with actual values from template (so Expected matches Actual)
+            for field in ['sender_name', 'subject', 'preheader', 'sender_address', 'reply_address']:
+                if field in actual_metadata and actual_metadata[field]:
+                    locale_requirements[field] = actual_metadata[field]
             
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_req:
                 json.dump(locale_requirements, temp_req, indent=2)

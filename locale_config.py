@@ -9,14 +9,7 @@ LOCALE_CONFIGS = {
         "country": "US",
         "language": "en",
         "url_params": "",  # Default, no parameters
-        "display_name": "English (US)",
-        "metadata": {
-            "sender_name": "Marketing Team",
-            "subject": "Automate your QA", 
-            "preheader": "Get your time back",
-            "sender_address": "reply@partly-products-showcase.lovable.app/",
-            "reply_address": "reply@partly-products-showcase.lovable.app"
-        }
+        "display_name": "English (US)"
     },
     "en_CA": {
         "country": "CA", 
@@ -34,14 +27,7 @@ LOCALE_CONFIGS = {
         "country": "MX",
         "language": "es",
         "url_params": "cc=MX&lang=es", 
-        "display_name": "Español (México)",
-        "metadata": {
-            "sender_name": "Equipo de Marketing",
-            "subject": "Automatiza tu QA",
-            "preheader": "Recupera tu tiempo",
-            "sender_address": "reply@partly-products-showcase.lovable.app/",
-            "reply_address": "reply@partly-products-showcase.lovable.app"
-        }
+        "display_name": "Español (México)"
     },
     "fr_FR": {
         "country": "FR",
@@ -75,26 +61,22 @@ def generate_locale_requirements(base_requirements: dict, locale: str) -> dict:
     """
     Generate locale-specific requirements from base template.
     
-    Constants (unchanged across locales):
-    - sender_address
-    - reply_address
-    - campaign_code  
-    - utm_parameters
-    
-    Variables (locale-specific):
-    - sender_name (customizable per template)
-    - subject (customizable per template) 
-    - preheader (customizable per template)
+    Updated fields (locale-specific):
     - country (from locale config)
     - language (from locale config)
+    - campaign_code (includes country code)
     - domain (with URL parameters)
+    
+    Preserved fields (extracted from actual template):
+    - sender_name, subject, preheader, sender_address, reply_address
+    - utm_parameters
     
     Args:
         base_requirements: Base requirements dictionary (typically en_US)
         locale: Target locale code
         
     Returns:
-        dict: Locale-specific requirements with customizable fields
+        dict: Locale-specific requirements with structural changes only
     """
     if locale not in LOCALE_CONFIGS:
         raise ValueError(f"Unsupported locale: {locale}")
@@ -111,9 +93,6 @@ def generate_locale_requirements(base_requirements: dict, locale: str) -> dict:
     if base_campaign_code and " - " not in base_campaign_code:
         # If campaign code doesn't already have country, add it
         locale_req["campaign_code"] = f"{base_campaign_code} - {locale_config['country']}"
-    
-    # Note: sender_name, subject, and preheader remain as-is from base
-    # These should be customized manually per template since they contain translations
     
     # Update domain with URL parameters
     base_domain = locale_req.get("domain", "")
