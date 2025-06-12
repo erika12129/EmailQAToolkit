@@ -4245,6 +4245,11 @@
         function displayLocaleResults(container, locale, result, localeConfig) {
             const localeName = localeConfig ? localeConfig.display_name : locale;
             
+            // Build complete HTML with data inline to avoid timing issues
+            const metadataHtml = buildMetadataHtml(result);
+            const imagesHtml = buildImagesHtml(result);
+            const linksHtml = buildLinksHtml(result, locale);
+            
             container.innerHTML = `
                 <div style="padding: 20px; background-color: white; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <h3 style="margin-bottom: 20px; color: #2d3748;">${localeName} QA Results</h3>
@@ -4252,51 +4257,216 @@
                     <!-- Metadata Section -->
                     <div style="margin-bottom: 30px;">
                         <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">📧 Email Metadata</h4>
-                        <div id="batch-metadata-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
-                            <!-- Metadata content will be populated here -->
+                        <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            ${metadataHtml}
                         </div>
                     </div>
                     
                     <!-- Images Section -->
                     <div style="margin-bottom: 30px;">
                         <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">🖼️ Standalone Images</h4>
-                        <div id="batch-images-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
-                            <!-- Images content will be populated here -->
+                        <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            ${imagesHtml}
                         </div>
                     </div>
                     
                     <!-- Links Section -->
                     <div style="margin-bottom: 30px;">
                         <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">🔗 Links Analysis</h4>
-                        <div id="batch-links-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
-                            <!-- Links content will be populated here -->
+                        <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            ${linksHtml}
                         </div>
                     </div>
                 </div>
             `;
+        }
+        
+        // Build metadata HTML inline
+        function buildMetadataHtml(result) {
+            let metadataItems = [];
             
-            // Wait for DOM to update then populate sections
-            // Use requestAnimationFrame for better timing than setTimeout
-            requestAnimationFrame(() => {
-                // Double-check containers exist before populating
-                const metadataContainer = document.getElementById(`batch-metadata-${locale}`);
-                const imagesContainer = document.getElementById(`batch-images-${locale}`);
-                const linksContainer = document.getElementById(`batch-links-${locale}`);
+            if (result.metadata && Array.isArray(result.metadata)) {
+                metadataItems = result.metadata;
+            } else {
+                const metadata = result.metadata || {};
+                const requirements = result.requirements || result.requirements_used || {};
                 
-                if (metadataContainer && imagesContainer && linksContainer) {
-                    populateBatchMetadata(locale, result);
-                    populateBatchImages(locale, result);
-                    populateBatchLinks(locale, result);
-                } else {
-                    console.warn(`Containers not ready for locale ${locale}, retrying...`);
-                    // Fallback with setTimeout
-                    setTimeout(() => {
-                        populateBatchMetadata(locale, result);
-                        populateBatchImages(locale, result);
-                        populateBatchLinks(locale, result);
-                    }, 100);
-                }
+                const fieldMappings = [
+                    { field: 'sender_address', actual: metadata.sender_address, expected: requirements.sender_address },
+                    { field: 'sender_name', actual: metadata.sender_name, expected: requirements.sender_name },
+                    { field: 'reply_address', actual: metadata.reply_address, expected: requirements.reply_address },
+                    { field: 'subject', actual: metadata.subject, expected: requirements.subject },
+                    { field: 'preheader', actual: metadata.preheader, expected: requirements.preheader },
+                    { field: 'footer_campaign_code', actual: metadata.footer_campaign_code, expected: requirements.campaign_code },
+                    { field: 'copyright_year', actual: metadata.copyright_year, expected: '2025' }
+                ];
+                
+                metadataItems = fieldMappings.map(item => ({
+                    field: item.field,
+                    expected: item.expected,
+                    actual: item.actual || 'Not found',
+                    status: (item.actual === item.expected) ? 'PASS' : 'FAIL'
+                }));
+            }
+            
+            const fieldNameMap = {
+                'sender_address': 'Sender Address',
+                'sender_name': 'Sender Name',
+                'reply_address': 'Reply Address',
+                'subject': 'Subject',
+                'preheader': 'Preheader',
+                'footer_campaign_code': 'Campaign Code',
+                'copyright_year': 'Copyright Year'
+            };
+            
+            let html = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f7fafc;">
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Field</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Expected</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Actual</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            metadataItems.forEach(item => {
+                if (!item.expected && !item.actual) return;
+                
+                const statusColor = item.status === 'PASS' ? '#48bb78' : '#e53e3e';
+                html += `
+                    <tr>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${fieldNameMap[item.field] || item.field}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${item.expected || ''}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${item.actual || 'Not found'}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px; color: ${statusColor}; font-weight: bold;">${item.status || 'FAIL'}</td>
+                    </tr>
+                `;
             });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        // Build images HTML inline
+        function buildImagesHtml(result) {
+            const images = result.images || [];
+            
+            if (images.length === 0) {
+                return '<p style="color: #718096; font-style: italic;">No standalone images found.</p>';
+            }
+            
+            let html = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f7fafc;">
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Image</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Alt Text</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Location</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Dimensions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            images.forEach(image => {
+                const altStatus = (image.alt_warning || !image.has_alt) ? 'Missing alt text' : 'OK';
+                const altStatusColor = (image.alt_warning || !image.has_alt) ? '#e53e3e' : '#48bb78';
+                const altText = image.has_alt && image.alt ? image.alt : '⚠️ alt: none detected';
+                const altTextColor = image.has_alt && image.alt ? '#2d3748' : '#e53e3e';
+                
+                html += `
+                    <tr>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">
+                            <img src="${image.src}" alt="${image.alt || ''}" style="max-width: 100px; max-height: 50px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div style="display: none; color: #718096; font-style: italic;">Image not available</div>
+                        </td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px; color: ${altTextColor};">${altText}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px; color: ${altStatusColor}; font-weight: bold;">${altStatus}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">
+                            ${image.location || 'Unknown'}
+                            ${image.likely_purpose ? `<div style="font-size: 12px; color: #718096; margin-top: 4px;">${image.likely_purpose}</div>` : ''}
+                        </td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${image.dimensions || 'Unknown'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        // Build links HTML inline  
+        function buildLinksHtml(result, locale) {
+            const links = result.links || [];
+            
+            if (links.length === 0) {
+                return '<p style="color: #718096; font-style: italic;">No links found.</p>';
+            }
+            
+            let html = `
+                <div style="background-color: #e6f3ff; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+                    <p style="margin: 0 0 8px 0; color: #2563eb; font-weight: bold;">Browser Automation Status: Available (Cloud API)</p>
+                    <p style="margin: 0 0 8px 0; font-size: 0.9em;">When unavailable, you'll need to verify product tables manually for each link.</p>
+                    <p style="margin: 0; font-size: 0.9em; color: #dc2626;">Warning: Browser automation should be available in deployment - check server configuration.</p>
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                    <label for="batch-timeout-${locale}">Product Table Detection Timeout:</label>
+                    <select id="batch-timeout-${locale}" style="margin-left: 5px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+                        <option value="5">5 seconds (default)</option>
+                        <option value="10">10 seconds</option>
+                        <option value="30">30 seconds</option>
+                        <option value="60">60 seconds (slow connections)</option>
+                    </select>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+                    <button type="button" onclick="selectAllLinks('${locale}')" style="background-color: #4299e1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Select All</button>
+                    <button type="button" onclick="deselectAllLinks('${locale}')" style="background-color: #a0aec0; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Deselect All</button>
+                    <button type="button" onclick="checkSelectedLinks('${locale}')" style="background-color: #48bb78; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Check Selected Links</button>
+                </div>
+                <p style="font-size: 0.9em; color: #718096; margin-bottom: 15px;">
+                    Select links to check for product tables and click "Check Selected Links" to validate.
+                </p>
+                
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f7fafc;">
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Link Source</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">URL</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Product Table Detection</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Issues</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batch-links-table-${locale}">
+            `;
+            
+            links.forEach((link, index) => {
+                const statusColor = link.status === 200 ? '#48bb78' : '#e53e3e';
+                const issues = link.issues || [];
+                const issuesText = issues.length > 0 ? issues.join(', ') : 'None';
+                
+                html += `
+                    <tr>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${link.source || 'Unknown'}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px; word-break: break-all;">${link.url}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px; color: ${statusColor}; font-weight: bold;">${link.status}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">
+                            <input type="checkbox" class="product-table-checkbox" value="${link.url}" style="margin-right: 5px;">
+                            <span>Not checked</span>
+                        </td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${issuesText}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
         }
         
         // Populate metadata section for batch results with null safety
