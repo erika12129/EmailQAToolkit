@@ -4297,23 +4297,33 @@
             } else {
                 console.log('Building metadata from individual fields');
                 
-                // Handle batch result structure which differs from single QA
-                let metadata = result.metadata || {};
-                let requirements = result.requirements || result.requirements_used || {};
+                // Based on the console output, the batch result has a very different structure
+                // The actual validation data appears to be in properties of the result object itself
+                let metadata = {};
+                let requirements = {};
                 
-                // Batch results have a different structure - check for direct properties
-                if (Object.keys(metadata).length === 0) {
-                    // In batch processing, the validation result is the direct result
-                    // Look for requirements_used which is added by batch processor
-                    requirements = result.requirements_used || result.requirements || {};
-                    metadata = result.metadata || {};
-                }
-                
-                // If still empty, check if this is the nested result from single QA format
-                if (Object.keys(metadata).length === 0 && result.result) {
-                    console.log('Checking nested result structure');
-                    metadata = result.result.metadata || {};
-                    requirements = result.result.requirements || result.result.requirements_used || {};
+                // First try direct properties (single QA format)
+                if (result.metadata && typeof result.metadata === 'object' && !Array.isArray(result.metadata)) {
+                    metadata = result.metadata;
+                    requirements = result.requirements || result.requirements_used || {};
+                } else {
+                    // For batch results, look for the validation data in the object properties
+                    // The console shows properties like sender_address, sender_name, etc. directly on the result
+                    console.log('Extracting from batch result object structure');
+                    
+                    // Extract metadata fields directly from result object
+                    metadata = {
+                        sender_address: result.sender_address,
+                        sender_name: result.sender_name,
+                        reply_address: result.reply_address,
+                        subject: result.subject,
+                        preheader: result.preheader,
+                        campaign_code: result.campaign_code,
+                        copyright_year: result.copyright_year
+                    };
+                    
+                    // Extract requirements from requirements_used if available
+                    requirements = result.requirements_used || {};
                 }
                 
                 console.log('Final extracted metadata:', metadata);
@@ -4380,7 +4390,13 @@
         
         // Build images HTML inline
         function buildImagesHtml(result) {
-            const images = result.images || [];
+            // Handle both single QA and batch QA result structures
+            let images = result.images || result.standalone_images || [];
+            
+            // Check for nested structure in single QA results
+            if (images.length === 0 && result.result) {
+                images = result.result.images || result.result.standalone_images || [];
+            }
             
             if (images.length === 0) {
                 return '<p style="color: #718096; font-style: italic;">No standalone images found.</p>';
@@ -4429,7 +4445,13 @@
         
         // Build links HTML inline  
         function buildLinksHtml(result, locale) {
-            const links = result.links || [];
+            // Handle both single QA and batch QA result structures
+            let links = result.links || [];
+            
+            // Check for nested structure in single QA results
+            if (links.length === 0 && result.result) {
+                links = result.result.links || [];
+            }
             
             if (links.length === 0) {
                 return '<p style="color: #718096; font-style: italic;">No links found.</p>';
