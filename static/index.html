@@ -3989,60 +3989,165 @@
             }
         }
         
-        // Display batch results
+        // Display batch results with production-safe DOM handling
         function displayBatchResults(batchResult) {
-            showElement(document.getElementById('batch-results-section'));
+            console.log('Displaying batch results:', batchResult);
             
-            // Update progress
-            const progress = batchResult.progress;
-            document.getElementById('batch-progress-text').textContent = 
-                `${progress.completed} of ${progress.total} completed`;
-            document.getElementById('batch-progress-bar').style.width = `${progress.progress_percent}%`;
+            // Production-safe element access with fallbacks
+            const batchResultsSection = document.getElementById('batch-results-section');
+            if (batchResultsSection) {
+                showElement(batchResultsSection);
+            } else {
+                console.warn('batch-results-section not found, creating fallback display');
+                createFallbackBatchDisplay(batchResult);
+                return;
+            }
             
-            // Create locale status indicators
+            // Update progress with null checks
+            const progress = batchResult.progress || { completed: 0, total: 1, progress_percent: 0 };
+            
+            const progressText = document.getElementById('batch-progress-text');
+            if (progressText) {
+                progressText.textContent = `${progress.completed} of ${progress.total} completed`;
+            }
+            
+            const progressBar = document.getElementById('batch-progress-bar');
+            if (progressBar) {
+                progressBar.style.width = `${progress.progress_percent}%`;
+            }
+            
+            // Create locale status indicators with null check
             const statusList = document.getElementById('locale-status-list');
-            statusList.innerHTML = '';
-            
-            Object.entries(batchResult.results).forEach(([locale, result]) => {
-                const div = document.createElement('div');
-                div.style.cssText = 'display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #e2e8f0;';
+            if (statusList) {
+                statusList.innerHTML = '';
                 
+                Object.entries(batchResult.results).forEach(([locale, result]) => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #e2e8f0;';
+                    
+                    const localeConfig = availableLocales.find(l => l.code === locale);
+                    const status = result.status === 'success' ? '✓' : '✗';
+                    const statusColor = result.status === 'success' ? '#48bb78' : '#e53e3e';
+                    
+                    div.innerHTML = `
+                        <span>${localeConfig ? localeConfig.display_name : locale}</span>
+                        <span style="color: ${statusColor};">${status}</span>
+                    `;
+                    
+                    statusList.appendChild(div);
+                });
+            } else {
+                console.warn('locale-status-list not found, skipping status display');
+            }
+            
+            // Create detailed result tabs with null checks
+            createBatchResultTabs(batchResult);
+        }
+        
+        // Fallback display for production environments missing batch result elements
+        function createFallbackBatchDisplay(batchResult) {
+            console.log('Creating fallback batch display for production environment');
+            
+            // Find the batch form or any suitable container
+            const batchForm = document.getElementById('batch-form');
+            const container = batchForm || document.body;
+            
+            // Create a simple results display
+            const fallbackDiv = document.createElement('div');
+            fallbackDiv.id = 'fallback-batch-results';
+            fallbackDiv.style.cssText = `
+                background: white;
+                border: 1px solid #e2e8f0;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            `;
+            
+            const progress = batchResult.progress || { completed: 0, total: 1, progress_percent: 0 };
+            
+            fallbackDiv.innerHTML = `
+                <h3 style="margin-top: 0; color: #2d3748;">Batch Processing Results</h3>
+                <div style="margin-bottom: 15px;">
+                    <div style="background: #f7fafc; padding: 10px; border-radius: 4px;">
+                        Progress: ${progress.completed} of ${progress.total} completed (${progress.progress_percent}%)
+                        <div style="background: #e2e8f0; height: 8px; border-radius: 4px; margin-top: 5px;">
+                            <div style="background: #4299e1; height: 100%; width: ${progress.progress_percent}%; border-radius: 4px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="fallback-results-content"></div>
+            `;
+            
+            container.appendChild(fallbackDiv);
+            
+            // Display results for each locale
+            const resultsContent = document.getElementById('fallback-results-content');
+            Object.entries(batchResult.results).forEach(([locale, result]) => {
                 const localeConfig = availableLocales.find(l => l.code === locale);
-                const status = result.status === 'success' ? '✓' : '✗';
+                const localeDiv = document.createElement('div');
+                localeDiv.style.cssText = 'margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 15px;';
+                
+                const status = result.status === 'success' ? 'Success' : 'Failed';
                 const statusColor = result.status === 'success' ? '#48bb78' : '#e53e3e';
                 
-                div.innerHTML = `
-                    <span>${localeConfig ? localeConfig.display_name : locale}</span>
-                    <span style="color: ${statusColor};">${status} ${result.status}</span>
+                localeDiv.innerHTML = `
+                    <h4 style="margin: 0 0 10px 0; color: #2d3748;">
+                        ${localeConfig ? localeConfig.display_name : locale}
+                        <span style="color: ${statusColor}; margin-left: 10px;">(${status})</span>
+                    </h4>
+                    <div style="font-size: 0.9em; color: #4a5568;">
+                        ${result.status === 'success' ? 'Validation completed successfully' : 'Validation failed - check console for details'}
+                    </div>
                 `;
                 
-                statusList.appendChild(div);
+                resultsContent.appendChild(localeDiv);
             });
+        }
+        
+        // Create batch result tabs with production-safe handling
+        function createBatchResultTabs(batchResult) {
+            // Find tabs container or create fallback
+            let tabsContainer = document.getElementById('batch-result-tabs');
+            if (!tabsContainer) {
+                console.warn('batch-result-tabs not found, creating in fallback display');
+                const fallbackContainer = document.getElementById('fallback-batch-results') || 
+                                        document.getElementById('batch-form') || 
+                                        document.body;
+                
+                tabsContainer = document.createElement('div');
+                tabsContainer.id = 'batch-result-tabs';
+                tabsContainer.style.cssText = 'margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px;';
+                fallbackContainer.appendChild(tabsContainer);
+            }
             
-            // Create results tabs
-            const tabsContainer = document.getElementById('batch-results-tabs');
-            const contentContainer = document.getElementById('batch-results-content');
+            tabsContainer.innerHTML = ''; // Clear existing tabs
             
-            tabsContainer.innerHTML = '';
-            contentContainer.innerHTML = '';
-            
+            // Create tabs for each locale result
             Object.entries(batchResult.results).forEach(([locale, result], index) => {
                 const localeConfig = availableLocales.find(l => l.code === locale);
-                
-                // Create tab
                 const tab = document.createElement('button');
-                tab.textContent = localeConfig ? localeConfig.display_name : locale;
                 tab.style.cssText = `
-                    padding: 10px 20px; 
-                    border: none; 
-                    background-color: ${index === 0 ? '#4299e1' : '#f7fafc'}; 
-                    color: ${index === 0 ? 'white' : '#4a5568'};
+                    background-color: #f7fafc;
+                    border: 1px solid #e2e8f0;
+                    padding: 8px 16px;
+                    margin-right: 5px;
                     cursor: pointer;
-                    border-bottom: 2px solid transparent;
+                    border-radius: 4px 4px 0 0;
                 `;
+                tab.textContent = localeConfig ? localeConfig.display_name : locale;
                 
-                tab.addEventListener('click', () => {
-                    // Update tab styles
+                tab.addEventListener('click', function() {
+                    // Clear content area
+                    let contentContainer = document.getElementById('batch-tab-content');
+                    if (!contentContainer) {
+                        contentContainer = document.createElement('div');
+                        contentContainer.id = 'batch-tab-content';
+                        contentContainer.style.cssText = 'border: 1px solid #e2e8f0; padding: 20px; min-height: 200px;';
+                        tabsContainer.appendChild(contentContainer);
+                    }
+                    
+                    // Update all tabs appearance
                     tabsContainer.querySelectorAll('button').forEach(btn => {
                         btn.style.backgroundColor = '#f7fafc';
                         btn.style.color = '#4a5568';
@@ -4050,17 +4155,90 @@
                     tab.style.backgroundColor = '#4299e1';
                     tab.style.color = 'white';
                     
-                    // Show detailed content matching single email QA format
+                    // Show detailed content for this locale
                     displayLocaleResults(contentContainer, locale, result.result || result, localeConfig);
                 });
                 
                 tabsContainer.appendChild(tab);
             });
             
-            // Show first tab by default
+            // Activate first tab by default
             if (tabsContainer.firstChild) {
                 tabsContainer.firstChild.click();
             }
+        }
+        
+        // Display detailed results for a specific locale in batch processing with null safety
+        function displayLocaleResults(container, locale, result, localeConfig) {
+            if (!container) {
+                console.error('No container provided for locale results');
+                return;
+            }
+            
+            const localeName = localeConfig ? localeConfig.display_name : locale;
+            
+            container.innerHTML = `
+                <h3 style="margin-top: 0; color: #2d3748;">${localeName} QA Results</h3>
+                <div style="background: #f7fafc; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0;">Email Metadata</h4>
+                    ${result.metadata ? displayMetadataTable(result.metadata) : '<p>No metadata available</p>'}
+                </div>
+                <div style="background: #f7fafc; padding: 15px; border-radius: 4px;">
+                    <h4 style="margin: 0 0 10px 0;">Links Analysis</h4>
+                    ${result.links ? displayLinksTable(result.links) : '<p>No links available</p>'}
+                </div>
+            `;
+        }
+        
+        // Helper function to display metadata in batch results
+        function displayMetadataTable(metadata) {
+            if (!metadata) return '<p>No metadata available</p>';
+            
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            Object.entries(metadata).forEach(([key, value]) => {
+                html += `
+                    <tr>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px; font-weight: bold;">${key}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${value || 'N/A'}</td>
+                    </tr>
+                `;
+            });
+            html += '</table>';
+            return html;
+        }
+        
+        // Helper function to display links in batch results
+        function displayLinksTable(links) {
+            if (!links || links.length === 0) return '<p>No links found</p>';
+            
+            let html = `
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background-color: #f7fafc;">
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">URL</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
+                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Issues</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            links.forEach(link => {
+                const statusClass = link.status === 200 ? 'color: #48bb78;' : 'color: #e53e3e;';
+                const issues = link.issues || [];
+                const issuesText = issues.length > 0 ? issues.join(', ') : 'None';
+                
+                html += `
+                    <tr>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px; word-break: break-all;">${link.url}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px; ${statusClass}">${link.status}</td>
+                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${issuesText}</td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            return html;
         }
         
         // Display detailed results for a specific locale in batch processing
