@@ -207,6 +207,40 @@
             border-radius: 4px;
             text-align: center;
         }
+        
+        /* Fix dropdown positioning in locale preview section */
+        select {
+            position: relative;
+            z-index: 1;
+            background: white;
+            border: 1px solid #ccc;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        /* Ensure batch form sections have proper stacking */
+        #batch-form {
+            position: relative;
+            z-index: 1;
+        }
+        
+        #batch-form > div {
+            position: relative;
+            z-index: 2;
+        }
+        
+        /* Locale preview section should have higher z-index */
+        #batch-form div:nth-child(3) {
+            position: relative;
+            z-index: 10;
+        }
+        
+        /* Requirements preview select dropdowns need higher z-index */
+        #right-locale-select, #left-locale-select {
+            position: relative;
+            z-index: 100;
+            background: white;
+        }
     </style>
 </head>
 <body data-mode="production">

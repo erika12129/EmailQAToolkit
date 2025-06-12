@@ -986,12 +986,12 @@ async def get_supported_locales():
 
 @app.post("/api/batch-validate")
 async def batch_validate(
-    templates: List[UploadFile] = File(..., description="Email template files"),
-    locale_mapping: str = Form(..., description="JSON mapping of template files to locale codes"),
-    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
-    selected_locales: str = Form(..., description="JSON array of locale codes to process"),
-    check_product_tables: bool = Form(False, description="Whether to check for product tables"),
-    product_table_timeout: Optional[int] = Form(None, description="Timeout for product table checks")
+    templates: List[UploadFile] = File(...),
+    locale_mapping: str = Form(...),
+    base_requirements: UploadFile = File(...),
+    selected_locales: str = Form(...),
+    check_product_tables: bool = Form(default=False),
+    product_table_timeout: Optional[int] = Form(default=None)
 ):
     """
     Process batch validation for multiple email templates across different locales.
