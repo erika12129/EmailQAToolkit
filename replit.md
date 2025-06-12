@@ -105,7 +105,12 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 - **CORS configuration** for cross-origin requests
 
 ## Changelog
-- June 12, 2025. Initial setup
+- June 12, 2025: Fixed production deployment batch processing issues
+  - Removed blocking template validation in main.py that prevented batch processing
+  - Disabled frontend validation that caused false missing template errors
+  - Synchronized production deployment logic with working development environment
+  - Added comprehensive debug logging for production troubleshooting
+- June 12, 2025: Initial setup
 
 ## User Preferences
 

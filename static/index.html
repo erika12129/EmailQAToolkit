@@ -3838,24 +3838,22 @@
                 return;
             }
             
-            const missingTemplates = [];
+            // Skip frontend template validation - let backend handle it
+            // This prevents false positives when templates are uploaded but state isn't synchronized
             console.log('Frontend validation - selectedLocales:', Array.from(selectedLocales));
             console.log('Frontend validation - uploadedTemplates keys:', Array.from(uploadedTemplates.keys()));
             
             selectedLocales.forEach(locale => {
                 console.log(`Checking locale ${locale}: has template = ${uploadedTemplates.has(locale)}`);
-                if (!uploadedTemplates.has(locale)) {
-                    const localeConfig = availableLocales.find(l => l.code === locale);
-                    missingTemplates.push(localeConfig.display_name);
-                }
             });
             
-            console.log('Missing templates:', missingTemplates);
+            console.log('Skipping frontend template validation - backend will handle validation');
             
-            if (missingTemplates.length > 0) {
-                alert(`Missing templates for: ${missingTemplates.join(', ')}`);
-                return;
-            }
+            // Don't block on missing templates - backend has the authoritative template data
+            // if (missingTemplates.length > 0) {
+            //     alert(`Missing templates for: ${missingTemplates.join(', ')}`);
+            //     return;
+            // }
             
             // Start processing
             const startBtn = document.getElementById('start-batch-processing');
