@@ -1012,7 +1012,9 @@ async def batch_validate(
         # Parse locale mapping
         try:
             mapping = json.loads(locale_mapping)
+            logger.info(f"Received locale mapping: {mapping}")
         except json.JSONDecodeError:
+            logger.error(f"Failed to parse locale mapping: {locale_mapping}")
             raise HTTPException(status_code=400, detail="Invalid locale_mapping JSON format")
         
         # Parse selected locales

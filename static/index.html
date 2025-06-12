@@ -835,27 +835,50 @@
         // Update template upload fields based on selected locales
         function updateTemplateUploads() {
             const container = document.getElementById('template-uploads');
-            container.innerHTML = '';
+            
+            // Clear existing content but avoid innerHTML which can interfere with other elements
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
             
             if (selectedLocales.size === 0) {
-                container.innerHTML = '<p style="color: #718096; font-style: italic;">Select locales above to see template upload fields.</p>';
+                const message = document.createElement('p');
+                message.textContent = 'Select locales above to see template upload fields.';
+                message.style.cssText = 'color: #718096; font-style: italic; margin: 0;';
+                container.appendChild(message);
                 return;
             }
             
             selectedLocales.forEach(locale => {
                 const localeConfig = availableLocales.find(l => l.code === locale);
+                if (!localeConfig) return;
+                
                 const div = document.createElement('div');
-                div.style.cssText = 'display: flex; align-items: center; gap: 15px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background-color: white;';
+                div.style.cssText = 'display: flex; align-items: center; gap: 15px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background-color: white; margin-bottom: 10px;';
                 
-                div.innerHTML = `
-                    <label style="min-width: 150px; font-weight: 600;">${localeConfig.display_name}:</label>
-                    <input type="file" accept=".html" data-locale="${locale}" style="flex-grow: 1;">
-                    <span class="template-status" data-locale="${locale}" style="color: #718096; font-size: 14px;">No file selected</span>
-                `;
+                // Create label
+                const label = document.createElement('label');
+                label.style.cssText = 'min-width: 150px; font-weight: 600;';
+                label.textContent = `${localeConfig.display_name}:`;
                 
-                const fileInput = div.querySelector('input[type="file"]');
+                // Create file input
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.accept = '.html';
+                fileInput.dataset.locale = locale;
+                fileInput.style.cssText = 'flex-grow: 1;';
                 fileInput.addEventListener('change', handleTemplateUpload);
                 
+                // Create status span
+                const statusSpan = document.createElement('span');
+                statusSpan.className = 'template-status';
+                statusSpan.dataset.locale = locale;
+                statusSpan.style.cssText = 'color: #718096; font-size: 14px;';
+                statusSpan.textContent = 'No file selected';
+                
+                div.appendChild(label);
+                div.appendChild(fileInput);
+                div.appendChild(statusSpan);
                 container.appendChild(div);
             });
         }
@@ -3849,7 +3872,10 @@
             const localeMapping = {};
             uploadedTemplates.forEach((file, locale) => {
                 localeMapping[file.name] = locale;
+                console.log(`Mapping file ${file.name} to locale ${locale}`);
             });
+            console.log('Complete locale mapping:', localeMapping);
+            console.log('Selected locales:', Array.from(selectedLocales));
             formData.append('locale_mapping', JSON.stringify(localeMapping));
             
             // Add base requirements
