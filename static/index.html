@@ -4297,36 +4297,30 @@
             } else {
                 console.log('Building metadata from individual fields');
                 
-                // Based on the console output, the batch result has a very different structure
-                // The actual validation data appears to be in properties of the result object itself
+                // Handle different result structures based on actual console output
                 let metadata = {};
                 let requirements = {};
                 
-                // First try direct properties (single QA format)
-                if (result.metadata && typeof result.metadata === 'object' && !Array.isArray(result.metadata)) {
+                console.log('Analyzing result structure for metadata extraction');
+                console.log('Result type:', typeof result);
+                console.log('Has metadata property:', 'metadata' in result);
+                console.log('Has result property:', 'result' in result);
+                
+                // Try single QA format first (nested structure)
+                if (result.result && result.result.metadata) {
+                    console.log('Using single QA nested structure');
+                    metadata = result.result.metadata;
+                    requirements = result.result.requirements || {};
+                } else if (result.metadata && typeof result.metadata === 'object' && !Array.isArray(result.metadata)) {
+                    console.log('Using direct metadata object');
                     metadata = result.metadata;
                     requirements = result.requirements || result.requirements_used || {};
                 } else {
-                    // The console output shows the batch result has validation data at the root level
-                    console.log('Extracting from batch result structure');
-                    
-                    // Check if this has the validation result format with metadata nested in result
-                    if (result.result && result.result.metadata) {
-                        metadata = result.result.metadata;
-                        requirements = result.requirements_used || result.result.requirements || {};
-                    } else {
-                        // Extract from direct properties if they exist
-                        metadata = {
-                            sender_address: result.sender_address,
-                            sender_name: result.sender_name,
-                            reply_address: result.reply_address,
-                            subject: result.subject,
-                            preheader: result.preheader,
-                            campaign_code: result.campaign_code,
-                            copyright_year: result.copyright_year
-                        };
-                        requirements = result.requirements_used || {};
-                    }
+                    console.log('Using batch result direct properties');
+                    // For batch results, the validation result IS the result object
+                    // Extract from the validation result properties
+                    metadata = result;  // The result object itself contains the metadata fields
+                    requirements = result.requirements_used || {};
                 }
                 
                 console.log('Final extracted metadata:', metadata);
