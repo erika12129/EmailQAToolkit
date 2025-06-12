@@ -4246,6 +4246,8 @@
             const localeName = localeConfig ? localeConfig.display_name : locale;
             
             // Build complete HTML with data inline to avoid timing issues
+            console.log('displayLocaleResults called with:', {locale, result, localeConfig});
+            console.log('Full result object for debugging:', JSON.stringify(result, null, 2));
             const metadataHtml = buildMetadataHtml(result);
             const imagesHtml = buildImagesHtml(result);
             const linksHtml = buildLinksHtml(result, locale);
@@ -4284,6 +4286,7 @@
         // Build metadata HTML inline
         function buildMetadataHtml(result) {
             console.log('buildMetadataHtml called with result:', result);
+            console.log('Result keys:', Object.keys(result));
             
             let metadataItems = [];
             
@@ -4293,17 +4296,28 @@
                 metadataItems = result.metadata;
             } else {
                 console.log('Building metadata from individual fields');
-                // Handle both single QA and batch QA result structures
-                const metadata = result.metadata || {};
+                
+                // Handle batch result structure which differs from single QA
+                let metadata = result.metadata || {};
                 let requirements = result.requirements || result.requirements_used || {};
                 
-                // For batch processing, requirements might be nested differently
-                if (!requirements.sender_address && result.base_requirements) {
-                    requirements = result.base_requirements;
+                // Batch results have a different structure - check for direct properties
+                if (Object.keys(metadata).length === 0) {
+                    // In batch processing, the validation result is the direct result
+                    // Look for requirements_used which is added by batch processor
+                    requirements = result.requirements_used || result.requirements || {};
+                    metadata = result.metadata || {};
                 }
                 
-                console.log('Extracted metadata:', metadata);
-                console.log('Extracted requirements:', requirements);
+                // If still empty, check if this is the nested result from single QA format
+                if (Object.keys(metadata).length === 0 && result.result) {
+                    console.log('Checking nested result structure');
+                    metadata = result.result.metadata || {};
+                    requirements = result.result.requirements || result.result.requirements_used || {};
+                }
+                
+                console.log('Final extracted metadata:', metadata);
+                console.log('Final extracted requirements:', requirements);
                 
                 const fieldMappings = [
                     { field: 'sender_address', actual: metadata.sender_address, expected: requirements.sender_address },
