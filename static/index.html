@@ -208,17 +208,18 @@
             text-align: center;
         }
         
-        /* Fix dropdown positioning in locale preview section */
+        /* Fix dropdown positioning issues throughout the application */
         select {
             position: relative;
-            z-index: 1;
+            z-index: 1000;
             background: white;
             border: 1px solid #ccc;
             padding: 5px;
             border-radius: 4px;
+            min-width: 150px;
         }
         
-        /* Ensure batch form sections have proper stacking */
+        /* Ensure proper stacking context for all form sections */
         #batch-form {
             position: relative;
             z-index: 1;
@@ -226,20 +227,30 @@
         
         #batch-form > div {
             position: relative;
-            z-index: 2;
+            z-index: auto;
         }
         
-        /* Locale preview section should have higher z-index */
-        #batch-form div:nth-child(3) {
+        /* Specifically target the requirements preview section */
+        .requirements-preview-container {
             position: relative;
-            z-index: 10;
+            z-index: 1000;
+            background: white;
         }
         
-        /* Requirements preview select dropdowns need higher z-index */
+        /* Ensure locale select dropdowns are always on top */
         #right-locale-select, #left-locale-select {
             position: relative;
-            z-index: 100;
-            background: white;
+            z-index: 9999 !important;
+            background: white !important;
+            border: 1px solid #ccc !important;
+            padding: 5px !important;
+            min-width: 200px !important;
+        }
+        
+        /* Fix for any overlay issues */
+        select:focus {
+            z-index: 10000 !important;
+            outline: 2px solid #4299e1;
         }
     </style>
 </head>
