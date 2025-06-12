@@ -229,6 +229,11 @@ class BatchProcessor:
                     product_table_timeout=request.product_table_timeout
                 )
                 
+                # Debug the validation result structure
+                logger.info(f"Validation result for {locale}: {validation_result}")
+                if 'metadata' in validation_result:
+                    logger.info(f"Metadata extracted for {locale}: {validation_result['metadata']}")
+                
                 # Add locale context to result
                 validation_result["locale"] = locale
                 validation_result["locale_config"] = get_locale_config(locale)

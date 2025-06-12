@@ -4307,23 +4307,26 @@
                     metadata = result.metadata;
                     requirements = result.requirements || result.requirements_used || {};
                 } else {
-                    // For batch results, look for the validation data in the object properties
-                    // The console shows properties like sender_address, sender_name, etc. directly on the result
-                    console.log('Extracting from batch result object structure');
+                    // The console output shows the batch result has validation data at the root level
+                    console.log('Extracting from batch result structure');
                     
-                    // Extract metadata fields directly from result object
-                    metadata = {
-                        sender_address: result.sender_address,
-                        sender_name: result.sender_name,
-                        reply_address: result.reply_address,
-                        subject: result.subject,
-                        preheader: result.preheader,
-                        campaign_code: result.campaign_code,
-                        copyright_year: result.copyright_year
-                    };
-                    
-                    // Extract requirements from requirements_used if available
-                    requirements = result.requirements_used || {};
+                    // Check if this has the validation result format with metadata nested in result
+                    if (result.result && result.result.metadata) {
+                        metadata = result.result.metadata;
+                        requirements = result.requirements_used || result.result.requirements || {};
+                    } else {
+                        // Extract from direct properties if they exist
+                        metadata = {
+                            sender_address: result.sender_address,
+                            sender_name: result.sender_name,
+                            reply_address: result.reply_address,
+                            subject: result.subject,
+                            preheader: result.preheader,
+                            campaign_code: result.campaign_code,
+                            copyright_year: result.copyright_year
+                        };
+                        requirements = result.requirements_used || {};
+                    }
                 }
                 
                 console.log('Final extracted metadata:', metadata);
