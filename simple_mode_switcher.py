@@ -1030,12 +1030,22 @@ async def batch_validate(
         
         # Map templates to locales
         template_dict = {}
+        logger.info(f"Processing {len(templates)} templates with mapping: {mapping}")
+        logger.info(f"Selected locales: {selected_locales_list}")
+        
         for template in templates:
             filename = template.filename
+            logger.info(f"Processing template: {filename}")
             if filename in mapping:
                 locale = mapping[filename]
+                logger.info(f"Template {filename} mapped to locale {locale}")
                 if locale in selected_locales_list:
                     template_dict[locale] = template
+                    logger.info(f"Added template {filename} for locale {locale}")
+                else:
+                    logger.warning(f"Locale {locale} not in selected locales {selected_locales_list}")
+            else:
+                logger.warning(f"Template {filename} not found in mapping {mapping.keys()}")
         
         # Validate that all selected locales have templates
         missing_templates = [locale for locale in selected_locales_list if locale not in template_dict]
