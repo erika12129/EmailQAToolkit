@@ -183,6 +183,32 @@ async def test_page():
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
+@app.get("/api/locales")
+async def get_locales():
+    """Get available locales for batch processing."""
+    try:
+        from locale_config import LOCALE_CONFIGS
+        
+        # Transform the locale configs into the format expected by the frontend
+        locales = []
+        for code, config in LOCALE_CONFIGS.items():
+            locales.append({
+                "code": code,
+                "display_name": config["display_name"],
+                "country": config["country"],
+                "language": config["language"]
+            })
+        
+        return JSONResponse(content={"locales": locales})
+    except Exception as e:
+        logger.error(f"Error loading locales: {str(e)}")
+        # Fallback to a minimal set if locale_config fails to load
+        fallback_locales = [
+            {"code": "en_US", "display_name": "English (US)", "country": "US", "language": "en"},
+            {"code": "es_MX", "display_name": "Español (México)", "country": "MX", "language": "es"}
+        ]
+        return JSONResponse(content={"locales": fallback_locales})
+
 @app.get("/config")
 async def get_config():
     """Get current configuration settings."""

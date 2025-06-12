@@ -105,15 +105,17 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 - **CORS configuration** for cross-origin requests
 
 ## Changelog
-- June 12, 2025: **RESOLVED: Production batch processing TypeError completely fixed**
-  - Root cause identified: HTML element ID mismatches between JavaScript functions and actual DOM structure
+- June 12, 2025: **RESOLVED: Production batch processing and locale dropdown issues completely fixed**
+  - Root cause identified: HTML element ID mismatches and missing API endpoint for locale data
   - Fixed critical ID mismatch: batch-result-tabs vs batch-results-tabs in createBatchResultTabs function
   - Updated content container reference from batch-tab-content to batch-results-content
+  - Created missing /api/locales endpoint that frontend was calling for dropdown population
+  - Added proper locale configuration loading with fallback handling for production environments
   - Replaced all dynamic DOM population with inline HTML string generation to eliminate timing dependencies
   - Built complete metadata, images, and links tables as HTML strings within displayLocaleResults function
-  - Eliminated requestAnimationFrame and setTimeout workarounds that were masking the real issue
-  - Batch QA now works correctly in both Replit development and production environments
-  - Solution addresses fundamental HTML template structure differences and DOM timing variations
+  - Eliminated requestAnimationFrame and setTimeout workarounds that were masking the real issues
+  - Batch QA and locale selection now work consistently across both Replit development and production environments
+  - Solution addresses fundamental API endpoint gaps, HTML template structure differences, and DOM timing variations
 - June 12, 2025: Fixed batch QA production deployment failures
   - Enhanced locale validation robustness for production environments
   - Added graceful fallback handling for environment-specific validation issues
