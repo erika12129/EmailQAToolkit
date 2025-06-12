@@ -4281,9 +4281,13 @@
             populateBatchLinks(locale, result);
         }
         
-        // Populate metadata section for batch results
+        // Populate metadata section for batch results with null safety
         function populateBatchMetadata(locale, result) {
             const container = document.getElementById(`batch-metadata-${locale}`);
+            if (!container) {
+                console.warn(`Metadata container for locale ${locale} not found`);
+                return;
+            }
             
             // Check if we have metadata array format (like single email QA) or need to construct it
             let metadataItems = [];
@@ -4390,9 +4394,14 @@
             });
         }
         
-        // Populate images section for batch results
+        // Populate images section for batch results with null safety
         function populateBatchImages(locale, result) {
             const container = document.getElementById(`batch-images-${locale}`);
+            if (!container) {
+                console.warn(`Images container for locale ${locale} not found`);
+                return;
+            }
+            
             const images = result.images || [];
             
             if (images.length === 0) {
@@ -4503,9 +4512,14 @@
             });
         }
         
-        // Populate links section for batch results
+        // Populate links section for batch results with null safety
         function populateBatchLinks(locale, result) {
             const container = document.getElementById(`batch-links-${locale}`);
+            if (!container) {
+                console.warn(`Links container for locale ${locale} not found`);
+                return;
+            }
+            
             const links = result.links || [];
             
             if (links.length === 0) {
@@ -4556,6 +4570,10 @@
             `;
             
             const tableBody = document.getElementById(`batch-links-table-${locale}`);
+            if (!tableBody) {
+                console.warn(`Links table body for locale ${locale} not found`);
+                return;
+            }
             
             links.forEach((link, index) => {
                 const row = document.createElement('tr');
