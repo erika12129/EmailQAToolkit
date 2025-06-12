@@ -4275,10 +4275,28 @@
                 </div>
             `;
             
-            // Populate each section with actual data
-            populateBatchMetadata(locale, result);
-            populateBatchImages(locale, result);
-            populateBatchLinks(locale, result);
+            // Wait for DOM to update then populate sections
+            // Use requestAnimationFrame for better timing than setTimeout
+            requestAnimationFrame(() => {
+                // Double-check containers exist before populating
+                const metadataContainer = document.getElementById(`batch-metadata-${locale}`);
+                const imagesContainer = document.getElementById(`batch-images-${locale}`);
+                const linksContainer = document.getElementById(`batch-links-${locale}`);
+                
+                if (metadataContainer && imagesContainer && linksContainer) {
+                    populateBatchMetadata(locale, result);
+                    populateBatchImages(locale, result);
+                    populateBatchLinks(locale, result);
+                } else {
+                    console.warn(`Containers not ready for locale ${locale}, retrying...`);
+                    // Fallback with setTimeout
+                    setTimeout(() => {
+                        populateBatchMetadata(locale, result);
+                        populateBatchImages(locale, result);
+                        populateBatchLinks(locale, result);
+                    }, 100);
+                }
+            });
         }
         
         // Populate metadata section for batch results with null safety
