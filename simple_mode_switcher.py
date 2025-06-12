@@ -1008,6 +1008,9 @@ async def batch_validate(
     """
     from batch_processor import BatchProcessor, BatchValidationRequest
     
+    logger.info(f"Batch validation request received with {len(templates)} templates")
+    logger.info(f"Template filenames: {[t.filename for t in templates]}")
+    
     try:
         # Parse locale mapping
         try:
@@ -1051,7 +1054,14 @@ async def batch_validate(
         
         # Validate that all selected locales have templates
         missing_templates = [locale for locale in selected_locales_list if locale not in template_dict]
+        logger.info(f"Template validation - template_dict keys: {list(template_dict.keys())}")
+        logger.info(f"Selected locales: {selected_locales_list}")
+        logger.info(f"Missing templates: {missing_templates}")
+        
         if missing_templates:
+            logger.error(f"Template validation failed - missing templates for locales: {missing_templates}")
+            logger.error(f"Available templates: {list(template_dict.keys())}")
+            logger.error(f"Expected locales: {selected_locales_list}")
             raise HTTPException(
                 status_code=400, 
                 detail=f"Missing templates for locales: {', '.join(missing_templates)}"
