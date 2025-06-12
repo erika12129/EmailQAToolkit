@@ -4107,16 +4107,16 @@
         
         // Create batch result tabs with production-safe handling
         function createBatchResultTabs(batchResult) {
-            // Find tabs container or create fallback
-            let tabsContainer = document.getElementById('batch-result-tabs');
+            // Find tabs container - use correct ID from HTML
+            let tabsContainer = document.getElementById('batch-results-tabs');
             if (!tabsContainer) {
-                console.warn('batch-result-tabs not found, creating in fallback display');
+                console.warn('batch-results-tabs not found, creating in fallback display');
                 const fallbackContainer = document.getElementById('fallback-batch-results') || 
                                         document.getElementById('batch-form') || 
                                         document.body;
                 
                 tabsContainer = document.createElement('div');
-                tabsContainer.id = 'batch-result-tabs';
+                tabsContainer.id = 'batch-results-tabs';
                 tabsContainer.style.cssText = 'margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px;';
                 fallbackContainer.appendChild(tabsContainer);
             }
@@ -4138,13 +4138,13 @@
                 tab.textContent = localeConfig ? localeConfig.display_name : locale;
                 
                 tab.addEventListener('click', function() {
-                    // Clear content area
-                    let contentContainer = document.getElementById('batch-tab-content');
+                    // Use the correct content container from HTML
+                    let contentContainer = document.getElementById('batch-results-content');
                     if (!contentContainer) {
                         contentContainer = document.createElement('div');
-                        contentContainer.id = 'batch-tab-content';
+                        contentContainer.id = 'batch-results-content';
                         contentContainer.style.cssText = 'border: 1px solid #e2e8f0; padding: 20px; min-height: 200px;';
-                        tabsContainer.appendChild(contentContainer);
+                        tabsContainer.parentNode.appendChild(contentContainer);
                     }
                     
                     // Update all tabs appearance
