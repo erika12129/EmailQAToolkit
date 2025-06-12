@@ -322,8 +322,8 @@ async def run_qa(
             content={
                 "results": {
                     "error": error_detail,
-                    "mode": config.get_mode() if 'config' in globals() else "production",
-                    "requirements": requirements_json if 'requirements_json' in locals() else {},
+                    "mode": getattr(config, 'mode', 'production'),
+                    "requirements": {},
                     "product_tables_checked": bool(check_product_tables)
                 }
             },

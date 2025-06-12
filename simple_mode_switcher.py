@@ -10,6 +10,7 @@ import tempfile
 import logging
 from typing import Dict, Any, List, Optional
 import json
+from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request, Header, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
@@ -1020,11 +1021,15 @@ async def batch_validate(
             logger.error(f"Failed to parse locale mapping: {locale_mapping}")
             raise HTTPException(status_code=400, detail="Invalid locale_mapping JSON format")
         
-        # Parse selected locales
+        # Parse selected locales with enhanced debugging
         try:
             selected_locales_list = json.loads(selected_locales)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid selected_locales JSON format")
+            logger.info(f"Parsed selected locales: {selected_locales_list}")
+            logger.info(f"Selected locales type: {type(selected_locales_list)}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse selected_locales: {selected_locales}")
+            logger.error(f"JSON decode error: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"Invalid selected_locales JSON format: {str(e)}")
         
         # Parse base requirements
         base_req_content = await base_requirements.read()
@@ -1076,18 +1081,51 @@ async def batch_validate(
             product_table_timeout=product_table_timeout
         )
         
-        # Process batch
-        processor = BatchProcessor()
-        result = await processor.process_batch(batch_request)
-        
-        return {
-            "batch_id": result.batch_id,
-            "status": result.status,
-            "progress": result.get_progress(),
-            "results": result.results,
-            "start_time": result.start_time.isoformat(),
-            "end_time": result.end_time.isoformat() if result.end_time else None
-        }
+        # Process batch with enhanced error handling for production
+        try:
+            processor = BatchProcessor()
+            logger.info(f"Created batch processor, starting batch processing...")
+            result = await processor.process_batch(batch_request)
+            logger.info(f"Batch processing completed with status: {result.status}")
+            
+            return {
+                "batch_id": result.batch_id,
+                "status": result.status,
+                "progress": result.get_progress(),
+                "results": result.results,
+                "start_time": result.start_time.isoformat(),
+                "end_time": result.end_time.isoformat() if result.end_time else None
+            }
+        except Exception as batch_error:
+            logger.error(f"Batch processing error: {str(batch_error)}")
+            logger.error(f"Batch error type: {type(batch_error)}")
+            
+            # Return a more informative error response
+            from datetime import datetime
+            error_time = datetime.now()
+            return {
+                "batch_id": f"error_{error_time.strftime('%Y%m%d_%H%M%S')}",
+                "status": "error",
+                "progress": {"completed": 0, "total": len(selected_locales_list), "progress_percent": 0},
+                "results": {
+                    "error": {
+                        "status": "error",
+                        "result": {
+                            "error": f"Batch processing failed: {str(batch_error)}",
+                            "error_type": str(type(batch_error)),
+                            "selected_locales": selected_locales_list,
+                            "available_templates": list(template_dict.keys()),
+                            "debug_info": {
+                                "locale_mapping": mapping,
+                                "template_count": len(templates),
+                                "requirement_keys": list(base_req_dict.keys()) if base_req_dict else []
+                            }
+                        }
+                    }
+                },
+                "start_time": error_time.isoformat(),
+                "end_time": error_time.isoformat()
+            }
         
     except HTTPException:
         raise
