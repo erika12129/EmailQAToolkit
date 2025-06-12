@@ -4283,13 +4283,27 @@
         
         // Build metadata HTML inline
         function buildMetadataHtml(result) {
+            console.log('buildMetadataHtml called with result:', result);
+            
             let metadataItems = [];
             
+            // Check if result has the batch processing format with nested metadata array
             if (result.metadata && Array.isArray(result.metadata)) {
+                console.log('Using array format metadata from batch result');
                 metadataItems = result.metadata;
             } else {
+                console.log('Building metadata from individual fields');
+                // Handle both single QA and batch QA result structures
                 const metadata = result.metadata || {};
-                const requirements = result.requirements || result.requirements_used || {};
+                let requirements = result.requirements || result.requirements_used || {};
+                
+                // For batch processing, requirements might be nested differently
+                if (!requirements.sender_address && result.base_requirements) {
+                    requirements = result.base_requirements;
+                }
+                
+                console.log('Extracted metadata:', metadata);
+                console.log('Extracted requirements:', requirements);
                 
                 const fieldMappings = [
                     { field: 'sender_address', actual: metadata.sender_address, expected: requirements.sender_address },
