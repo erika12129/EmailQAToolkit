@@ -116,15 +116,26 @@ def validate_locale_selection(selected_locales: list) -> dict:
     Returns:
         dict: Validation result with status and any errors
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Validating locale selection: {selected_locales}")
+    logger.info(f"Available locale configs: {list(LOCALE_CONFIGS.keys())}")
+    
     unsupported = [locale for locale in selected_locales if locale not in LOCALE_CONFIGS]
     
+    logger.info(f"Unsupported locales found: {unsupported}")
+    
     if unsupported:
+        error_msg = f"Unsupported locales: {', '.join(unsupported)}"
+        logger.error(error_msg)
         return {
             "valid": False,
-            "errors": f"Unsupported locales: {', '.join(unsupported)}",
+            "errors": error_msg,
             "supported_locales": get_supported_locales()
         }
     
+    logger.info("Locale validation passed successfully")
     return {
         "valid": True,
         "errors": None,
