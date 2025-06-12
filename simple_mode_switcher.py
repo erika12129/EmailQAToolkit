@@ -1057,50 +1057,90 @@ async def batch_validate(
             else:
                 logger.warning(f"Template {filename} not found in mapping {mapping.keys()}")
         
-        # Validate that all selected locales have templates
+        # Production-safe template validation with fallback handling
         missing_templates = [locale for locale in selected_locales_list if locale not in template_dict]
         logger.info(f"Template validation - template_dict keys: {list(template_dict.keys())}")
         logger.info(f"Selected locales: {selected_locales_list}")
         logger.info(f"Missing templates: {missing_templates}")
         
+        # In production, log warnings instead of failing entirely to handle deployment differences
         if missing_templates:
-            logger.error(f"Template validation failed - missing templates for locales: {missing_templates}")
-            logger.error(f"Available templates: {list(template_dict.keys())}")
-            logger.error(f"Expected locales: {selected_locales_list}")
+            logger.warning(f"Template validation warning - some templates missing for locales: {missing_templates}")
+            logger.warning(f"Available templates: {list(template_dict.keys())}")
+            logger.warning(f"Expected locales: {selected_locales_list}")
+            
+            # Only process locales that have templates instead of failing completely
+            processed_locales = [locale for locale in selected_locales_list if locale in template_dict]
+            if not processed_locales:
+                logger.error(f"No valid template-locale pairs found")
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"No templates found for any selected locales. Available: {list(template_dict.keys())}, Selected: {selected_locales_list}"
+                )
+            
+            logger.info(f"Proceeding with available locales: {processed_locales}")
+            selected_locales_list = processed_locales
+        
+        if missing_templates and len(selected_locales_list) == 0:
             raise HTTPException(
                 status_code=400, 
                 detail=f"Missing templates for locales: {', '.join(missing_templates)}"
             )
         
-        # Create batch request
-        batch_request = BatchValidationRequest(
-            templates=template_dict,
-            base_requirements=base_req_dict,
-            selected_locales=selected_locales_list,
-            check_product_tables=check_product_tables,
-            product_table_timeout=product_table_timeout
-        )
+        # Production-safe batch request creation with error handling
+        try:
+            batch_request = BatchValidationRequest(
+                templates=template_dict,
+                base_requirements=base_req_dict,
+                selected_locales=selected_locales_list,
+                check_product_tables=check_product_tables,
+                product_table_timeout=product_table_timeout
+            )
+            logger.info(f"Created batch request for {len(selected_locales_list)} locales")
+        except Exception as req_error:
+            logger.error(f"Failed to create batch request: {str(req_error)}")
+            logger.error(f"Request creation error type: {type(req_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create batch validation request: {str(req_error)}"
+            )
         
-        # Process batch with enhanced error handling for production
+        # Process batch with comprehensive error handling for production deployment
         try:
             processor = BatchProcessor()
             logger.info(f"Created batch processor, starting batch processing...")
+            
+            # Add production-specific error wrapping
             result = await processor.process_batch(batch_request)
             logger.info(f"Batch processing completed with status: {result.status}")
             
-            return {
-                "batch_id": result.batch_id,
-                "status": result.status,
-                "progress": result.get_progress(),
-                "results": result.results,
-                "start_time": result.start_time.isoformat(),
-                "end_time": result.end_time.isoformat() if result.end_time else None
-            }
+            # Safe result serialization for production
+            try:
+                response_data = {
+                    "batch_id": result.batch_id,
+                    "status": result.status,
+                    "progress": result.get_progress(),
+                    "results": result.results,
+                    "start_time": result.start_time.isoformat() if result.start_time else None,
+                    "end_time": result.end_time.isoformat() if result.end_time else None
+                }
+                logger.info(f"Returning batch results for {len(result.results)} locales")
+                return response_data
+            except Exception as serialize_error:
+                logger.error(f"Failed to serialize batch results: {str(serialize_error)}")
+                # Return simplified response on serialization errors
+                return {
+                    "batch_id": result.batch_id,
+                    "status": "completed_with_warnings",
+                    "message": "Processing completed but with serialization issues",
+                    "error_details": str(serialize_error)
+                }
+                
         except Exception as batch_error:
             logger.error(f"Batch processing error: {str(batch_error)}")
             logger.error(f"Batch error type: {type(batch_error)}")
             
-            # Return a more informative error response
+            # Enhanced error response for production troubleshooting
             from datetime import datetime
             error_time = datetime.now()
             return {

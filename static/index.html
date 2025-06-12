@@ -208,49 +208,65 @@
             text-align: center;
         }
         
-        /* Fix dropdown positioning issues throughout the application */
+        /* Production-specific dropdown positioning fixes */
         select {
-            position: relative;
-            z-index: 1000;
+            position: static !important;
+            z-index: auto;
             background: white;
             border: 1px solid #ccc;
             padding: 5px;
             border-radius: 4px;
             min-width: 150px;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
         }
         
-        /* Ensure proper stacking context for all form sections */
-        #batch-form {
+        /* Force proper positioning for the requirements preview section */
+        .requirements-preview-section {
             position: relative;
-            z-index: 1;
-        }
-        
-        #batch-form > div {
-            position: relative;
-            z-index: auto;
-        }
-        
-        /* Specifically target the requirements preview section */
-        .requirements-preview-container {
-            position: relative;
-            z-index: 1000;
             background: white;
+            overflow: visible;
         }
         
-        /* Ensure locale select dropdowns are always on top */
-        #right-locale-select, #left-locale-select {
-            position: relative;
-            z-index: 9999 !important;
+        /* Specific targeting for the dropdown containers in section 3 */
+        #batch-form > div:nth-child(3) select,
+        #batch-form div[style*="Requirements Preview"] select {
+            position: static !important;
+            z-index: auto !important;
             background: white !important;
             border: 1px solid #ccc !important;
-            padding: 5px !important;
+            padding: 8px !important;
             min-width: 200px !important;
+            display: block !important;
+            width: auto !important;
+            margin: 0 !important;
         }
         
-        /* Fix for any overlay issues */
-        select:focus {
-            z-index: 10000 !important;
-            outline: 2px solid #4299e1;
+        /* Ensure the Right Side select specifically stays in its container */
+        #right-locale-select {
+            position: static !important;
+            z-index: auto !important;
+            background: white !important;
+            border: 1px solid #ccc !important;
+            padding: 8px !important;
+            min-width: 200px !important;
+            display: block !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        
+        /* Left side select */
+        #left-locale-select {
+            position: static !important;
+            z-index: auto !important;
+            background: white !important;
+            border: 1px solid #ccc !important;
+            padding: 8px !important;
+            min-width: 200px !important;
+            display: block !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
         }
     </style>
 </head>
