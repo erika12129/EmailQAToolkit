@@ -1247,21 +1247,24 @@
             }
         }
         
-        // Validate JSON button click handler
-        validateJsonButton.addEventListener('click', function() {
-            const result = validateJson(jsonTextarea.value);
-            
-            jsonValidationMessage.textContent = result.message;
-            jsonValidationMessage.style.color = result.valid ? '#48bb78' : '#e53e3e';
-            
-            if (result.valid) {
-                // Format the JSON for better readability
-                jsonTextarea.value = JSON.stringify(result.json, null, 2);
-            }
-        });
+        // Validate JSON button click handler (with null safety)
+        if (validateJsonButton && jsonTextarea && jsonValidationMessage) {
+            validateJsonButton.addEventListener('click', function() {
+                const result = validateJson(jsonTextarea.value);
+                
+                jsonValidationMessage.textContent = result.message;
+                jsonValidationMessage.style.color = result.valid ? '#48bb78' : '#e53e3e';
+                
+                if (result.valid) {
+                    // Format the JSON for better readability
+                    jsonTextarea.value = JSON.stringify(result.json, null, 2);
+                }
+            });
+        }
         
-        // Load sample JSON
-        loadSampleJsonButton.addEventListener('click', function() {
+        // Load sample JSON (with null safety)
+        if (loadSampleJsonButton) {
+            loadSampleJsonButton.addEventListener('click', function() {
             // Add dropdown menu for sample selection
             if (!this.nextElementSibling || !this.nextElementSibling.classList.contains('sample-selector')) {
                 const sampleSelector = document.createElement('div');
@@ -1359,25 +1362,31 @@
                 // Toggle visibility if selector already exists
                 this.nextElementSibling.remove();
             }
-        });
+            });
+        }
         
-        // Form submission
-        form.addEventListener('submit', function(event) {
+        // Form submission (with null safety)
+        if (form) {
+            form.addEventListener('submit', function(event) {
             event.preventDefault();
             
-            // Validate email file input
-            if (!emailFileInput.files.length) {
-                errorMessage.textContent = 'Please upload an email HTML file.';
-                showElement(errorMessage);
+            // Validate email file input with null safety
+            if (!emailFileInput || !emailFileInput.files.length) {
+                if (errorMessage) {
+                    errorMessage.textContent = 'Please upload an email HTML file.';
+                    showElement(errorMessage);
+                }
                 return;
             }
             
-            // Start loading state
-            submitButton.disabled = true;
-            submitButton.textContent = 'Running QA...';
-            hideElement(errorMessage);
-            hideElement(resultsContainer);
-            showElement(loadingMessage);
+            // Start loading state with null safety
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Running QA...';
+            }
+            if (errorMessage) hideElement(errorMessage);
+            if (resultsContainer) hideElement(resultsContainer);
+            if (loadingMessage) showElement(loadingMessage);
             
             // Create form data
             const formData = new FormData();
@@ -1602,7 +1611,8 @@
                 // Always clear the timeout to prevent memory leaks
                 clearTimeout(timeoutId);
             });
-        });
+            });
+        }
         
         // Display QA results
         // Add product table checking functionality
