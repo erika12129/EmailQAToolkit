@@ -4639,26 +4639,36 @@
                 console.log('Files processed. Detected locales:', Array.from(detectedLocales));
                 console.log('Template map size:', enhancedBatchTemplates.size);
                 
+                // Always display results first
                 displayDetectionResults();
                 
-                if (detectedLocales.size > 0) {
-                    // Update step 2 status
-                    if (detectionStatus) {
+                // Update step 2 status based on results
+                if (detectionStatus) {
+                    if (detectedLocales.size > 0) {
                         detectionStatus.innerHTML = '<p style="margin: 0; color: #155724; background-color: #d4edda; padding: 10px; border-radius: 4px;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
-                    }
-                    
-                    // Show step 3 with waiting message
-                    showElement(document.getElementById('global-requirements-section'));
-                    
-                    // Show step 4 with waiting message  
-                    showElement(document.getElementById('locale-requirements-section'));
-                    const localeStatus = document.getElementById('locale-requirements-status');
-                    if (localeStatus) showElement(localeStatus);
-                    
-                    generateLocaleRequirementsForms();
-                } else {
-                    if (detectionStatus) {
-                        detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Please check your templates.</p>';
+                        
+                        // Show step 3 - Global Requirements
+                        const globalSection = document.getElementById('global-requirements-section');
+                        if (globalSection) {
+                            showElement(globalSection);
+                            console.log('Showing global requirements section');
+                        }
+                        
+                        // Show step 4 - Locale Requirements with waiting message
+                        const localeSection = document.getElementById('locale-requirements-section');
+                        const localeStatus = document.getElementById('locale-requirements-status');
+                        if (localeSection && localeStatus) {
+                            showElement(localeSection);
+                            showElement(localeStatus);
+                            localeStatus.innerHTML = '<p style="margin: 0; color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px;">⏳ Waiting for global requirements to be filled...</p>';
+                            console.log('Showing locale requirements section with waiting message');
+                        }
+                        
+                        // Generate the locale forms
+                        generateLocaleRequirementsForms();
+                        
+                    } else {
+                        detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Check your template files have proper lang attributes and campaign codes (format: ABC2505 - MX)</p>';
                     }
                 }
                 
@@ -4710,11 +4720,15 @@
                     }
                 }
                 
-                // Extract campaign code from footer (look for pattern like ABC2505 - US)
-                const campaignMatch = htmlContent.match(/([A-Z0-9]{5,8})\s*[-–—]\s*([A-Z]{2})/i);
-                if (campaignMatch) {
-                    result.campaign_code = campaignMatch[1];
-                    if (!result.country) {
+                // Extract campaign code from footer (look for pattern like ABC2505 - MX)
+                // Use a more specific pattern to avoid matching xmlns attributes
+                const campaignMatches = htmlContent.match(/([A-Z]{3}\d{4})\s*[-–—]\s*([A-Z]{2})/gi);
+                if (campaignMatches && campaignMatches.length > 0) {
+                    // Take the last match (most likely to be in footer)
+                    const lastMatch = campaignMatches[campaignMatches.length - 1];
+                    const campaignMatch = lastMatch.match(/([A-Z]{3}\d{4})\s*[-–—]\s*([A-Z]{2})/i);
+                    if (campaignMatch) {
+                        result.campaign_code = campaignMatch[1];
                         result.country = campaignMatch[2].toUpperCase();
                     }
                 }
