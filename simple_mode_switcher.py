@@ -1038,6 +1038,11 @@ async def batch_validate(
     """
     from batch_processor import BatchProcessor, BatchValidationRequest
     
+    logger.info(f"Batch validate endpoint called with {len(templates)} templates")
+    logger.info(f"Locale mapping: {locale_mapping}")
+    logger.info(f"Selected locales: {selected_locales}")
+    logger.info(f"Check product tables: {check_product_tables}")
+    
     try:
         # Parse locale mapping
         try:
