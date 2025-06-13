@@ -1147,3 +1147,111 @@ async def generate_locale_requirements_preview(
     except Exception as e:
         logger.error(f"Error generating locale requirements: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate requirements: {str(e)}")
+
+# Enhanced Batch Processing with Automatic Locale Detection
+@app.post("/api/enhanced-batch-validate")
+async def enhanced_batch_validate(
+    templates: List[UploadFile] = File(..., description="Email template files with automatic locale detection"),
+    locale_mapping: str = Form(..., description="JSON mapping of template files to detected locale codes"),
+    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
+    custom_requirements: Optional[str] = Form(None, description="JSON object with custom requirements per locale"),
+    selected_locales: str = Form(..., description="JSON array of detected locale codes to process"),
+    check_product_tables: bool = Form(False, description="Whether to check for product tables")
+):
+    """
+    Enhanced batch validation with automatic locale detection from HTML templates.
+    Processes multiple email templates where locales are automatically detected from:
+    - HTML lang attribute (e.g., lang="es-MX")
+    - Campaign code in footer (e.g., ABC2505 - MX)
+    
+    Args:
+        templates: List of email template files
+        locale_mapping: JSON string mapping template filenames to detected locale codes
+        base_requirements: Base requirements JSON file
+        custom_requirements: JSON object with locale-specific requirements
+        selected_locales: List of detected locale codes to process
+        check_product_tables: Whether to include product table detection
+        
+    Returns:
+        dict: Enhanced batch processing results with per-locale validation results
+    """
+    from batch_processor import BatchProcessor, BatchValidationRequest
+    
+    try:
+        # Parse locale mapping
+        try:
+            mapping = json.loads(locale_mapping)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid locale_mapping JSON format")
+        
+        # Parse selected locales
+        try:
+            selected_locales_list = json.loads(selected_locales)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid selected_locales JSON format")
+        
+        # Parse base requirements
+        base_req_content = await base_requirements.read()
+        try:
+            base_req_dict = json.loads(base_req_content.decode('utf-8'))
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid base requirements JSON format")
+        
+        # Parse custom requirements if provided
+        custom_req_dict = {}
+        if custom_requirements:
+            try:
+                custom_req_dict = json.loads(custom_requirements)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid custom_requirements JSON format")
+        
+        # Map templates to locales
+        template_dict = {}
+        for template in templates:
+            filename = template.filename
+            if filename in mapping:
+                locale = mapping[filename]
+                if locale in selected_locales_list:
+                    template_dict[locale] = template
+        
+        # Validate that all selected locales have templates
+        missing_templates = [locale for locale in selected_locales_list if locale not in template_dict]
+        if missing_templates:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing templates for locales: {', '.join(missing_templates)}"
+            )
+        
+        # Create enhanced batch request with custom requirements support
+        batch_request = EnhancedBatchValidationRequest(
+            templates=template_dict,
+            base_requirements=base_req_dict,
+            custom_requirements=custom_req_dict,
+            selected_locales=selected_locales_list,
+            check_product_tables=check_product_tables,
+            product_table_timeout=None
+        )
+        
+        # Process enhanced batch
+        processor = BatchProcessor()
+        result = await processor.process_enhanced_batch(batch_request)
+        
+        return {
+            "batch_id": result.batch_id,
+            "status": result.status,
+            "progress": result.get_progress(),
+            "results": result.results,
+            "start_time": result.start_time.isoformat(),
+            "end_time": result.end_time.isoformat() if result.end_time else None,
+            "detection_info": {
+                "detected_locales": selected_locales_list,
+                "template_count": len(template_dict),
+                "custom_requirements_used": bool(custom_req_dict)
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Enhanced batch validation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Enhanced batch processing failed: {str(e)}")

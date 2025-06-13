@@ -1,0 +1,19 @@
+Don't code anything yet - this is a brainstorming and planning request. I had to revert a day's worth of debugging and QA because you couldn't fix my issue. 
+I'm rethinking the setup for batch QA now. My original request was to upload localized templates separately and requirements JSON separately because I thought that mapping the JSON by 
+locale to each localized template would be straightforward, but there are clearly issues with mapping in production for the batch QA process. 
+
+Here's what I'm thinking now. The output has to remain the same for the end user - the metadata table output, the images, the link section functionality can't change.
+
+The part that would change (and would make QA for the end-user, a non-technical marketing associate, WAY easier and straightforward) is if they could bulk upload all their templates 
+(so rather than one "Choose file" for each template, "Choose file" would let them upload several at once...)
+
+The batch UI would then be able to detect the locales they want to test from the "lang=xx" in the <html> from the template, and the country code in the footer (refer to what we have for footer_campaign_code). There should be an error if something can't 
+be matched with a locale list. (ex. en_US, en_CA, fr_CA, es_MX, fr_FR, it_IT, ja_JP) This would be a pre-QA step to load the info correctly in the UI.
+
+Building on that, the domain can be assessed by the locale info because it's using URL parameters for country and language.
+
+This way, the upload is super easy and straightforward, with fewer clicks. For the requirements JSON, the end-user would see the locales they are testing with form fields for sender_name, subject, and preheader.
+They can paste these in a textarea, separated by commas. 
+
+Don't code anything - I want to hear your feedback on this plan. Tell me the steps as to how you would accomplish this for the BATCH QA ONLY. Again, I don't want changes to step 4 and the output because the output has to match what the single template QA does and I still want the end
+user to be able to tab across the different locales when batch testing. This would eliminate a lot of dropdowns, clicks and copy/pastes.

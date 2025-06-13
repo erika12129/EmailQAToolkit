@@ -1,0 +1,38 @@
+{
+    "sender_address": "reply@partly-products-showcase.lovable.app/", 
+    "reply_address": "reply@partly-products-showcase.lovable.app", 
+    "campaign_code": "ABC2505",
+    "utm_parameters": {
+        "utm_source": "abc", 
+        "utm_campaign": "0_ABC2505", 
+        "utm_medium": "email"
+        },
+    "locale_info": [
+        {
+        "country": "US", 
+        "language": "en",
+        "domain": "https://partly-products-showcase.lovable.app/", 
+        "sender_name": "Marketing Team",
+        "subject": "Automate your QA", 
+        "preheader": "Get your time back"
+        }, 
+        {
+        "country": "MX", 
+        "language": "es",
+        "domain": "https://partly-products-showcase.lovable.app/?cc=MX&lang=es", 
+        "sender_name": "Equipo de Marketing",
+        "subject": "Venta de Primavera 2025", 
+        "preheader": "¡Ofertas exclusivas te esperan!"
+        }, 
+        {
+        "country": "JP", 
+        "language": "ja",
+        "domain": "https://partly-products-showcase.lovable.app/?cc=JP&lang=ja", 
+        "sender_name": "マーケティングチーム",
+        "subject": "2025年春のオファー", 
+        "preheader": "あなただけの特別オファー！"
+        }
+    ]
+}
+
+

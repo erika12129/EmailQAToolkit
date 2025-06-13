@@ -518,86 +518,80 @@
         </div>
     </div>
 
-    <!-- Batch Processing Form (hidden by default) -->
+    <!-- Enhanced Batch Processing Form (hidden by default) -->
     <div id="batch-form" class="hidden" style="background-color: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 20px;">
-        <h2 style="margin-top: 0;">Batch Processing</h2>
+        <h2 style="margin-top: 0;">Enhanced Batch Processing</h2>
         
-        <!-- Locale Selection -->
+        <!-- Step 1: Multi-File Template Upload -->
         <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">1. Select Target Locales</h3>
-            <div id="locale-selection" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
-                <!-- Locales will be loaded dynamically -->
+            <h3 style="margin-bottom: 15px;">1. Upload All Email Templates</h3>
+            <p style="color: #718096; margin-bottom: 15px;">Upload all localized HTML templates at once. The system will automatically detect locales from the templates.</p>
+            <div style="border: 2px dashed #cbd5e0; border-radius: 8px; padding: 20px; text-align: center;">
+                <input type="file" id="batch-templates-input" multiple accept=".html,.htm" style="display: none;">
+                <button type="button" id="upload-batch-templates" class="button" style="background-color: #4299e1; padding: 10px 20px;">
+                    Choose Multiple Templates
+                </button>
+                <p style="margin: 10px 0 0 0; color: #718096; font-size: 0.9em;">Select multiple HTML files</p>
+            </div>
+            <div id="uploaded-templates-list" style="margin-top: 15px; display: none;">
+                <h4>Detected Templates:</h4>
+                <div id="templates-detection-results"></div>
             </div>
         </div>
 
-        <!-- Template Upload Section -->
-        <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">2. Upload Email Templates</h3>
-            <p style="color: #718096; margin-bottom: 15px;">Upload one HTML template for each selected locale. Templates should already have translations applied.</p>
-            <div id="template-uploads" style="display: grid; grid-template-columns: 1fr; gap: 10px;">
-                <!-- Template upload fields will be generated based on selected locales -->
-            </div>
-        </div>
-
-        <!-- Requirements Comparison -->
-        <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">3. Requirements Preview - Side by Side Comparison</h3>
-            <div style="display: flex; gap: 20px;">
-                <!-- Left Side -->
-                <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                        <h4 style="margin: 0;">Left Side</h4>
-                        <select id="left-locale-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-                            <option value="en_US">Base Requirements (en_US)</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                        <button type="button" id="left-upload-requirements" class="button" style="background-color: #4299e1; font-size: 0.85em; padding: 4px 8px;">Upload JSON</button>
-                        <button type="button" id="left-edit-requirements" class="button" style="background-color: #a0aec0; font-size: 0.85em; padding: 4px 8px;">Edit JSON</button>
-                    </div>
-                    <input type="file" id="left-requirements-file" accept=".json" style="display: none;">
-                    <div id="left-requirements-editor" style="display: none; margin-bottom: 10px;">
-                        <textarea id="left-requirements-textarea" style="width: 100%; height: 200px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
-                        <div style="display: flex; gap: 5px; margin-top: 5px;">
-                            <button type="button" id="validate-left-requirements" class="button" style="background-color: #48bb78; font-size: 0.85em; padding: 4px 8px;">Validate JSON</button>
-
-                        </div>
-                        <div id="left-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
-                    </div>
-                    <div id="left-requirements-file-name" class="file-name" style="font-size: 0.85em; margin-bottom: 5px;"></div>
+        <!-- Step 2: Global Requirements -->
+        <div id="global-requirements-section" style="margin-bottom: 25px; display: none;">
+            <h3 style="margin-bottom: 15px;">2. Global Settings</h3>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div>
+                    <label for="global-sender-address">Sender Address:</label>
+                    <input type="email" id="global-sender-address" class="form-control" placeholder="reply@domain.com">
                 </div>
-                
-                <!-- Right Side -->
-                <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                        <h4 style="margin: 0;">Right Side</h4>
-                        <select id="right-locale-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-                            <option value="">Select locale...</option>
-                        </select>
+                <div>
+                    <label for="global-reply-address">Reply Address:</label>
+                    <input type="email" id="global-reply-address" class="form-control" placeholder="reply@domain.com">
+                </div>
+                <div>
+                    <label for="global-campaign-code">Campaign Code:</label>
+                    <input type="text" id="global-campaign-code" class="form-control" placeholder="ABC2505">
+                </div>
+                <div>
+                    <label for="global-domain">Base Domain:</label>
+                    <input type="url" id="global-domain" class="form-control" placeholder="https://domain.com">
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <h4>UTM Parameters:</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+                    <div>
+                        <label for="global-utm-source">UTM Source:</label>
+                        <input type="text" id="global-utm-source" class="form-control" placeholder="abc">
                     </div>
-                    <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                        <button type="button" id="right-upload-requirements" class="button" style="background-color: #4299e1; font-size: 0.85em; padding: 4px 8px;">Upload JSON</button>
-                        <button type="button" id="right-edit-requirements" class="button" style="background-color: #a0aec0; font-size: 0.85em; padding: 4px 8px;">Edit JSON</button>
+                    <div>
+                        <label for="global-utm-campaign">UTM Campaign:</label>
+                        <input type="text" id="global-utm-campaign" class="form-control" placeholder="0_ABC2505">
                     </div>
-                    <input type="file" id="right-requirements-file" accept=".json" style="display: none;">
-                    <div id="right-requirements-editor" style="display: none; margin-bottom: 10px;">
-                        <textarea id="right-requirements-textarea" style="width: 100%; height: 200px; font-family: monospace; border: 1px solid #e2e8f0; border-radius: 4px; padding: 10px;"></textarea>
-                        <div style="display: flex; gap: 5px; margin-top: 5px;">
-                            <button type="button" id="validate-right-requirements" class="button" style="background-color: #48bb78; font-size: 0.85em; padding: 4px 8px;">Validate JSON</button>
-
-                        </div>
-                        <div id="right-requirements-validation" style="margin-top: 5px; font-size: 0.85em;"></div>
+                    <div>
+                        <label for="global-utm-medium">UTM Medium:</label>
+                        <input type="text" id="global-utm-medium" class="form-control" placeholder="email">
                     </div>
-                    <div id="right-requirements-file-name" class="file-name" style="font-size: 0.85em; margin-bottom: 5px;"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Batch Processing Controls -->
+        <!-- Step 3: Locale-Specific Requirements -->
+        <div id="locale-requirements-section" style="margin-bottom: 25px; display: none;">
+            <h3 style="margin-bottom: 15px;">3. Locale-Specific Content</h3>
+            <div id="locale-forms-container">
+                <!-- Locale-specific forms will be generated here -->
+            </div>
+        </div>
+
+        <!-- Step 4: Process Batch -->
         <div style="margin-bottom: 25px;">
             <h3 style="margin-bottom: 15px;">4. Process Batch</h3>
             <div style="display: flex; gap: 10px; align-items: center;">
-                <button type="button" id="start-batch-processing" class="button" style="background-color: #48bb78; min-width: 150px;">Start Batch QA</button>
+                <button type="button" id="start-enhanced-batch-processing" class="button" style="background-color: #48bb78; min-width: 150px;">Start Enhanced Batch QA</button>
                 <button type="button" id="cancel-batch-processing" class="button hidden" style="background-color: #e53e3e; min-width: 100px;">Cancel</button>
             </div>
         </div>
@@ -4560,6 +4554,409 @@
                     console.error('Product table check error:', error);
                 });
             });
+        }
+
+        // ===== ENHANCED BATCH PROCESSING FUNCTIONALITY =====
+        
+        // Enhanced batch processing state
+        let enhancedBatchTemplates = new Map(); // filename -> {file, locale, detected_info}
+        let detectedLocales = new Set();
+        const supportedLocales = ['en_US', 'en_CA', 'fr_CA', 'es_MX', 'fr_FR', 'it_IT', 'ja_JP'];
+        
+        // Multi-file upload handler
+        document.getElementById('upload-batch-templates').addEventListener('click', function() {
+            document.getElementById('batch-templates-input').click();
+        });
+        
+        document.getElementById('batch-templates-input').addEventListener('change', async function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            
+            console.log('Processing uploaded templates...', files.length);
+            enhancedBatchTemplates.clear();
+            detectedLocales.clear();
+            
+            const detectionResults = document.getElementById('templates-detection-results');
+            detectionResults.innerHTML = '<p>Analyzing templates...</p>';
+            
+            try {
+                // Process each file for locale detection
+                for (const file of files) {
+                    const content = await readFileContent(file);
+                    const detectedInfo = await detectLocaleFromTemplate(content, file.name);
+                    
+                    enhancedBatchTemplates.set(file.name, {
+                        file: file,
+                        locale: detectedInfo.locale,
+                        detected_info: detectedInfo
+                    });
+                    
+                    if (detectedInfo.locale) {
+                        detectedLocales.add(detectedInfo.locale);
+                    }
+                }
+                
+                displayDetectionResults();
+                
+                if (detectedLocales.size > 0) {
+                    showElement(document.getElementById('global-requirements-section'));
+                    showElement(document.getElementById('locale-requirements-section'));
+                    generateLocaleRequirementsForms();
+                }
+                
+            } catch (error) {
+                console.error('Error processing templates:', error);
+                detectionResults.innerHTML = '<p style="color: #e53e3e;">Error processing templates. Please try again.</p>';
+            }
+        });
+        
+        // Read file content as text
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+        
+        // Detect locale from template HTML content
+        async function detectLocaleFromTemplate(htmlContent, filename) {
+            const result = {
+                filename: filename,
+                locale: null,
+                language: null,
+                country: null,
+                campaign_code: null,
+                errors: []
+            };
+            
+            try {
+                // Parse HTML to extract lang attribute
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlContent, 'text/html');
+                const htmlElement = doc.documentElement;
+                
+                // Extract language from lang attribute
+                const langAttr = htmlElement.getAttribute('lang');
+                if (langAttr) {
+                    // Handle formats like "en-US", "en_US", "es-MX", etc.
+                    const langMatch = langAttr.match(/^([a-z]{2})[-_]([A-Z]{2})$/i);
+                    if (langMatch) {
+                        result.language = langMatch[1].toLowerCase();
+                        result.country = langMatch[2].toUpperCase();
+                    } else if (langAttr.length === 2) {
+                        result.language = langAttr.toLowerCase();
+                    }
+                }
+                
+                // Extract campaign code from footer (look for pattern like ABC2505 - US)
+                const campaignMatch = htmlContent.match(/([A-Z0-9]{5,8})\s*[-–—]\s*([A-Z]{2})/i);
+                if (campaignMatch) {
+                    result.campaign_code = campaignMatch[1];
+                    if (!result.country) {
+                        result.country = campaignMatch[2].toUpperCase();
+                    }
+                }
+                
+                // Determine locale from language + country
+                if (result.language && result.country) {
+                    const potentialLocale = `${result.language}_${result.country}`;
+                    if (supportedLocales.includes(potentialLocale)) {
+                        result.locale = potentialLocale;
+                    } else {
+                        result.errors.push(`Locale ${potentialLocale} not supported`);
+                    }
+                } else {
+                    if (!result.language) result.errors.push('Language not detected from lang attribute');
+                    if (!result.country) result.errors.push('Country not detected from campaign code');
+                }
+                
+            } catch (error) {
+                result.errors.push(`Parse error: ${error.message}`);
+            }
+            
+            return result;
+        }
+        
+        // Display template detection results
+        function displayDetectionResults() {
+            const container = document.getElementById('templates-detection-results');
+            const uploadedList = document.getElementById('uploaded-templates-list');
+            
+            if (enhancedBatchTemplates.size === 0) {
+                container.innerHTML = '<p style="color: #718096;">No templates uploaded.</p>';
+                hideElement(uploadedList);
+                return;
+            }
+            
+            showElement(uploadedList);
+            
+            let html = '<div style="display: grid; gap: 10px;">';
+            
+            enhancedBatchTemplates.forEach((templateData, filename) => {
+                const info = templateData.detected_info;
+                const hasErrors = info.errors.length > 0;
+                const borderColor = hasErrors ? '#e53e3e' : (info.locale ? '#48bb78' : '#f59e0b');
+                
+                html += `
+                    <div style="border: 2px solid ${borderColor}; border-radius: 8px; padding: 15px; background-color: white;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <h4 style="margin: 0; color: #2d3748;">${filename}</h4>
+                            ${info.locale ? 
+                                `<span style="background-color: #48bb78; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold;">${info.locale}</span>` :
+                                `<span style="background-color: #e53e3e; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.9em; font-weight: bold;">INVALID</span>`
+                            }
+                        </div>
+                        <div style="font-size: 0.9em; color: #718096;">
+                            <div><strong>Language:</strong> ${info.language || 'Not detected'}</div>
+                            <div><strong>Country:</strong> ${info.country || 'Not detected'}</div>
+                            <div><strong>Campaign Code:</strong> ${info.campaign_code || 'Not detected'}</div>
+                        </div>
+                        ${hasErrors ? `
+                            <div style="margin-top: 10px; padding: 8px; background-color: #fed7d7; border-radius: 4px;">
+                                <div style="color: #e53e3e; font-weight: bold; margin-bottom: 5px;">Issues:</div>
+                                ${info.errors.map(error => `<div style="color: #e53e3e; font-size: 0.9em;">• ${error}</div>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            if (detectedLocales.size > 0) {
+                html += `
+                    <div style="margin-top: 20px; padding: 15px; background-color: #e6f3ff; border-radius: 8px;">
+                        <h4 style="margin: 0 0 10px 0; color: #2563eb;">Detected Locales (${detectedLocales.size})</h4>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            ${Array.from(detectedLocales).map(locale => 
+                                `<span style="background-color: #2563eb; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.9em;">${locale}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Generate locale-specific requirement forms
+        function generateLocaleRequirementsForms() {
+            const container = document.getElementById('locale-forms-container');
+            
+            if (detectedLocales.size === 0) {
+                container.innerHTML = '<p style="color: #718096;">No valid locales detected.</p>';
+                return;
+            }
+            
+            let html = '';
+            
+            Array.from(detectedLocales).sort().forEach(locale => {
+                html += `
+                    <div style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px; background-color: white;">
+                        <h4 style="margin: 0 0 15px 0; color: #2d3748; display: flex; align-items: center; gap: 10px;">
+                            <span style="background-color: #4299e1; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.9em;">${locale}</span>
+                            ${getLocaleDisplayName(locale)}
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                            <div>
+                                <label for="locale-sender-name-${locale}">Sender Name:</label>
+                                <input type="text" id="locale-sender-name-${locale}" class="form-control" placeholder="Marketing Team">
+                            </div>
+                            <div>
+                                <label for="locale-subject-${locale}">Subject:</label>
+                                <input type="text" id="locale-subject-${locale}" class="form-control" placeholder="Email subject line">
+                            </div>
+                            <div>
+                                <label for="locale-preheader-${locale}">Preheader:</label>
+                                <input type="text" id="locale-preheader-${locale}" class="form-control" placeholder="Email preheader text">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Get display name for locale
+        function getLocaleDisplayName(locale) {
+            const names = {
+                'en_US': 'English (United States)',
+                'en_CA': 'English (Canada)',
+                'fr_CA': 'French (Canada)',
+                'es_MX': 'Spanish (Mexico)',
+                'fr_FR': 'French (France)',
+                'it_IT': 'Italian (Italy)',
+                'ja_JP': 'Japanese (Japan)'
+            };
+            return names[locale] || locale;
+        }
+        
+        // Enhanced batch processing handler
+        document.getElementById('start-enhanced-batch-processing').addEventListener('click', async function() {
+            if (detectedLocales.size === 0) {
+                alert('Please upload templates first and ensure at least one valid locale is detected.');
+                return;
+            }
+            
+            // Validate global requirements
+            const globalRequirements = collectGlobalRequirements();
+            if (!globalRequirements) {
+                alert('Please fill in all global requirements.');
+                return;
+            }
+            
+            // Validate locale-specific requirements
+            const localeRequirements = collectLocaleRequirements();
+            if (!localeRequirements) {
+                alert('Please fill in requirements for all detected locales.');
+                return;
+            }
+            
+            // Start enhanced batch processing
+            await startEnhancedBatchProcessing(globalRequirements, localeRequirements);
+        });
+        
+        // Collect global requirements from form
+        function collectGlobalRequirements() {
+            const senderAddress = document.getElementById('global-sender-address').value.trim();
+            const replyAddress = document.getElementById('global-reply-address').value.trim();
+            const campaignCode = document.getElementById('global-campaign-code').value.trim();
+            const domain = document.getElementById('global-domain').value.trim();
+            const utmSource = document.getElementById('global-utm-source').value.trim();
+            const utmCampaign = document.getElementById('global-utm-campaign').value.trim();
+            const utmMedium = document.getElementById('global-utm-medium').value.trim();
+            
+            if (!senderAddress || !replyAddress || !campaignCode || !domain || !utmSource || !utmCampaign || !utmMedium) {
+                return null;
+            }
+            
+            return {
+                sender_address: senderAddress,
+                reply_address: replyAddress,
+                campaign_code: campaignCode,
+                domain: domain,
+                utm_parameters: {
+                    utm_source: utmSource,
+                    utm_campaign: utmCampaign,
+                    utm_medium: utmMedium
+                }
+            };
+        }
+        
+        // Collect locale-specific requirements
+        function collectLocaleRequirements() {
+            const requirements = {};
+            
+            for (const locale of detectedLocales) {
+                const senderName = document.getElementById(`locale-sender-name-${locale}`).value.trim();
+                const subject = document.getElementById(`locale-subject-${locale}`).value.trim();
+                const preheader = document.getElementById(`locale-preheader-${locale}`).value.trim();
+                
+                if (!senderName || !subject || !preheader) {
+                    return null;
+                }
+                
+                requirements[locale] = {
+                    sender_name: senderName,
+                    subject: subject,
+                    preheader: preheader
+                };
+            }
+            
+            return requirements;
+        }
+        
+        // Start enhanced batch processing
+        async function startEnhancedBatchProcessing(globalRequirements, localeRequirements) {
+            const startBtn = document.getElementById('start-enhanced-batch-processing');
+            const cancelBtn = document.getElementById('cancel-batch-processing');
+            
+            startBtn.disabled = true;
+            startBtn.textContent = 'Processing...';
+            showElement(cancelBtn);
+            showElement(document.getElementById('batch-progress-section'));
+            
+            try {
+                const formData = new FormData();
+                
+                // Add templates with locale mapping
+                const localeMapping = {};
+                enhancedBatchTemplates.forEach((templateData, filename) => {
+                    if (templateData.locale && detectedLocales.has(templateData.locale)) {
+                        formData.append('templates', templateData.file);
+                        localeMapping[filename] = templateData.locale;
+                    }
+                });
+                
+                formData.append('locale_mapping', JSON.stringify(localeMapping));
+                
+                // Build requirements JSON for each locale
+                const allRequirements = {};
+                detectedLocales.forEach(locale => {
+                    const [language, country] = locale.split('_');
+                    const localeReq = localeRequirements[locale];
+                    
+                    allRequirements[locale] = {
+                        ...globalRequirements,
+                        country: country,
+                        language: language.toLowerCase(),
+                        sender_name: localeReq.sender_name,
+                        subject: localeReq.subject,
+                        preheader: localeReq.preheader,
+                        domain: buildLocalizedDomain(globalRequirements.domain, language, country)
+                    };
+                });
+                
+                // Add base requirements (use first locale as base)
+                const firstLocale = Array.from(detectedLocales)[0];
+                const reqBlob = new Blob([JSON.stringify(allRequirements[firstLocale])], { type: 'application/json' });
+                formData.append('base_requirements', reqBlob, 'requirements.json');
+                
+                // Add custom requirements for other locales
+                formData.append('custom_requirements', JSON.stringify(allRequirements));
+                
+                formData.append('selected_locales', JSON.stringify(Array.from(detectedLocales)));
+                formData.append('check_product_tables', false);
+                
+                const response = await fetch('/api/batch-validate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    currentBatchId = result.batch_id;
+                    displayBatchResults(result);
+                } else {
+                    throw new Error(result.detail || 'Enhanced batch processing failed');
+                }
+                
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                console.error('Enhanced batch processing error:', error);
+            } finally {
+                startBtn.disabled = false;
+                startBtn.textContent = 'Start Enhanced Batch QA';
+                hideElement(cancelBtn);
+            }
+        }
+        
+        // Build localized domain URL
+        function buildLocalizedDomain(baseDomain, language, country) {
+            // en_US uses base domain without parameters
+            if (language === 'en' && country === 'US') {
+                return baseDomain;
+            }
+            
+            // Other locales get language and country parameters
+            const url = new URL(baseDomain);
+            url.searchParams.set('lang', language);
+            url.searchParams.set('cc', country);
+            return url.toString();
         }
 
     </script>

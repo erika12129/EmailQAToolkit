@@ -37,6 +37,26 @@ class BatchValidationRequest:
         self.product_table_timeout = product_table_timeout
         self.batch_id = f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+class EnhancedBatchValidationRequest:
+    """Enhanced request model for batch validation with automatic locale detection."""
+    
+    def __init__(
+        self,
+        templates: Dict[str, UploadFile],
+        base_requirements: dict,
+        custom_requirements: Dict[str, dict],
+        selected_locales: List[str],
+        check_product_tables: bool = True,
+        product_table_timeout: Optional[int] = None
+    ):
+        self.templates = templates
+        self.base_requirements = base_requirements
+        self.custom_requirements = custom_requirements
+        self.selected_locales = selected_locales
+        self.check_product_tables = check_product_tables
+        self.product_table_timeout = product_table_timeout
+        self.batch_id = f"enhanced_batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
 class BatchValidationResult:
     """Result model for batch validation."""
     
