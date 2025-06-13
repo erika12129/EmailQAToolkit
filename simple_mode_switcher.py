@@ -213,6 +213,7 @@ async def test_page():
     return HTMLResponse(content=html_content, status_code=200)
 
 @app.get("/config")
+@app.get("/api/config")
 async def get_config():
     """Get current configuration settings."""
     # For Replit deployment, SKIP the browser availability check and use cloud browser only
@@ -1189,70 +1190,14 @@ async def generate_locale_requirements_preview(
         logger.error(f"Error generating locale requirements: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate requirements: {str(e)}")
 
-# Enhanced Batch Processing with Automatic Locale Detection - Multiple endpoints for production compatibility
-@app.post("/api/enhanced-batch-validate")
-async def enhanced_batch_validate_primary(
-    templates: List[UploadFile] = File(..., description="Email template files with automatic locale detection"),
-    locale_mapping: str = Form(..., description="JSON mapping of template files to detected locale codes"),
-    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
-    custom_requirements: Optional[str] = Form(None, description="JSON object with custom requirements per locale"),
-    selected_locales: str = Form(..., description="JSON array of detected locale codes to process"),
-    check_product_tables: bool = Form(False, description="Whether to check for product tables")
-):
-    """Primary enhanced batch validate endpoint."""
-    return await enhanced_batch_validate_implementation(
-        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
-    )
-
-@app.post("/api/enhanced_batch_validate") 
-async def enhanced_batch_validate_alt1(
-    templates: List[UploadFile] = File(...),
-    locale_mapping: str = Form(...),
-    base_requirements: UploadFile = File(...),
-    custom_requirements: Optional[str] = Form(None),
-    selected_locales: str = Form(...),
-    check_product_tables: bool = Form(False)
-):
-    """Alternative endpoint 1."""
-    return await enhanced_batch_validate_implementation(
-        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
-    )
-
-@app.post("/enhanced-batch-validate")
-async def enhanced_batch_validate_alt2(
-    templates: List[UploadFile] = File(...),
-    locale_mapping: str = Form(...),
-    base_requirements: UploadFile = File(...),
-    custom_requirements: Optional[str] = Form(None),
-    selected_locales: str = Form(...),
-    check_product_tables: bool = Form(False)
-):
-    """Alternative endpoint 2."""
-    return await enhanced_batch_validate_implementation(
-        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
-    )
-
-@app.post("/enhanced_batch_validate")
-async def enhanced_batch_validate_alt3(
-    templates: List[UploadFile] = File(...),
-    locale_mapping: str = Form(...),
-    base_requirements: UploadFile = File(...),
-    custom_requirements: Optional[str] = Form(None),
-    selected_locales: str = Form(...),
-    check_product_tables: bool = Form(False)
-):
-    """Alternative endpoint 3."""
-    return await enhanced_batch_validate_implementation(
-        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
-    )
-
+# Enhanced Batch Processing Implementation Function
 async def enhanced_batch_validate_implementation(
-    templates: List[UploadFile] = File(..., description="Email template files with automatic locale detection"),
-    locale_mapping: str = Form(..., description="JSON mapping of template files to detected locale codes"),
-    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
-    custom_requirements: Optional[str] = Form(None, description="JSON object with custom requirements per locale"),
-    selected_locales: str = Form(..., description="JSON array of detected locale codes to process"),
-    check_product_tables: bool = Form(False, description="Whether to check for product tables")
+    templates: List[UploadFile],
+    locale_mapping: str,
+    base_requirements: UploadFile,
+    custom_requirements: Optional[str] = None,
+    selected_locales: str = "",
+    check_product_tables: bool = False
 ):
     """
     Enhanced batch validation with automatic locale detection from HTML templates.
@@ -1273,33 +1218,45 @@ async def enhanced_batch_validate_implementation(
     """
     from batch_processor import BatchProcessor, BatchValidationRequest, EnhancedBatchValidationRequest
     
+    logger.info(f"Enhanced batch validate called with {len(templates)} templates")
+    logger.info(f"Locale mapping: {locale_mapping}")
+    logger.info(f"Selected locales: {selected_locales}")
+    
     try:
         # Parse locale mapping
         try:
             mapping = json.loads(locale_mapping)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid locale_mapping JSON format")
+            logger.info(f"Successfully parsed locale mapping: {mapping}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse locale_mapping JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid locale_mapping JSON format: {str(e)}")
         
         # Parse selected locales
         try:
             selected_locales_list = json.loads(selected_locales)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid selected_locales JSON format")
+            logger.info(f"Successfully parsed selected locales: {selected_locales_list}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse selected_locales JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid selected_locales JSON format: {str(e)}")
         
         # Parse base requirements
         base_req_content = await base_requirements.read()
         try:
             base_req_dict = json.loads(base_req_content.decode('utf-8'))
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid base requirements JSON format")
+            logger.info(f"Successfully parsed base requirements with keys: {list(base_req_dict.keys())}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse base_requirements JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid base requirements JSON format: {str(e)}")
         
         # Parse custom requirements if provided
         custom_req_dict = {}
         if custom_requirements:
             try:
                 custom_req_dict = json.loads(custom_requirements)
-            except json.JSONDecodeError:
-                raise HTTPException(status_code=400, detail="Invalid custom_requirements JSON format")
+                logger.info(f"Successfully parsed custom requirements for {len(custom_req_dict)} locales")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse custom_requirements JSON: {e}")
+                raise HTTPException(status_code=400, detail=f"Invalid custom_requirements JSON format: {str(e)}")
         
         # Map templates to locales
         template_dict = {}
@@ -1351,3 +1308,63 @@ async def enhanced_batch_validate_implementation(
     except Exception as e:
         logger.error(f"Enhanced batch validation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Enhanced batch processing failed: {str(e)}")
+
+# Enhanced Batch Processing with Automatic Locale Detection - Multiple endpoints for production compatibility
+@app.post("/api/enhanced-batch-validate")
+async def enhanced_batch_validate_primary(
+    templates: List[UploadFile] = File(..., description="Email template files with automatic locale detection"),
+    locale_mapping: str = Form(..., description="JSON mapping of template files to detected locale codes"),
+    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
+    custom_requirements: Optional[str] = Form(None, description="JSON object with custom requirements per locale"),
+    selected_locales: str = Form(..., description="JSON array of detected locale codes to process"),
+    check_product_tables: bool = Form(False, description="Whether to check for product tables")
+):
+    """Primary enhanced batch validate endpoint."""
+    return await enhanced_batch_validate_implementation(
+        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
+    )
+
+# Alternative endpoint with underscore URL pattern
+@app.post("/api/enhanced_batch_validate_alt") 
+async def enhanced_batch_validate_alt1(
+    templates: List[UploadFile] = File(...),
+    locale_mapping: str = Form(...),
+    base_requirements: UploadFile = File(...),
+    custom_requirements: Optional[str] = Form(None),
+    selected_locales: str = Form(...),
+    check_product_tables: bool = Form(False)
+):
+    """Alternative endpoint 1 with underscore pattern."""
+    return await enhanced_batch_validate_implementation(
+        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
+    )
+
+@app.post("/enhanced-batch-validate")
+async def enhanced_batch_validate_alt2(
+    templates: List[UploadFile] = File(...),
+    locale_mapping: str = Form(...),
+    base_requirements: UploadFile = File(...),
+    custom_requirements: Optional[str] = Form(None),
+    selected_locales: str = Form(...),
+    check_product_tables: bool = Form(False)
+):
+    """Alternative endpoint 2."""
+    return await enhanced_batch_validate_implementation(
+        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
+    )
+
+@app.post("/enhanced_batch_validate")
+async def enhanced_batch_validate_alt3(
+    templates: List[UploadFile] = File(...),
+    locale_mapping: str = Form(...),
+    base_requirements: UploadFile = File(...),
+    custom_requirements: Optional[str] = Form(None),
+    selected_locales: str = Form(...),
+    check_product_tables: bool = Form(False)
+):
+    """Alternative endpoint 3."""
+    return await enhanced_batch_validate_implementation(
+        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
+    )
+
+# Enhanced batch processing endpoints are now properly configured above
