@@ -298,6 +298,141 @@ class BatchProcessor:
         for batch_id in to_remove:
             del self.active_batches[batch_id]
             logger.info(f"Cleaned up old batch {batch_id}")
+    
+    async def process_enhanced_batch(self, request: 'EnhancedBatchValidationRequest') -> BatchValidationResult:
+        """
+        Process enhanced batch validation request with custom requirements per locale.
+        
+        Args:
+            request: EnhancedBatchValidationRequest object
+            
+        Returns:
+            BatchValidationResult: Complete batch results
+        """
+        batch_result = BatchValidationResult(request.batch_id)
+        batch_result.total_locales = len(request.selected_locales)
+        self.active_batches[request.batch_id] = batch_result
+        
+        logger.info(f"Starting enhanced batch processing {request.batch_id} for {len(request.selected_locales)} locales")
+        
+        try:
+            # Validate locale selection
+            locale_validation = validate_locale_selection(request.selected_locales)
+            if not locale_validation["valid"]:
+                batch_result.status = "error"
+                batch_result.add_locale_result("validation_error", {
+                    "error": locale_validation["errors"]
+                }, "error")
+                return batch_result
+            
+            # Process each locale with enhanced custom requirements
+            tasks = []
+            for locale in request.selected_locales:
+                if request.batch_id in self.cancelled_batches:
+                    batch_result.cancelled = True
+                    break
+                
+                task = self._process_enhanced_single_locale(
+                    request, locale, batch_result
+                )
+                tasks.append(task)
+            
+            if not batch_result.cancelled:
+                # Execute all locale validations concurrently
+                await asyncio.gather(*tasks, return_exceptions=True)
+        
+        except Exception as e:
+            logger.error(f"Enhanced batch processing error for {request.batch_id}: {str(e)}")
+            batch_result.status = "error"
+            batch_result.add_locale_result("batch_error", {
+                "error": f"Enhanced batch processing failed: {str(e)}"
+            }, "error")
+        
+        finally:
+            batch_result.finalize()
+            # Clean up cancelled batches tracking
+            self.cancelled_batches.discard(request.batch_id)
+        
+        logger.info(f"Enhanced batch processing {request.batch_id} completed. Success: {len(batch_result.completed_locales)}, Failed: {len(batch_result.failed_locales)}")
+        return batch_result
+    
+    async def _process_enhanced_single_locale(
+        self, 
+        request: 'EnhancedBatchValidationRequest', 
+        locale: str, 
+        batch_result: BatchValidationResult
+    ):
+        """Process validation for a single locale with enhanced custom requirements."""
+        logger.info(f"Processing enhanced locale {locale} for batch {request.batch_id}")
+        
+        try:
+            # Check if batch was cancelled
+            if request.batch_id in self.cancelled_batches:
+                logger.info(f"Enhanced locale {locale} skipped due to batch cancellation")
+                return
+            
+            # Get template for this locale
+            if locale not in request.templates:
+                error_msg = f"No template provided for locale {locale}"
+                logger.error(error_msg)
+                batch_result.add_locale_result(locale, {"error": error_msg}, "error")
+                return
+            
+            template_file = request.templates[locale]
+            
+            # Create temporary email file
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.html', delete=False) as temp_email:
+                await template_file.seek(0)
+                content = await template_file.read()
+                temp_email.write(content)
+                temp_email_path = temp_email.name
+            
+            # Use custom requirements if provided for this locale, otherwise generate from base
+            if locale in request.custom_requirements:
+                locale_requirements = request.custom_requirements[locale]
+                logger.info(f"Using custom requirements for locale {locale}")
+            else:
+                # Generate from base requirements
+                locale_requirements = generate_locale_requirements(
+                    request.base_requirements, locale
+                )
+                logger.info(f"Generated requirements from base for locale {locale}")
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_req:
+                json.dump(locale_requirements, temp_req, indent=2)
+                temp_req_path = temp_req.name
+            
+            try:
+                # Run validation for this locale
+                validation_result = validate_email(
+                    email_path=temp_email_path,
+                    requirements_path=temp_req_path,
+                    check_product_tables=request.check_product_tables,
+                    product_table_timeout=request.product_table_timeout
+                )
+                
+                # Add locale context to result
+                validation_result["locale"] = locale
+                validation_result["locale_config"] = get_locale_config(locale)
+                validation_result["requirements_used"] = locale_requirements
+                validation_result["enhanced_batch"] = True
+                
+                batch_result.add_locale_result(locale, validation_result, "success")
+                logger.info(f"Successfully processed enhanced locale {locale}")
+                
+            finally:
+                # Clean up temporary files
+                try:
+                    os.unlink(temp_email_path)
+                    os.unlink(temp_req_path)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to clean up temporary files for locale {locale}: {str(cleanup_error)}")
+                
+        except Exception as e:
+            logger.error(f"Error processing enhanced locale {locale}: {str(e)}")
+            batch_result.add_locale_result(locale, {
+                "error": f"Enhanced locale processing failed: {str(e)}"
+            }, "error")
 
 # Global batch processor instance
 batch_processor = BatchProcessor()

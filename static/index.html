@@ -4921,7 +4921,7 @@
                 formData.append('selected_locales', JSON.stringify(Array.from(detectedLocales)));
                 formData.append('check_product_tables', false);
                 
-                const response = await fetch('/api/batch-validate', {
+                const response = await fetch('/api/enhanced-batch-validate', {
                     method: 'POST',
                     body: formData
                 });

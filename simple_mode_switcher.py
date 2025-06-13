@@ -1175,7 +1175,7 @@ async def enhanced_batch_validate(
     Returns:
         dict: Enhanced batch processing results with per-locale validation results
     """
-    from batch_processor import BatchProcessor, BatchValidationRequest
+    from batch_processor import BatchProcessor, BatchValidationRequest, EnhancedBatchValidationRequest
     
     try:
         # Parse locale mapping
