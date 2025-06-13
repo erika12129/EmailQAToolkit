@@ -786,15 +786,30 @@
             hideElement(document.getElementById('qa-form'));
             showElement(document.getElementById('batch-form'));
             
-            // Initialize enhanced batch mode steps
-            showElement(document.getElementById('locale-detection-section'));
-            hideElement(document.getElementById('global-requirements-section'));
-            hideElement(document.getElementById('locale-requirements-section'));
+            // Initialize enhanced batch mode steps - force display
+            const localeDetectionSection = document.getElementById('locale-detection-section');
+            const globalRequirementsSection = document.getElementById('global-requirements-section');
+            const localeRequirementsSection = document.getElementById('locale-requirements-section');
+            
+            if (localeDetectionSection) {
+                localeDetectionSection.style.display = 'block';
+                localeDetectionSection.style.visibility = 'visible';
+            }
+            if (globalRequirementsSection) {
+                globalRequirementsSection.style.display = 'none';
+            }
+            if (localeRequirementsSection) {
+                localeRequirementsSection.style.display = 'none';
+            }
             
             // Reset all step states
-            document.getElementById('locale-detection-status').innerHTML = '<p style="margin: 0; color: #856404;">Waiting for template upload...</p>';
-            document.getElementById('templates-detection-results').innerHTML = '';
-            document.getElementById('uploaded-templates-list').style.display = 'none';
+            const detectionStatus = document.getElementById('locale-detection-status');
+            const detectionResults = document.getElementById('templates-detection-results');
+            const uploadedList = document.getElementById('uploaded-templates-list');
+            
+            if (detectionStatus) detectionStatus.innerHTML = '<p style="margin: 0; color: #856404;">Waiting for template upload...</p>';
+            if (detectionResults) detectionResults.innerHTML = '';
+            if (uploadedList) uploadedList.style.display = 'none';
         }
         
         // Load available locales from API
@@ -4604,10 +4619,16 @@
             const detectionResults = document.getElementById('templates-detection-results');
             const uploadedList = document.getElementById('uploaded-templates-list');
             
-            if (localeSection) showElement(localeSection);
+            if (localeSection) {
+                localeSection.style.display = 'block';
+                localeSection.style.visibility = 'visible';
+            }
             if (detectionStatus) detectionStatus.innerHTML = '<p style="margin: 0; color: #856404;">📁 Analyzing ' + files.length + ' templates...</p>';
             if (detectionResults) detectionResults.innerHTML = '<p>🔍 Processing files...</p>';
-            if (uploadedList) showElement(uploadedList);
+            if (uploadedList) {
+                uploadedList.style.display = 'block';
+                uploadedList.style.visibility = 'visible';
+            }
             
             // Hide subsequent steps
             hideElement(document.getElementById('global-requirements-section'));
@@ -4642,35 +4663,51 @@
                 // Always display results first
                 displayDetectionResults();
                 
-                // Update step 2 status based on results
-                if (detectionStatus) {
-                    if (detectedLocales.size > 0) {
-                        detectionStatus.innerHTML = '<p style="margin: 0; color: #155724; background-color: #d4edda; padding: 10px; border-radius: 4px;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
-                        
-                        // Show step 3 - Global Requirements
-                        const globalSection = document.getElementById('global-requirements-section');
-                        if (globalSection) {
-                            showElement(globalSection);
-                            console.log('Showing global requirements section');
+                // Force UI updates with timeout to ensure DOM is ready
+                setTimeout(() => {
+                    // Update step 2 status based on results
+                    if (detectionStatus) {
+                        if (detectedLocales.size > 0) {
+                            detectionStatus.innerHTML = '<p style="margin: 0; color: #155724; background-color: #d4edda; padding: 10px; border-radius: 4px;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
+                            
+                            // Force show step 3 - Global Requirements
+                            const globalSection = document.getElementById('global-requirements-section');
+                            if (globalSection) {
+                                globalSection.style.display = 'block';
+                                globalSection.style.visibility = 'visible';
+                                globalSection.style.opacity = '1';
+                                globalSection.removeAttribute('hidden');
+                                globalSection.classList.remove('hidden');
+                                console.log('Forced global requirements section to display');
+                            }
+                            
+                            // Force show step 4 - Locale Requirements
+                            const localeSection = document.getElementById('locale-requirements-section');
+                            const localeStatus = document.getElementById('locale-requirements-status');
+                            if (localeSection && localeStatus) {
+                                localeSection.style.display = 'block';
+                                localeSection.style.visibility = 'visible';
+                                localeSection.style.opacity = '1';
+                                localeSection.removeAttribute('hidden');
+                                localeSection.classList.remove('hidden');
+                                
+                                localeStatus.style.display = 'block';
+                                localeStatus.style.visibility = 'visible';
+                                localeStatus.style.opacity = '1';
+                                localeStatus.removeAttribute('hidden');
+                                localeStatus.classList.remove('hidden');
+                                localeStatus.innerHTML = '<p style="margin: 0; color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px;">⏳ Waiting for global requirements to be filled...</p>';
+                                console.log('Forced locale requirements section to display');
+                            }
+                            
+                            // Generate the locale forms
+                            generateLocaleRequirementsForms();
+                            
+                        } else {
+                            detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Check your template files have proper lang attributes and campaign codes (format: ABC2505 - MX)</p>';
                         }
-                        
-                        // Show step 4 - Locale Requirements with waiting message
-                        const localeSection = document.getElementById('locale-requirements-section');
-                        const localeStatus = document.getElementById('locale-requirements-status');
-                        if (localeSection && localeStatus) {
-                            showElement(localeSection);
-                            showElement(localeStatus);
-                            localeStatus.innerHTML = '<p style="margin: 0; color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px;">⏳ Waiting for global requirements to be filled...</p>';
-                            console.log('Showing locale requirements section with waiting message');
-                        }
-                        
-                        // Generate the locale forms
-                        generateLocaleRequirementsForms();
-                        
-                    } else {
-                        detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Check your template files have proper lang attributes and campaign codes (format: ABC2505 - MX)</p>';
                     }
-                }
+                }, 100);
                 
             } catch (error) {
                 console.error('Error processing templates:', error);
@@ -4755,16 +4792,26 @@
         
         // Display template detection results
         function displayDetectionResults() {
+            console.log('displayDetectionResults called');
             const container = document.getElementById('templates-detection-results');
             const uploadedList = document.getElementById('uploaded-templates-list');
             
+            console.log('Container element:', container);
+            console.log('Uploaded list element:', uploadedList);
+            
             if (enhancedBatchTemplates.size === 0) {
-                container.innerHTML = '<p style="color: #718096;">No templates uploaded.</p>';
+                if (container) container.innerHTML = '<p style="color: #718096;">No templates uploaded.</p>';
                 hideElement(uploadedList);
                 return;
             }
             
-            showElement(uploadedList);
+            // Force display the elements
+            if (uploadedList) {
+                uploadedList.style.display = 'block';
+                uploadedList.style.visibility = 'visible';
+                uploadedList.style.opacity = '1';
+                console.log('Forced uploadedList to display, current style:', uploadedList.style.cssText);
+            }
             
             let html = '<div style="display: grid; gap: 10px;">';
             
@@ -4812,7 +4859,15 @@
                 `;
             }
             
-            container.innerHTML = html;
+            if (container) {
+                container.innerHTML = html;
+                container.style.display = 'block';
+                container.style.visibility = 'visible';
+                console.log('Updated container HTML, content length:', html.length);
+                console.log('Container display after update:', window.getComputedStyle(container).display);
+            } else {
+                console.error('Container element not found!');
+            }
         }
         
         // Generate locale-specific requirement forms
