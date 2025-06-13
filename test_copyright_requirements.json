@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "sender_address": "test@company.com",
+    "sender_name": "Test Company", 
+    "reply_address": "noreply@company.com",
+    "subject": "Test Email",
+    "preheader": "Testing copyright validation fix",
+    "campaign_code": "TEST2025"
+  },
+  "country": "US",
+  "utm_parameters": {
+    "utm_source": "email",
+    "utm_medium": "newsletter", 
+    "utm_campaign": "TEST2025"
+  }
+}

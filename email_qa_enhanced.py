@@ -1383,6 +1383,13 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             ) else None
         }
         
+        # Preserve image properties if this is an image link
+        if isinstance(link, dict):
+            # Copy image-specific properties
+            for prop in ['is_image_link', 'image_src', 'image_alt', 'link_text']:
+                if prop in link:
+                    result[prop] = link[prop]
+        
         results.append(result)
     
     return results
@@ -1415,15 +1422,58 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
         metadata_issues = []
         
         # Special handling for campaign code with country formatting
+        # First, ensure footer_campaign_code exists in expected metadata if campaign_code does
+        if 'campaign_code' in requirements and 'country' in requirements:
+            campaign_code = requirements.get('campaign_code')
+            country = requirements.get('country')
+            
+            # Extract base campaign code (remove country suffix if present)
+            if campaign_code and " - " in campaign_code:
+                base_code = campaign_code.split(" - ")[0]
+            else:
+                base_code = campaign_code
+            
+            # Set properly formatted values in expected metadata
+            if base_code and country:
+                formatted_code = f"{base_code} - {country}"
+                expected_metadata['campaign_code'] = formatted_code
+                expected_metadata['footer_campaign_code'] = formatted_code
+        
+        # Handle legacy format where campaign_code might be in metadata section
         if 'campaign_code' in expected_metadata and 'country' in requirements:
             campaign_code = expected_metadata.get('campaign_code')
             country = requirements.get('country')
             
+            # Extract base campaign code (remove country suffix if present)
+            if campaign_code and " - " in campaign_code:
+                base_code = campaign_code.split(" - ")[0]
+            else:
+                base_code = campaign_code
+            
             # Format as "CODE - COUNTRY" if not already formatted
-            if campaign_code and country and not campaign_code.endswith(f" - {country}"):
-                expected_metadata['campaign_code'] = f"{campaign_code} - {country}"
-                # Also set footer_campaign_code to match the same format
-                expected_metadata['footer_campaign_code'] = f"{campaign_code} - {country}"
+            if base_code and country:
+                formatted_code = f"{base_code} - {country}"
+                expected_metadata['campaign_code'] = formatted_code
+                expected_metadata['footer_campaign_code'] = formatted_code
+        
+        # Special case: if footer_campaign_code is in expected metadata without country suffix,
+        # but we have country info, format it properly
+        if 'footer_campaign_code' in expected_metadata and 'country' in requirements:
+            footer_code = expected_metadata.get('footer_campaign_code')
+            country = requirements.get('country')
+            
+            # Extract base code if it has country suffix
+            if footer_code and " - " in footer_code:
+                base_code = footer_code.split(" - ")[0]
+            else:
+                base_code = footer_code
+            
+            if base_code and country:
+                expected_metadata['footer_campaign_code'] = f"{base_code} - {country}"
+        
+        # Add copyright year as expected metadata for validation
+        current_year = str(datetime.now().year)
+        expected_metadata['copyright_year'] = current_year
         
         # Add copyright year as expected metadata for validation
         current_year = str(datetime.now().year)
@@ -1431,8 +1481,9 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
         
         # Compare actual vs expected values
         for key, expected_value in expected_metadata.items():
-            if expected_value and key in metadata:
-                actual_value = metadata[key]
+            if expected_value:  # If there's an expected value, we should validate it
+                # Get actual value from metadata, defaulting to "Not found" if key doesn't exist
+                actual_value = metadata.get(key, "Not found")
                 
                 # Special case for footer_campaign_code - handle the 'r' prefix issue
                 if key == 'footer_campaign_code' or key == 'campaign_code':
@@ -1444,7 +1495,9 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
                         metadata[key] = actual_value
                         logger.info(f"Updated {key} = {actual_value}")
                 
-                if actual_value != expected_value and actual_value != 'Not found':
+                if actual_value != expected_value:
+                    # If expected value exists but actual is "Not found", it's a FAIL
+                    # If both have values but don't match, it's also a FAIL
                     metadata_issues.append(f"{key}: Expected '{expected_value}', found '{actual_value}'")
         
         # Extract and check links

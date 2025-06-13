@@ -10,7 +10,7 @@ import tempfile
 import logging
 from typing import Dict, Any, List, Optional
 import json
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request, Header, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -101,15 +101,22 @@ except ImportError:
             'confidence_score': 0
         }
 
-# Try to import the Selenium browser check function
-try:
-    from selenium_automation import check_for_product_tables_selenium_sync as browser_check
-    BROWSER_AUTOMATION_AVAILABLE = True
-    logging.info("Selenium browser automation module loaded successfully")
-except ImportError:
-    browser_check = browser_check_fallback  # Use the fallback function
-    BROWSER_AUTOMATION_AVAILABLE = False
-    logging.warning("Browser automation module not available. Using HTTP-only checks.")
+# Try to import the Selenium browser check function with deployment-aware loading
+BROWSER_AUTOMATION_AVAILABLE = False
+browser_check = browser_check_fallback  # Default to fallback
+
+# Skip expensive browser imports in deployment mode to speed up startup
+if os.environ.get("SKIP_BROWSER_CHECK") != "true" and os.environ.get("DEPLOYMENT_MODE") != "production":
+    try:
+        from selenium_automation import check_for_product_tables_selenium_sync as browser_check
+        BROWSER_AUTOMATION_AVAILABLE = True
+        logging.info("Selenium browser automation module loaded successfully")
+    except ImportError:
+        browser_check = browser_check_fallback  # Use the fallback function
+        BROWSER_AUTOMATION_AVAILABLE = False
+        logging.warning("Browser automation module not available. Using HTTP-only checks.")
+else:
+    logging.info("Skipping browser automation import in deployment mode for faster startup")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -175,6 +182,36 @@ async def read_root():
     
     return HTMLResponse(content=html_content, status_code=200)
 
+@app.get("/debug/routes")
+async def debug_routes():
+    """Debug endpoint to list all available routes."""
+    routes = []
+    for route in app.routes:
+        try:
+            if hasattr(route, 'path') and hasattr(route, 'methods'):
+                routes.append({
+                    'path': getattr(route, 'path', 'unknown'),
+                    'methods': list(getattr(route, 'methods', [])),
+                    'name': getattr(route, 'name', 'unnamed')
+                })
+        except:
+            pass
+    return {"routes": routes}
+
+@app.get("/api/test-enhanced-batch")
+async def test_enhanced_batch():
+    """Test endpoint to verify enhanced batch routing works in production."""
+    return {
+        "status": "ok",
+        "message": "Enhanced batch endpoint routing is working",
+        "available_endpoints": [
+            "/api/enhanced-batch-validate",
+            "/api/enhanced_batch_validate", 
+            "/enhanced-batch-validate",
+            "/enhanced_batch_validate"
+        ]
+    }
+
 @app.get("/test")
 async def test_page():
     """Serve a simple test page directly."""
@@ -183,22 +220,24 @@ async def test_page():
     return HTMLResponse(content=html_content, status_code=200)
 
 @app.get("/config")
+@app.get("/api/config")
 async def get_config():
-    """Get current configuration settings."""
-    # For Replit deployment, SKIP the browser availability check and use cloud browser only
+    """Get current configuration settings with optimized checks for deployment."""
+    # For deployment environments, optimize configuration loading
     cloud_browser_available = False
     
-    # Fast check if we're in Replit
+    # Fast check if we're in Replit or deployment mode
     is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+    is_deployment = os.environ.get('DEPLOYMENT_MODE') == 'production' or os.environ.get('SKIP_BROWSER_CHECK') == 'true'
     
-    if is_replit:
-        # In Replit, we only check for API keys, not for browser installation
+    if is_replit or is_deployment:
+        # In deployment environments, only check for API keys, not for browser installation
         scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
         browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
         cloud_browser_available = bool(scrapingbee_key or browserless_key)
-        logger.info(f"Replit environment detected, using cloud browser availability: {cloud_browser_available}")
+        logger.info(f"Deployment environment detected, using cloud browser availability: {cloud_browser_available}")
     else:
-        # Only in non-Replit environments, check traditionally
+        # Only in development environments, check traditionally (with timeout)
         try:
             from browser_detection import check_cloud_browser_available
             cloud_browser_available = check_cloud_browser_available()
@@ -206,8 +245,8 @@ async def get_config():
             logger.error(f"Error checking cloud browser availability: {str(e)}")
             cloud_browser_available = False
     
-    # In Replit, we use cloud browser availability as the overall availability
-    browser_automation_available = cloud_browser_available if is_replit else (BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available)
+    # In deployment environments, prioritize cloud browser availability
+    browser_automation_available = cloud_browser_available if (is_replit or is_deployment) else (BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available)
     
     # Check if this is a deployment environment (Replit production)
     is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
@@ -964,3 +1003,376 @@ async def run_qa(
         
         # Clean up temporary files
         shutil.rmtree(temp_dir)
+
+# Batch Processing Endpoints
+
+@app.get("/api/locales")
+async def get_supported_locales():
+    """Get list of supported locales for batch processing."""
+    from locale_config import LOCALE_CONFIGS
+    return {
+        "locales": [
+            {
+                "code": code,
+                "display_name": config["display_name"],
+                "country": config["country"],
+                "language": config["language"]
+            }
+            for code, config in LOCALE_CONFIGS.items()
+        ]
+    }
+
+@app.post("/api/batch-validate")
+async def batch_validate(
+    templates: List[UploadFile] = File(..., description="Email template files"),
+    locale_mapping: str = Form(..., description="JSON mapping of template files to locale codes"),
+    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
+    selected_locales: str = Form(..., description="JSON array of locale codes to process"),
+    check_product_tables: bool = Form(False, description="Whether to check for product tables"),
+    product_table_timeout: Optional[int] = Form(None, description="Timeout for product table checks")
+):
+    """
+    Process batch validation for multiple email templates across different locales.
+    
+    Args:
+        templates: List of email template files
+        locale_mapping: JSON string mapping template filenames to locale codes
+        base_requirements: Base requirements JSON file (typically for en_US)
+        selected_locales: List of locale codes to process
+        check_product_tables: Whether to include product table detection
+        product_table_timeout: Timeout for product table checks
+        
+    Returns:
+        dict: Batch processing results with per-locale validation results
+    """
+    from batch_processor import BatchProcessor, BatchValidationRequest
+    
+    logger.info(f"Batch validate endpoint called with {len(templates)} templates")
+    logger.info(f"Locale mapping: {locale_mapping}")
+    logger.info(f"Selected locales: {selected_locales}")
+    logger.info(f"Check product tables: {check_product_tables}")
+    
+    try:
+        # Parse locale mapping
+        try:
+            mapping = json.loads(locale_mapping)
+            logger.info(f"Successfully parsed locale mapping: {mapping}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse locale_mapping JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid locale_mapping JSON format: {str(e)}")
+        
+        # Parse selected locales
+        try:
+            selected_locales_list = json.loads(selected_locales)
+            logger.info(f"Successfully parsed selected locales: {selected_locales_list}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse selected_locales JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid selected_locales JSON format: {str(e)}")
+        
+        # Parse base requirements
+        base_req_content = await base_requirements.read()
+        try:
+            base_req_dict = json.loads(base_req_content.decode('utf-8'))
+            logger.info(f"Successfully parsed base requirements with keys: {list(base_req_dict.keys())}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse base_requirements JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid base requirements JSON format: {str(e)}")
+        
+        # Map templates to locales
+        template_dict = {}
+        for template in templates:
+            filename = template.filename
+            if filename in mapping:
+                locale = mapping[filename]
+                if locale in selected_locales_list:
+                    template_dict[locale] = template
+        
+        # Validate that all selected locales have templates
+        missing_templates = [locale for locale in selected_locales_list if locale not in template_dict]
+        if missing_templates:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing templates for locales: {', '.join(missing_templates)}"
+            )
+        
+        # Create batch request
+        batch_request = BatchValidationRequest(
+            templates=template_dict,
+            base_requirements=base_req_dict,
+            selected_locales=selected_locales_list,
+            check_product_tables=check_product_tables,
+            product_table_timeout=product_table_timeout
+        )
+        
+        # Process batch
+        processor = BatchProcessor()
+        result = await processor.process_batch(batch_request)
+        
+        return {
+            "batch_id": result.batch_id,
+            "status": result.status,
+            "progress": result.get_progress(),
+            "results": result.results,
+            "start_time": result.start_time.isoformat(),
+            "end_time": result.end_time.isoformat() if result.end_time else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Batch validation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Batch processing failed: {str(e)}")
+
+@app.get("/api/batch-progress/{batch_id}")
+async def get_batch_progress(batch_id: str):
+    """Get progress information for a specific batch."""
+    from batch_processor import batch_processor
+    
+    progress = batch_processor.get_batch_progress(batch_id)
+    if progress is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    return progress
+
+@app.post("/api/batch-cancel/{batch_id}")
+async def cancel_batch(batch_id: str):
+    """Cancel an active batch processing operation."""
+    from batch_processor import batch_processor
+    
+    success = batch_processor.cancel_batch(batch_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Batch not found or already completed")
+    
+    return {"message": f"Batch {batch_id} has been cancelled", "batch_id": batch_id}
+
+@app.get("/api/batch-result/{batch_id}")
+async def get_batch_result(batch_id: str):
+    """Get complete results for a finished batch."""
+    from batch_processor import batch_processor
+    
+    result = batch_processor.get_batch_result(batch_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    return {
+        "batch_id": result.batch_id,
+        "status": result.status,
+        "progress": result.get_progress(),
+        "results": result.results,
+        "start_time": result.start_time.isoformat(),
+        "end_time": result.end_time.isoformat() if result.end_time else None,
+        "cancelled": result.cancelled
+    }
+
+@app.post("/api/generate-locale-requirements")
+async def generate_locale_requirements_preview(
+    base_requirements: dict = Body(..., description="Base requirements dictionary"),
+    target_locale: str = Body(..., description="Target locale code")
+):
+    """
+    Generate and preview locale-specific requirements from base template.
+    
+    Args:
+        base_requirements: Base requirements dictionary
+        target_locale: Target locale code
+        
+    Returns:
+        dict: Generated locale-specific requirements
+    """
+    from locale_config import generate_locale_requirements, get_locale_config
+    
+    try:
+        locale_config = get_locale_config(target_locale)
+        if not locale_config:
+            raise HTTPException(status_code=400, detail=f"Unsupported locale: {target_locale}")
+        
+        locale_requirements = generate_locale_requirements(base_requirements, target_locale)
+        
+        return {
+            "locale": target_locale,
+            "locale_config": locale_config,
+            "requirements": locale_requirements
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating locale requirements: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate requirements: {str(e)}")
+
+# Enhanced Batch Processing Implementation Function
+async def enhanced_batch_validate_implementation(
+    templates: List[UploadFile],
+    locale_mapping: str,
+    base_requirements: UploadFile,
+    custom_requirements: Optional[str] = None,
+    selected_locales: str = "",
+    check_product_tables: bool = False
+):
+    """
+    Enhanced batch validation with automatic locale detection from HTML templates.
+    Processes multiple email templates where locales are automatically detected from:
+    - HTML lang attribute (e.g., lang="es-MX")
+    - Campaign code in footer (e.g., ABC2505 - MX)
+    
+    Args:
+        templates: List of email template files
+        locale_mapping: JSON string mapping template filenames to detected locale codes
+        base_requirements: Base requirements JSON file
+        custom_requirements: JSON object with locale-specific requirements
+        selected_locales: List of detected locale codes to process
+        check_product_tables: Whether to include product table detection
+        
+    Returns:
+        dict: Enhanced batch processing results with per-locale validation results
+    """
+    from batch_processor import BatchProcessor, BatchValidationRequest, EnhancedBatchValidationRequest
+    
+    logger.info(f"Enhanced batch validate called with {len(templates)} templates")
+    logger.info(f"Locale mapping: {locale_mapping}")
+    logger.info(f"Selected locales: {selected_locales}")
+    
+    try:
+        # Parse locale mapping
+        try:
+            mapping = json.loads(locale_mapping)
+            logger.info(f"Successfully parsed locale mapping: {mapping}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse locale_mapping JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid locale_mapping JSON format: {str(e)}")
+        
+        # Parse selected locales
+        try:
+            selected_locales_list = json.loads(selected_locales)
+            logger.info(f"Successfully parsed selected locales: {selected_locales_list}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse selected_locales JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid selected_locales JSON format: {str(e)}")
+        
+        # Parse base requirements
+        base_req_content = await base_requirements.read()
+        try:
+            base_req_dict = json.loads(base_req_content.decode('utf-8'))
+            logger.info(f"Successfully parsed base requirements with keys: {list(base_req_dict.keys())}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse base_requirements JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid base requirements JSON format: {str(e)}")
+        
+        # Parse custom requirements if provided
+        custom_req_dict = {}
+        if custom_requirements:
+            try:
+                custom_req_dict = json.loads(custom_requirements)
+                logger.info(f"Successfully parsed custom requirements for {len(custom_req_dict)} locales")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse custom_requirements JSON: {e}")
+                raise HTTPException(status_code=400, detail=f"Invalid custom_requirements JSON format: {str(e)}")
+        
+        # Map templates to locales
+        template_dict = {}
+        for template in templates:
+            filename = template.filename
+            if filename in mapping:
+                locale = mapping[filename]
+                if locale in selected_locales_list:
+                    template_dict[locale] = template
+        
+        # Validate that all selected locales have templates
+        missing_templates = [locale for locale in selected_locales_list if locale not in template_dict]
+        if missing_templates:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing templates for locales: {', '.join(missing_templates)}"
+            )
+        
+        # Create enhanced batch request with custom requirements support
+        batch_request = EnhancedBatchValidationRequest(
+            templates=template_dict,
+            base_requirements=base_req_dict,
+            custom_requirements=custom_req_dict,
+            selected_locales=selected_locales_list,
+            check_product_tables=check_product_tables,
+            product_table_timeout=None
+        )
+        
+        # Process enhanced batch
+        processor = BatchProcessor()
+        result = await processor.process_enhanced_batch(batch_request)
+        
+        return {
+            "batch_id": result.batch_id,
+            "status": result.status,
+            "progress": result.get_progress(),
+            "results": result.results,
+            "start_time": result.start_time.isoformat(),
+            "end_time": result.end_time.isoformat() if result.end_time else None,
+            "detection_info": {
+                "detected_locales": selected_locales_list,
+                "template_count": len(template_dict),
+                "custom_requirements_used": bool(custom_req_dict)
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Enhanced batch validation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Enhanced batch processing failed: {str(e)}")
+
+# Enhanced Batch Processing with Automatic Locale Detection - Multiple endpoints for production compatibility
+@app.post("/api/enhanced-batch-validate")
+async def enhanced_batch_validate_primary(
+    templates: List[UploadFile] = File(..., description="Email template files with automatic locale detection"),
+    locale_mapping: str = Form(..., description="JSON mapping of template files to detected locale codes"),
+    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
+    custom_requirements: Optional[str] = Form(None, description="JSON object with custom requirements per locale"),
+    selected_locales: str = Form(..., description="JSON array of detected locale codes to process"),
+    check_product_tables: bool = Form(False, description="Whether to check for product tables")
+):
+    """Primary enhanced batch validate endpoint."""
+    return await enhanced_batch_validate_implementation(
+        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
+    )
+
+# Alternative endpoint with underscore URL pattern
+@app.post("/api/enhanced_batch_validate_alt") 
+async def enhanced_batch_validate_alt1(
+    templates: List[UploadFile] = File(...),
+    locale_mapping: str = Form(...),
+    base_requirements: UploadFile = File(...),
+    custom_requirements: Optional[str] = Form(None),
+    selected_locales: str = Form(...),
+    check_product_tables: bool = Form(False)
+):
+    """Alternative endpoint 1 with underscore pattern."""
+    return await enhanced_batch_validate_implementation(
+        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
+    )
+
+@app.post("/enhanced-batch-validate")
+async def enhanced_batch_validate_alt2(
+    templates: List[UploadFile] = File(...),
+    locale_mapping: str = Form(...),
+    base_requirements: UploadFile = File(...),
+    custom_requirements: Optional[str] = Form(None),
+    selected_locales: str = Form(...),
+    check_product_tables: bool = Form(False)
+):
+    """Alternative endpoint 2."""
+    return await enhanced_batch_validate_implementation(
+        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
+    )
+
+@app.post("/enhanced_batch_validate")
+async def enhanced_batch_validate_alt3(
+    templates: List[UploadFile] = File(...),
+    locale_mapping: str = Form(...),
+    base_requirements: UploadFile = File(...),
+    custom_requirements: Optional[str] = Form(None),
+    selected_locales: str = Form(...),
+    check_product_tables: bool = Form(False)
+):
+    """Alternative endpoint 3."""
+    return await enhanced_batch_validate_implementation(
+        templates, locale_mapping, base_requirements, custom_requirements, selected_locales, check_product_tables
+    )
+
+# Enhanced batch processing endpoints are now properly configured above

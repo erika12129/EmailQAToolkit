@@ -8,7 +8,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
-from typing import Optional
+from typing import Optional, List
 import shutil
 import tempfile
 import json
@@ -46,6 +46,25 @@ from api_endpoints import router as api_router
 
 # Include API router with a prefix
 app.include_router(api_router, prefix="/api")
+
+# Import and include enhanced batch validation routes
+try:
+    from simple_mode_switcher import app as simple_mode_app
+    # Mount the simple_mode_switcher routes to the main app
+    for route in simple_mode_app.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            # Add the route to main app
+            app.router.routes.append(route)
+    logger.info("Enhanced batch validation routes loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load enhanced batch validation routes: {e}")
+    # Create a fallback route to prevent 404s
+    @app.post("/api/enhanced-batch-validate")
+    async def enhanced_batch_validate_fallback():
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Enhanced batch validation service unavailable"}
+        )
 
 # Import the runtime configuration
 from runtime_config import config
@@ -314,11 +333,19 @@ async def run_qa(
         )
     
     except Exception as e:
-        error_detail = f"QA validation failed: {str(e)}"
+        error_detail = f"Failed to validate email: {str(e)}"
         logger.error(error_detail)
+        
+        # Return error in the expected format for the frontend
         return JSONResponse(
-            status_code=500,
-            content={"detail": error_detail},
+            content={
+                "results": {
+                    "error": error_detail,
+                    "mode": getattr(config, 'mode', 'production'),
+                    "requirements": locals().get('requirements_json', {}),
+                    "product_tables_checked": bool(check_product_tables)
+                }
+            },
             media_type="application/json"
         )
     
@@ -579,7 +606,208 @@ async def check_product_tables(
             content={"error": f"Failed to check product tables: {str(e)}"}
         )
 
+# Batch Processing Endpoints
+
+@app.get("/api/locales")
+async def get_supported_locales():
+    """Get list of supported locales for batch processing."""
+    from locale_config import LOCALE_CONFIGS
+    return {
+        "locales": [
+            {
+                "code": code,
+                "display_name": config["display_name"],
+                "country": config["country"],
+                "language": config["language"]
+            }
+            for code, config in LOCALE_CONFIGS.items()
+        ]
+    }
+
+@app.post("/api/batch-validate")
+async def batch_validate(
+    templates: List[UploadFile] = File(..., description="Email template files"),
+    locale_mapping: str = Body(..., description="JSON mapping of template files to locale codes"),
+    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
+    selected_locales: List[str] = Body(..., description="List of locale codes to process"),
+    check_product_tables: bool = Body(True, description="Whether to check for product tables"),
+    product_table_timeout: Optional[int] = Body(None, description="Timeout for product table checks")
+):
+    """
+    Process batch validation for multiple email templates across different locales.
+    
+    Args:
+        templates: List of email template files
+        locale_mapping: JSON string mapping template filenames to locale codes
+        base_requirements: Base requirements JSON file (typically for en_US)
+        selected_locales: List of locale codes to process
+        check_product_tables: Whether to include product table detection
+        product_table_timeout: Timeout for product table checks
+        
+    Returns:
+        dict: Batch processing results with per-locale validation results
+    """
+    from batch_processor import BatchProcessor, BatchValidationRequest
+    import json
+    
+    try:
+        # Parse locale mapping
+        try:
+            mapping = json.loads(locale_mapping)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid locale_mapping JSON format")
+        
+        # Parse base requirements
+        base_req_content = await base_requirements.read()
+        try:
+            base_req_dict = json.loads(base_req_content.decode('utf-8'))
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid base requirements JSON format")
+        
+        # Map templates to locales
+        template_dict = {}
+        for template in templates:
+            filename = template.filename
+            if filename in mapping:
+                locale = mapping[filename]
+                if locale in selected_locales:
+                    template_dict[locale] = template
+        
+        # Validate that all selected locales have templates
+        missing_templates = [locale for locale in selected_locales if locale not in template_dict]
+        if missing_templates:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing templates for locales: {', '.join(missing_templates)}"
+            )
+        
+        # Create batch request
+        batch_request = BatchValidationRequest(
+            templates=template_dict,
+            base_requirements=base_req_dict,
+            selected_locales=selected_locales,
+            check_product_tables=check_product_tables,
+            product_table_timeout=product_table_timeout
+        )
+        
+        # Process batch
+        processor = BatchProcessor()
+        result = await processor.process_batch(batch_request)
+        
+        return {
+            "batch_id": result.batch_id,
+            "status": result.status,
+            "progress": result.get_progress(),
+            "results": result.results,
+            "start_time": result.start_time.isoformat(),
+            "end_time": result.end_time.isoformat() if result.end_time else None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Batch validation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Batch processing failed: {str(e)}")
+
+@app.get("/api/batch-progress/{batch_id}")
+async def get_batch_progress(batch_id: str):
+    """Get progress information for a specific batch."""
+    from batch_processor import batch_processor
+    
+    progress = batch_processor.get_batch_progress(batch_id)
+    if progress is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    return progress
+
+@app.post("/api/batch-cancel/{batch_id}")
+async def cancel_batch(batch_id: str):
+    """Cancel an active batch processing operation."""
+    from batch_processor import batch_processor
+    
+    success = batch_processor.cancel_batch(batch_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Batch not found or already completed")
+    
+    return {"message": f"Batch {batch_id} has been cancelled", "batch_id": batch_id}
+
+@app.get("/api/batch-result/{batch_id}")
+async def get_batch_result(batch_id: str):
+    """Get complete results for a finished batch."""
+    from batch_processor import batch_processor
+    
+    result = batch_processor.get_batch_result(batch_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    
+    return {
+        "batch_id": result.batch_id,
+        "status": result.status,
+        "progress": result.get_progress(),
+        "results": result.results,
+        "start_time": result.start_time.isoformat(),
+        "end_time": result.end_time.isoformat() if result.end_time else None,
+        "cancelled": result.cancelled
+    }
+
+@app.post("/api/generate-locale-requirements")
+async def generate_locale_requirements_preview(
+    base_requirements: dict = Body(..., description="Base requirements dictionary"),
+    target_locale: str = Body(..., description="Target locale code")
+):
+    """
+    Generate and preview locale-specific requirements from base template.
+    
+    Args:
+        base_requirements: Base requirements dictionary
+        target_locale: Target locale code
+        
+    Returns:
+        dict: Generated locale-specific requirements
+    """
+    from locale_config import generate_locale_requirements, get_locale_config
+    
+    try:
+        locale_config = get_locale_config(target_locale)
+        if not locale_config:
+            raise HTTPException(status_code=400, detail=f"Unsupported locale: {target_locale}")
+        
+        locale_requirements = generate_locale_requirements(base_requirements, target_locale)
+        
+        return {
+            "locale": target_locale,
+            "locale_config": locale_config,
+            "requirements": locale_requirements
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating locale requirements: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate requirements: {str(e)}")
+
 if __name__ == "__main__":
-    # Use port 8000 or environment variable for production
+    # Set production environment variables for deployment
+    os.environ.setdefault("DEPLOYMENT_MODE", "production")
+    os.environ.setdefault("SKIP_BROWSER_CHECK", "true")
+    
+    # Use port 8000 for Cloud Run deployment (required by .replit config)
     port = int(os.environ.get("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    
+    # Log startup configuration
+    logger.info(f"Starting Email QA System on port {port}")
+    logger.info(f"Deployment mode: {os.environ.get('DEPLOYMENT_MODE', 'development')}")
+    logger.info(f"Skip browser check: {os.environ.get('SKIP_BROWSER_CHECK', 'false')}")
+    
+    # Prevent Chrome WebDriver initialization issues during startup
+    try:
+        uvicorn.run(
+            app, 
+            host="0.0.0.0", 
+            port=port,
+            log_level="info",
+            access_log=True
+        )
+    except Exception as e:
+        logger.error(f"Failed to start server: {str(e)}")
+        # Fallback without Chrome WebDriver dependencies
+        logger.info("Attempting fallback startup without browser dependencies...")
+        uvicorn.run(app, host="0.0.0.0", port=port)
