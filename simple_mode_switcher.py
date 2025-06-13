@@ -210,6 +210,7 @@ async def get_locales():
         return JSONResponse(content={"locales": fallback_locales})
 
 @app.get("/config")
+@app.get("/api/config")
 async def get_config():
     """Get current configuration settings."""
     # For Replit deployment, SKIP the browser availability check and use cloud browser only
