@@ -47,6 +47,25 @@ from api_endpoints import router as api_router
 # Include API router with a prefix
 app.include_router(api_router, prefix="/api")
 
+# Import and include enhanced batch validation routes
+try:
+    from simple_mode_switcher import app as simple_mode_app
+    # Mount the simple_mode_switcher routes to the main app
+    for route in simple_mode_app.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            # Add the route to main app
+            app.router.routes.append(route)
+    logger.info("Enhanced batch validation routes loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load enhanced batch validation routes: {e}")
+    # Create a fallback route to prevent 404s
+    @app.post("/api/enhanced-batch-validate")
+    async def enhanced_batch_validate_fallback():
+        return JSONResponse(
+            status_code=503,
+            content={"error": "Enhanced batch validation service unavailable"}
+        )
+
 # Import the runtime configuration
 from runtime_config import config
 
