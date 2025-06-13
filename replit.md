@@ -104,12 +104,15 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
-- **June 13, 2025**: Enhanced batch processing system implemented
+- **June 13, 2025**: Enhanced batch processing system completed with UI improvements
   - Multi-file upload with automatic locale detection from HTML lang attributes and campaign codes
+  - Fixed step progression to show all 5 steps: Upload → Locale Detection → Global Settings → Locale Content → Process
+  - Added intermediate "waiting for inputs" status messages for better user experience
   - Simplified requirements interface with individual forms per detected locale
   - Global settings form for sender addresses, campaign codes, and UTM parameters
   - Automatic domain URL generation with locale-specific parameters
   - Support for 7 locales: en_US, en_CA, fr_CA, es_MX, fr_FR, it_IT, ja_JP
+  - Fixed file display issues and locale API loading problems
 
 ## Changelog
 

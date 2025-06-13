@@ -785,7 +785,16 @@
             
             hideElement(document.getElementById('qa-form'));
             showElement(document.getElementById('batch-form'));
-            loadAvailableLocales();
+            
+            // Initialize enhanced batch mode steps
+            showElement(document.getElementById('locale-detection-section'));
+            hideElement(document.getElementById('global-requirements-section'));
+            hideElement(document.getElementById('locale-requirements-section'));
+            
+            // Reset all step states
+            document.getElementById('locale-detection-status').innerHTML = '<p style="margin: 0; color: #856404;">Waiting for template upload...</p>';
+            document.getElementById('templates-detection-results').innerHTML = '';
+            document.getElementById('uploaded-templates-list').style.display = 'none';
         }
         
         // Load available locales from API
@@ -4584,16 +4593,21 @@
             if (files.length === 0) return;
             
             console.log('Processing uploaded templates...', files.length);
+            
+            // Clear previous data
             enhancedBatchTemplates.clear();
             detectedLocales.clear();
             
             // Show step 2 with processing message
-            showElement(document.getElementById('locale-detection-section'));
+            const localeSection = document.getElementById('locale-detection-section');
             const detectionStatus = document.getElementById('locale-detection-status');
-            detectionStatus.innerHTML = '<p style="margin: 0; color: #856404;">Analyzing ' + files.length + ' templates...</p>';
-            
             const detectionResults = document.getElementById('templates-detection-results');
-            detectionResults.innerHTML = '<p>Processing files...</p>';
+            const uploadedList = document.getElementById('uploaded-templates-list');
+            
+            if (localeSection) showElement(localeSection);
+            if (detectionStatus) detectionStatus.innerHTML = '<p style="margin: 0; color: #856404;">📁 Analyzing ' + files.length + ' templates...</p>';
+            if (detectionResults) detectionResults.innerHTML = '<p>🔍 Processing files...</p>';
+            if (uploadedList) showElement(uploadedList);
             
             // Hide subsequent steps
             hideElement(document.getElementById('global-requirements-section'));
@@ -4601,9 +4615,15 @@
             
             try {
                 // Process each file for locale detection
-                for (const file of files) {
+                console.log('Starting file processing...');
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    console.log(`Processing file ${i + 1}/${files.length}: ${file.name}`);
+                    
                     const content = await readFileContent(file);
                     const detectedInfo = await detectLocaleFromTemplate(content, file.name);
+                    
+                    console.log(`File ${file.name} detection result:`, detectedInfo);
                     
                     enhancedBatchTemplates.set(file.name, {
                         file: file,
@@ -4616,28 +4636,37 @@
                     }
                 }
                 
+                console.log('Files processed. Detected locales:', Array.from(detectedLocales));
+                console.log('Template map size:', enhancedBatchTemplates.size);
+                
                 displayDetectionResults();
                 
                 if (detectedLocales.size > 0) {
                     // Update step 2 status
-                    detectionStatus.innerHTML = '<p style="margin: 0; color: #155724; background-color: #d4edda; padding: 10px; border-radius: 4px;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
+                    if (detectionStatus) {
+                        detectionStatus.innerHTML = '<p style="margin: 0; color: #155724; background-color: #d4edda; padding: 10px; border-radius: 4px;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
+                    }
                     
                     // Show step 3 with waiting message
                     showElement(document.getElementById('global-requirements-section'));
                     
-                    // Show step 4 with waiting message
+                    // Show step 4 with waiting message  
                     showElement(document.getElementById('locale-requirements-section'));
                     const localeStatus = document.getElementById('locale-requirements-status');
-                    showElement(localeStatus);
+                    if (localeStatus) showElement(localeStatus);
                     
                     generateLocaleRequirementsForms();
                 } else {
-                    detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Please check your templates.</p>';
+                    if (detectionStatus) {
+                        detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Please check your templates.</p>';
+                    }
                 }
                 
             } catch (error) {
                 console.error('Error processing templates:', error);
-                detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ Error processing templates. Please try again.</p>';
+                if (detectionStatus) {
+                    detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ Error processing templates. Please try again.</p>';
+                }
             }
         });
         
@@ -4775,11 +4804,15 @@
         // Generate locale-specific requirement forms
         function generateLocaleRequirementsForms() {
             const container = document.getElementById('locale-forms-container');
+            const statusElement = document.getElementById('locale-requirements-status');
             
             if (detectedLocales.size === 0) {
                 container.innerHTML = '<p style="color: #718096;">No valid locales detected.</p>';
                 return;
             }
+            
+            // Hide the waiting message
+            hideElement(statusElement);
             
             let html = '';
             
