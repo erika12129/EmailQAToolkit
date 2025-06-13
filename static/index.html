@@ -4870,9 +4870,12 @@
         function displayDetectionResults() {
             console.log('displayDetectionResults called');
             
+            // Declare variables outside try-catch to fix scoping issue
+            let container, uploadedList;
+            
             try {
-                const container = document.getElementById('templates-detection-results');
-                const uploadedList = document.getElementById('uploaded-templates-list');
+                container = document.getElementById('templates-detection-results');
+                uploadedList = document.getElementById('uploaded-templates-list');
                 
                 console.log('Container element:', container);
                 console.log('Uploaded list element:', uploadedList);
@@ -4884,7 +4887,9 @@
                 
                 if (!enhancedBatchTemplates || enhancedBatchTemplates.size === 0) {
                     container.innerHTML = '<p style="color: #718096;">No templates uploaded.</p>';
-                    hideElement(uploadedList);
+                    if (uploadedList && typeof hideElement === 'function') {
+                        hideElement(uploadedList);
+                    }
                     return;
                 }
             } catch (error) {
