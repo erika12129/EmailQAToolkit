@@ -104,20 +104,13 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
-- **June 13, 2025**: Enhanced batch QA user interface improvements and export functionality completed
-  - Made "Start Enhanced Batch QA" button inactive by default until all requirements are filled
-  - Removed confusing "5." step number from "Process Batch" section for cleaner UI flow
-  - Added real-time button state updates based on template upload and form completion
-  - Implemented clear status messages to guide users through the process
-  - Button automatically enables when templates uploaded and all forms completed
-  - Fixed status message placement: moved "Waiting for global requirements..." from section 4 to section 3 (Global Settings)
-  - Added real-time status updates that change to "✓ Global requirements completed" when fields are filled
-  - Added auto-population of global fields from detected template data (campaign code, domain, UTM parameters)
-  - Updated domain extraction to prioritize domain_config.json as primary source with template fallback
-  - All auto-populated fields remain fully editable while minimizing data entry requirements
-  - Fixed export functionality to export results directly from memory with proper JSON format
-  - Implemented functional dropdown filter with categories: All, Successful Only, Failed Only, Warnings Only
-  - Added debug logging to track filter behavior and result categorization
+- **June 13, 2025**: Enhanced batch QA interface simplification and field width improvements completed
+  - Removed dropdown filter completely to simplify interface after complexity issues
+  - Increased locale-specific input field widths to 600px to accommodate up to 100 characters
+  - Added responsive design with max-width: 100% for mobile compatibility
+  - Streamlined export functionality works correctly with proper JSON format
+  - Maintained clean, user-friendly interface focused on core functionality
+  - Auto-population from domain_config.json and template data working reliably
 
 - **June 13, 2025**: RESOLVED critical campaign code validation bug in enhanced batch system
   - Fixed frontend custom requirements generation to include footer_campaign_code in metadata section
