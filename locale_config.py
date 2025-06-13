@@ -116,60 +116,17 @@ def validate_locale_selection(selected_locales: list) -> dict:
     Returns:
         dict: Validation result with status and any errors
     """
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    # Handle edge cases for production deployment
-    if not selected_locales:
-        logger.warning("Empty locale selection received")
-        return {
-            "valid": False,
-            "errors": "No locales selected",
-            "supported_locales": get_supported_locales()
-        }
-    
-    if not isinstance(selected_locales, list):
-        logger.error(f"Invalid locale selection type: {type(selected_locales)}, expected list")
-        return {
-            "valid": False,
-            "errors": f"Invalid locale selection format: {type(selected_locales)}",
-            "supported_locales": get_supported_locales()
-        }
-    
-    logger.info(f"Validating locale selection: {selected_locales}")
-    logger.info(f"Available locale configs: {list(LOCALE_CONFIGS.keys())}")
-    
-    # Clean up locale codes (remove extra whitespace, handle case sensitivity)
-    cleaned_locales = []
-    for locale in selected_locales:
-        if isinstance(locale, str):
-            cleaned_locale = locale.strip()
-            cleaned_locales.append(cleaned_locale)
-        else:
-            logger.warning(f"Non-string locale found: {locale} (type: {type(locale)})")
-            cleaned_locales.append(str(locale).strip())
-    
-    unsupported = [locale for locale in cleaned_locales if locale not in LOCALE_CONFIGS]
-    
-    logger.info(f"Cleaned locales: {cleaned_locales}")
-    logger.info(f"Unsupported locales found: {unsupported}")
+    unsupported = [locale for locale in selected_locales if locale not in LOCALE_CONFIGS]
     
     if unsupported:
-        error_msg = f"Unsupported locales: {', '.join(unsupported)}"
-        logger.error(error_msg)
-        logger.error(f"Supported locales are: {', '.join(get_supported_locales())}")
         return {
             "valid": False,
-            "errors": error_msg,
-            "supported_locales": get_supported_locales(),
-            "received_locales": selected_locales,
-            "cleaned_locales": cleaned_locales
+            "errors": f"Unsupported locales: {', '.join(unsupported)}",
+            "supported_locales": get_supported_locales()
         }
     
-    logger.info("Locale validation passed successfully")
     return {
         "valid": True,
         "errors": None,
-        "supported_locales": get_supported_locales(),
-        "validated_locales": cleaned_locales
+        "supported_locales": get_supported_locales()
     }

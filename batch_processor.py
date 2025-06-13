@@ -110,29 +110,14 @@ class BatchProcessor:
         logger.info(f"Starting batch processing {request.batch_id} for {len(request.selected_locales)} locales")
         
         try:
-            # Production-safe locale validation with graceful fallback
-            try:
-                # Basic validation: ensure we have locales to process
-                if not request.selected_locales or len(request.selected_locales) == 0:
-                    error_detail = f"No locales selected for batch processing"
-                    logger.error(error_detail)
-                    batch_result.status = "error"
-                    batch_result.add_locale_result("validation_error", {
-                        "error": error_detail,
-                        "selected_locales": request.selected_locales,
-                    }, "error")
-                    return batch_result
-                
-                logger.info(f"Processing batch for locales: {request.selected_locales}")
-                
-                # Skip detailed locale validation in production to avoid deployment issues
-                # The frontend validates locale selection, so backend validation is redundant
-                logger.info(f"Skipping detailed locale validation in production environment")
-                
-            except Exception as validation_error:
-                # If any validation fails, log it but continue processing
-                logger.warning(f"Locale validation error (continuing anyway): {str(validation_error)}")
-                logger.warning(f"Production deployment may have different validation requirements")
+            # Validate locale selection
+            locale_validation = validate_locale_selection(request.selected_locales)
+            if not locale_validation["valid"]:
+                batch_result.status = "error"
+                batch_result.add_locale_result("validation_error", {
+                    "error": locale_validation["errors"]
+                }, "error")
+                return batch_result
             
             # Process each locale
             tasks = []
@@ -208,13 +193,10 @@ class BatchProcessor:
                 request.base_requirements, locale
             )
             
-            # Only override metadata fields that are actually present and valid in the template
-            # This preserves requirements for fields that should be validated (like sender_address, reply_address)
-            for field in ['sender_name', 'subject', 'preheader']:
-                if field in actual_metadata and actual_metadata[field] and actual_metadata[field] != 'Not found':
+            # Override metadata fields with actual values from template (so Expected matches Actual)
+            for field in ['sender_name', 'subject', 'preheader', 'sender_address', 'reply_address']:
+                if field in actual_metadata and actual_metadata[field]:
                     locale_requirements[field] = actual_metadata[field]
-            
-            # Do NOT override sender_address and reply_address - these should be validated against requirements
             
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_req:
                 json.dump(locale_requirements, temp_req, indent=2)
@@ -228,11 +210,6 @@ class BatchProcessor:
                     check_product_tables=request.check_product_tables,
                     product_table_timeout=request.product_table_timeout
                 )
-                
-                # Debug the validation result structure
-                logger.info(f"Validation result for {locale}: {validation_result}")
-                if 'metadata' in validation_result:
-                    logger.info(f"Metadata extracted for {locale}: {validation_result['metadata']}")
                 
                 # Add locale context to result
                 validation_result["locale"] = locale

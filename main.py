@@ -322,8 +322,8 @@ async def run_qa(
             content={
                 "results": {
                     "error": error_detail,
-                    "mode": getattr(config, 'mode', 'production'),
-                    "requirements": {},
+                    "mode": config.get_mode() if 'config' in globals() else "production",
+                    "requirements": requirements_json if 'requirements_json' in locals() else {},
                     "product_tables_checked": bool(check_product_tables)
                 }
             },
@@ -654,13 +654,13 @@ async def batch_validate(
                 if locale in selected_locales:
                     template_dict[locale] = template
         
-        # Debug logging for production deployment
-        logger.info(f"Template mapping: {mapping}")
-        logger.info(f"Selected locales: {selected_locales}")
-        logger.info(f"Template dict keys: {list(template_dict.keys())}")
-        
-        # Don't validate missing templates here - let the batch processor handle it
-        # This allows for more flexible template-to-locale mapping
+        # Validate that all selected locales have templates
+        missing_templates = [locale for locale in selected_locales if locale not in template_dict]
+        if missing_templates:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Missing templates for locales: {', '.join(missing_templates)}"
+            )
         
         # Create batch request
         batch_request = BatchValidationRequest(

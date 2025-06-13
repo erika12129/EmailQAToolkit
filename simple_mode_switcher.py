@@ -10,7 +10,6 @@ import tempfile
 import logging
 from typing import Dict, Any, List, Optional
 import json
-from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Body, Request, Header, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
@@ -183,34 +182,7 @@ async def test_page():
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
-@app.get("/api/locales")
-async def get_locales():
-    """Get available locales for batch processing."""
-    try:
-        from locale_config import LOCALE_CONFIGS
-        
-        # Transform the locale configs into the format expected by the frontend
-        locales = []
-        for code, config in LOCALE_CONFIGS.items():
-            locales.append({
-                "code": code,
-                "display_name": config["display_name"],
-                "country": config["country"],
-                "language": config["language"]
-            })
-        
-        return JSONResponse(content={"locales": locales})
-    except Exception as e:
-        logger.error(f"Error loading locales: {str(e)}")
-        # Fallback to a minimal set if locale_config fails to load
-        fallback_locales = [
-            {"code": "en_US", "display_name": "English (US)", "country": "US", "language": "en"},
-            {"code": "es_MX", "display_name": "Español (México)", "country": "MX", "language": "es"}
-        ]
-        return JSONResponse(content={"locales": fallback_locales})
-
 @app.get("/config")
-@app.get("/api/config")
 async def get_config():
     """Get current configuration settings."""
     # For Replit deployment, SKIP the browser availability check and use cloud browser only
@@ -1013,12 +985,12 @@ async def get_supported_locales():
 
 @app.post("/api/batch-validate")
 async def batch_validate(
-    templates: List[UploadFile] = File(...),
-    locale_mapping: str = Form(...),
-    base_requirements: UploadFile = File(...),
-    selected_locales: str = Form(...),
-    check_product_tables: bool = Form(default=False),
-    product_table_timeout: Optional[int] = Form(default=None)
+    templates: List[UploadFile] = File(..., description="Email template files"),
+    locale_mapping: str = Form(..., description="JSON mapping of template files to locale codes"),
+    base_requirements: UploadFile = File(..., description="Base requirements JSON file"),
+    selected_locales: str = Form(..., description="JSON array of locale codes to process"),
+    check_product_tables: bool = Form(False, description="Whether to check for product tables"),
+    product_table_timeout: Optional[int] = Form(None, description="Timeout for product table checks")
 ):
     """
     Process batch validation for multiple email templates across different locales.
@@ -1036,27 +1008,18 @@ async def batch_validate(
     """
     from batch_processor import BatchProcessor, BatchValidationRequest
     
-    logger.info(f"Batch validation request received with {len(templates)} templates")
-    logger.info(f"Template filenames: {[t.filename for t in templates]}")
-    
     try:
         # Parse locale mapping
         try:
             mapping = json.loads(locale_mapping)
-            logger.info(f"Received locale mapping: {mapping}")
         except json.JSONDecodeError:
-            logger.error(f"Failed to parse locale mapping: {locale_mapping}")
             raise HTTPException(status_code=400, detail="Invalid locale_mapping JSON format")
         
-        # Parse selected locales with enhanced debugging
+        # Parse selected locales
         try:
             selected_locales_list = json.loads(selected_locales)
-            logger.info(f"Parsed selected locales: {selected_locales_list}")
-            logger.info(f"Selected locales type: {type(selected_locales_list)}")
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse selected_locales: {selected_locales}")
-            logger.error(f"JSON decode error: {str(e)}")
-            raise HTTPException(status_code=400, detail=f"Invalid selected_locales JSON format: {str(e)}")
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid selected_locales JSON format")
         
         # Parse base requirements
         base_req_content = await base_requirements.read()
@@ -1067,132 +1030,42 @@ async def batch_validate(
         
         # Map templates to locales
         template_dict = {}
-        logger.info(f"Processing {len(templates)} templates with mapping: {mapping}")
-        logger.info(f"Selected locales: {selected_locales_list}")
-        
         for template in templates:
             filename = template.filename
-            logger.info(f"Processing template: {filename}")
             if filename in mapping:
                 locale = mapping[filename]
-                logger.info(f"Template {filename} mapped to locale {locale}")
                 if locale in selected_locales_list:
                     template_dict[locale] = template
-                    logger.info(f"Added template {filename} for locale {locale}")
-                else:
-                    logger.warning(f"Locale {locale} not in selected locales {selected_locales_list}")
-            else:
-                logger.warning(f"Template {filename} not found in mapping {mapping.keys()}")
         
-        # Production-safe template validation with fallback handling
+        # Validate that all selected locales have templates
         missing_templates = [locale for locale in selected_locales_list if locale not in template_dict]
-        logger.info(f"Template validation - template_dict keys: {list(template_dict.keys())}")
-        logger.info(f"Selected locales: {selected_locales_list}")
-        logger.info(f"Missing templates: {missing_templates}")
-        
-        # In production, log warnings instead of failing entirely to handle deployment differences
         if missing_templates:
-            logger.warning(f"Template validation warning - some templates missing for locales: {missing_templates}")
-            logger.warning(f"Available templates: {list(template_dict.keys())}")
-            logger.warning(f"Expected locales: {selected_locales_list}")
-            
-            # Only process locales that have templates instead of failing completely
-            processed_locales = [locale for locale in selected_locales_list if locale in template_dict]
-            if not processed_locales:
-                logger.error(f"No valid template-locale pairs found")
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"No templates found for any selected locales. Available: {list(template_dict.keys())}, Selected: {selected_locales_list}"
-                )
-            
-            logger.info(f"Proceeding with available locales: {processed_locales}")
-            selected_locales_list = processed_locales
-        
-        if missing_templates and len(selected_locales_list) == 0:
             raise HTTPException(
                 status_code=400, 
                 detail=f"Missing templates for locales: {', '.join(missing_templates)}"
             )
         
-        # Production-safe batch request creation with error handling
-        try:
-            batch_request = BatchValidationRequest(
-                templates=template_dict,
-                base_requirements=base_req_dict,
-                selected_locales=selected_locales_list,
-                check_product_tables=check_product_tables,
-                product_table_timeout=product_table_timeout
-            )
-            logger.info(f"Created batch request for {len(selected_locales_list)} locales")
-        except Exception as req_error:
-            logger.error(f"Failed to create batch request: {str(req_error)}")
-            logger.error(f"Request creation error type: {type(req_error)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create batch validation request: {str(req_error)}"
-            )
+        # Create batch request
+        batch_request = BatchValidationRequest(
+            templates=template_dict,
+            base_requirements=base_req_dict,
+            selected_locales=selected_locales_list,
+            check_product_tables=check_product_tables,
+            product_table_timeout=product_table_timeout
+        )
         
-        # Process batch with comprehensive error handling for production deployment
-        try:
-            processor = BatchProcessor()
-            logger.info(f"Created batch processor, starting batch processing...")
-            
-            # Add production-specific error wrapping
-            result = await processor.process_batch(batch_request)
-            logger.info(f"Batch processing completed with status: {result.status}")
-            
-            # Safe result serialization for production
-            try:
-                response_data = {
-                    "batch_id": result.batch_id,
-                    "status": result.status,
-                    "progress": result.get_progress(),
-                    "results": result.results,
-                    "start_time": result.start_time.isoformat() if result.start_time else None,
-                    "end_time": result.end_time.isoformat() if result.end_time else None
-                }
-                logger.info(f"Returning batch results for {len(result.results)} locales")
-                return response_data
-            except Exception as serialize_error:
-                logger.error(f"Failed to serialize batch results: {str(serialize_error)}")
-                # Return simplified response on serialization errors
-                return {
-                    "batch_id": result.batch_id,
-                    "status": "completed_with_warnings",
-                    "message": "Processing completed but with serialization issues",
-                    "error_details": str(serialize_error)
-                }
-                
-        except Exception as batch_error:
-            logger.error(f"Batch processing error: {str(batch_error)}")
-            logger.error(f"Batch error type: {type(batch_error)}")
-            
-            # Enhanced error response for production troubleshooting
-            from datetime import datetime
-            error_time = datetime.now()
-            return {
-                "batch_id": f"error_{error_time.strftime('%Y%m%d_%H%M%S')}",
-                "status": "error",
-                "progress": {"completed": 0, "total": len(selected_locales_list), "progress_percent": 0},
-                "results": {
-                    "error": {
-                        "status": "error",
-                        "result": {
-                            "error": f"Batch processing failed: {str(batch_error)}",
-                            "error_type": str(type(batch_error)),
-                            "selected_locales": selected_locales_list,
-                            "available_templates": list(template_dict.keys()),
-                            "debug_info": {
-                                "locale_mapping": mapping,
-                                "template_count": len(templates),
-                                "requirement_keys": list(base_req_dict.keys()) if base_req_dict else []
-                            }
-                        }
-                    }
-                },
-                "start_time": error_time.isoformat(),
-                "end_time": error_time.isoformat()
-            }
+        # Process batch
+        processor = BatchProcessor()
+        result = await processor.process_batch(batch_request)
+        
+        return {
+            "batch_id": result.batch_id,
+            "status": result.status,
+            "progress": result.get_progress(),
+            "results": result.results,
+            "start_time": result.start_time.isoformat(),
+            "end_time": result.end_time.isoformat() if result.end_time else None
+        }
         
     except HTTPException:
         raise

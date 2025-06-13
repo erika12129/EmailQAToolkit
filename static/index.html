@@ -207,67 +207,6 @@
             border-radius: 4px;
             text-align: center;
         }
-        
-        /* Production-specific dropdown positioning fixes */
-        select {
-            position: static !important;
-            z-index: auto;
-            background: white;
-            border: 1px solid #ccc;
-            padding: 5px;
-            border-radius: 4px;
-            min-width: 150px;
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        
-        /* Force proper positioning for the requirements preview section */
-        .requirements-preview-section {
-            position: relative;
-            background: white;
-            overflow: visible;
-        }
-        
-        /* Specific targeting for the dropdown containers in section 3 */
-        #batch-form > div:nth-child(3) select,
-        #batch-form div[style*="Requirements Preview"] select {
-            position: static !important;
-            z-index: auto !important;
-            background: white !important;
-            border: 1px solid #ccc !important;
-            padding: 8px !important;
-            min-width: 200px !important;
-            display: block !important;
-            width: auto !important;
-            margin: 0 !important;
-        }
-        
-        /* Ensure the Right Side select specifically stays in its container */
-        #right-locale-select {
-            position: static !important;
-            z-index: auto !important;
-            background: white !important;
-            border: 1px solid #ccc !important;
-            padding: 8px !important;
-            min-width: 200px !important;
-            display: block !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
-        
-        /* Left side select */
-        #left-locale-select {
-            position: static !important;
-            z-index: auto !important;
-            background: white !important;
-            border: 1px solid #ccc !important;
-            padding: 8px !important;
-            min-width: 200px !important;
-            display: block !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
     </style>
 </head>
 <body data-mode="production">
@@ -896,50 +835,27 @@
         // Update template upload fields based on selected locales
         function updateTemplateUploads() {
             const container = document.getElementById('template-uploads');
-            
-            // Clear existing content but avoid innerHTML which can interfere with other elements
-            while (container.firstChild) {
-                container.removeChild(container.firstChild);
-            }
+            container.innerHTML = '';
             
             if (selectedLocales.size === 0) {
-                const message = document.createElement('p');
-                message.textContent = 'Select locales above to see template upload fields.';
-                message.style.cssText = 'color: #718096; font-style: italic; margin: 0;';
-                container.appendChild(message);
+                container.innerHTML = '<p style="color: #718096; font-style: italic;">Select locales above to see template upload fields.</p>';
                 return;
             }
             
             selectedLocales.forEach(locale => {
                 const localeConfig = availableLocales.find(l => l.code === locale);
-                if (!localeConfig) return;
-                
                 const div = document.createElement('div');
-                div.style.cssText = 'display: flex; align-items: center; gap: 15px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background-color: white; margin-bottom: 10px;';
+                div.style.cssText = 'display: flex; align-items: center; gap: 15px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 4px; background-color: white;';
                 
-                // Create label
-                const label = document.createElement('label');
-                label.style.cssText = 'min-width: 150px; font-weight: 600;';
-                label.textContent = `${localeConfig.display_name}:`;
+                div.innerHTML = `
+                    <label style="min-width: 150px; font-weight: 600;">${localeConfig.display_name}:</label>
+                    <input type="file" accept=".html" data-locale="${locale}" style="flex-grow: 1;">
+                    <span class="template-status" data-locale="${locale}" style="color: #718096; font-size: 14px;">No file selected</span>
+                `;
                 
-                // Create file input
-                const fileInput = document.createElement('input');
-                fileInput.type = 'file';
-                fileInput.accept = '.html';
-                fileInput.dataset.locale = locale;
-                fileInput.style.cssText = 'flex-grow: 1;';
+                const fileInput = div.querySelector('input[type="file"]');
                 fileInput.addEventListener('change', handleTemplateUpload);
                 
-                // Create status span
-                const statusSpan = document.createElement('span');
-                statusSpan.className = 'template-status';
-                statusSpan.dataset.locale = locale;
-                statusSpan.style.cssText = 'color: #718096; font-size: 14px;';
-                statusSpan.textContent = 'No file selected';
-                
-                div.appendChild(label);
-                div.appendChild(fileInput);
-                div.appendChild(statusSpan);
                 container.appendChild(div);
             });
         }
@@ -949,12 +865,6 @@
             const locale = event.target.dataset.locale;
             const file = event.target.files[0];
             const statusSpan = document.querySelector(`span[data-locale="${locale}"]`);
-            
-            // Add null safety check
-            if (!statusSpan) {
-                console.warn(`Status span for locale ${locale} not found`);
-                return;
-            }
             
             if (file) {
                 uploadedTemplates.set(locale, file);
@@ -970,22 +880,10 @@
         // Update locale preview select dropdowns for both sides
         function updateLocalePreviewSelects() {
             const rightSelect = document.getElementById('right-locale-select');
-            
-            // Add null safety check for the select element
-            if (!rightSelect) {
-                console.warn('right-locale-select element not found');
-                return;
-            }
-            
             rightSelect.innerHTML = '<option value="">Select locale...</option>';
             
             selectedLocales.forEach(locale => {
                 const localeConfig = availableLocales.find(l => l.code === locale);
-                if (!localeConfig) {
-                    console.warn(`Locale config not found for ${locale}`);
-                    return;
-                }
-                
                 const option = document.createElement('option');
                 option.value = locale;
                 option.textContent = localeConfig.display_name;
@@ -1149,62 +1047,54 @@
             transactionalRadio.addEventListener('change', setDefaultsByEmailType);
         }
         
-        // Toggle between form fields and JSON upload (with null safety)
-        if (toggleButton) {
-            toggleButton.addEventListener('click', function() {
-                useJsonUpload = !useJsonUpload;
-                
-                if (useJsonUpload) {
-                    if (requirementsForm) hideElement(requirementsForm);
-                    if (jsonUploadContainer) showElement(jsonUploadContainer);
-                    toggleButton.textContent = 'Switch to Form Fields';
-                } else {
-                    if (requirementsForm) showElement(requirementsForm);
-                    if (jsonUploadContainer) hideElement(jsonUploadContainer);
-                    toggleButton.textContent = 'Switch to JSON';
-                }
-            });
-        }
+        // Toggle between form fields and JSON upload
+        toggleButton.addEventListener('click', function() {
+            useJsonUpload = !useJsonUpload;
+            
+            if (useJsonUpload) {
+                hideElement(requirementsForm);
+                showElement(jsonUploadContainer);
+                toggleButton.textContent = 'Switch to Form Fields';
+            } else {
+                showElement(requirementsForm);
+                hideElement(jsonUploadContainer);
+                toggleButton.textContent = 'Switch to JSON';
+            }
+        });
         
-        // Update file name display (with null safety)
-        if (emailFileInput && emailFileName) {
-            emailFileInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    emailFileName.textContent = this.files[0].name;
-                } else {
-                    emailFileName.textContent = '';
-                }
-                if (errorMessage) hideElement(errorMessage);
-            });
-        }
+        // Update file name display
+        emailFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                emailFileName.textContent = this.files[0].name;
+            } else {
+                emailFileName.textContent = '';
+            }
+            hideElement(errorMessage);
+        });
         
-        if (reqFileInput && reqFileName) {
-            reqFileInput.addEventListener('change', function() {
-                if (this.files.length > 0) {
-                    reqFileName.textContent = this.files[0].name;
-                } else {
-                    reqFileName.textContent = '';
-                }
-                if (errorMessage) hideElement(errorMessage);
-            });
-        }
+        reqFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                reqFileName.textContent = this.files[0].name;
+            } else {
+                reqFileName.textContent = '';
+            }
+            hideElement(errorMessage);
+        });
         
-        // Toggle between JSON file upload and JSON textarea (with null safety)
-        if (toggleJsonInputButton) {
-            toggleJsonInputButton.addEventListener('click', function() {
-                useJsonTextarea = !useJsonTextarea;
-                
-                if (useJsonTextarea) {
-                    if (jsonFileContainer) hideElement(jsonFileContainer);
-                    if (jsonEditorContainer) showElement(jsonEditorContainer);
-                    toggleJsonInputButton.textContent = 'Switch to File Upload';
-                } else {
-                    if (jsonFileContainer) showElement(jsonFileContainer);
-                    if (jsonEditorContainer) hideElement(jsonEditorContainer);
-                    toggleJsonInputButton.textContent = 'Switch to JSON Editor';
-                }
-            });
-        }
+        // Toggle between JSON file upload and JSON textarea
+        toggleJsonInputButton.addEventListener('click', function() {
+            useJsonTextarea = !useJsonTextarea;
+            
+            if (useJsonTextarea) {
+                hideElement(jsonFileContainer);
+                showElement(jsonEditorContainer);
+                toggleJsonInputButton.textContent = 'Switch to File Upload';
+            } else {
+                showElement(jsonFileContainer);
+                hideElement(jsonEditorContainer);
+                toggleJsonInputButton.textContent = 'Switch to JSON Editor';
+            }
+        });
         
         // JSON validation function
         function validateJson(jsonString) {
@@ -1247,24 +1137,21 @@
             }
         }
         
-        // Validate JSON button click handler (with null safety)
-        if (validateJsonButton && jsonTextarea && jsonValidationMessage) {
-            validateJsonButton.addEventListener('click', function() {
-                const result = validateJson(jsonTextarea.value);
-                
-                jsonValidationMessage.textContent = result.message;
-                jsonValidationMessage.style.color = result.valid ? '#48bb78' : '#e53e3e';
-                
-                if (result.valid) {
-                    // Format the JSON for better readability
-                    jsonTextarea.value = JSON.stringify(result.json, null, 2);
-                }
-            });
-        }
+        // Validate JSON button click handler
+        validateJsonButton.addEventListener('click', function() {
+            const result = validateJson(jsonTextarea.value);
+            
+            jsonValidationMessage.textContent = result.message;
+            jsonValidationMessage.style.color = result.valid ? '#48bb78' : '#e53e3e';
+            
+            if (result.valid) {
+                // Format the JSON for better readability
+                jsonTextarea.value = JSON.stringify(result.json, null, 2);
+            }
+        });
         
-        // Load sample JSON (with null safety)
-        if (loadSampleJsonButton) {
-            loadSampleJsonButton.addEventListener('click', function() {
+        // Load sample JSON
+        loadSampleJsonButton.addEventListener('click', function() {
             // Add dropdown menu for sample selection
             if (!this.nextElementSibling || !this.nextElementSibling.classList.contains('sample-selector')) {
                 const sampleSelector = document.createElement('div');
@@ -1362,31 +1249,25 @@
                 // Toggle visibility if selector already exists
                 this.nextElementSibling.remove();
             }
-            });
-        }
+        });
         
-        // Form submission (with null safety)
-        if (form) {
-            form.addEventListener('submit', function(event) {
+        // Form submission
+        form.addEventListener('submit', function(event) {
             event.preventDefault();
             
-            // Validate email file input with null safety
-            if (!emailFileInput || !emailFileInput.files.length) {
-                if (errorMessage) {
-                    errorMessage.textContent = 'Please upload an email HTML file.';
-                    showElement(errorMessage);
-                }
+            // Validate email file input
+            if (!emailFileInput.files.length) {
+                errorMessage.textContent = 'Please upload an email HTML file.';
+                showElement(errorMessage);
                 return;
             }
             
-            // Start loading state with null safety
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.textContent = 'Running QA...';
-            }
-            if (errorMessage) hideElement(errorMessage);
-            if (resultsContainer) hideElement(resultsContainer);
-            if (loadingMessage) showElement(loadingMessage);
+            // Start loading state
+            submitButton.disabled = true;
+            submitButton.textContent = 'Running QA...';
+            hideElement(errorMessage);
+            hideElement(resultsContainer);
+            showElement(loadingMessage);
             
             // Create form data
             const formData = new FormData();
@@ -1611,8 +1492,7 @@
                 // Always clear the timeout to prevent memory leaks
                 clearTimeout(timeoutId);
             });
-            });
-        }
+        });
         
         // Display QA results
         // Add product table checking functionality
@@ -3935,22 +3815,18 @@
                 return;
             }
             
-            // Skip frontend template validation - let backend handle it
-            // This prevents false positives when templates are uploaded but state isn't synchronized
-            console.log('Frontend validation - selectedLocales:', Array.from(selectedLocales));
-            console.log('Frontend validation - uploadedTemplates keys:', Array.from(uploadedTemplates.keys()));
-            
+            const missingTemplates = [];
             selectedLocales.forEach(locale => {
-                console.log(`Checking locale ${locale}: has template = ${uploadedTemplates.has(locale)}`);
+                if (!uploadedTemplates.has(locale)) {
+                    const localeConfig = availableLocales.find(l => l.code === locale);
+                    missingTemplates.push(localeConfig.display_name);
+                }
             });
             
-            console.log('Skipping frontend template validation - backend will handle validation');
-            
-            // Don't block on missing templates - backend has the authoritative template data
-            // if (missingTemplates.length > 0) {
-            //     alert(`Missing templates for: ${missingTemplates.join(', ')}`);
-            //     return;
-            // }
+            if (missingTemplates.length > 0) {
+                alert(`Missing templates for: ${missingTemplates.join(', ')}`);
+                return;
+            }
             
             // Start processing
             const startBtn = document.getElementById('start-batch-processing');
@@ -3973,10 +3849,7 @@
             const localeMapping = {};
             uploadedTemplates.forEach((file, locale) => {
                 localeMapping[file.name] = locale;
-                console.log(`Mapping file ${file.name} to locale ${locale}`);
             });
-            console.log('Complete locale mapping:', localeMapping);
-            console.log('Selected locales:', Array.from(selectedLocales));
             formData.append('locale_mapping', JSON.stringify(localeMapping));
             
             // Add base requirements
@@ -4025,165 +3898,60 @@
             }
         }
         
-        // Display batch results with production-safe DOM handling
+        // Display batch results
         function displayBatchResults(batchResult) {
-            console.log('Displaying batch results:', batchResult);
+            showElement(document.getElementById('batch-results-section'));
             
-            // Production-safe element access with fallbacks
-            const batchResultsSection = document.getElementById('batch-results-section');
-            if (batchResultsSection) {
-                showElement(batchResultsSection);
-            } else {
-                console.warn('batch-results-section not found, creating fallback display');
-                createFallbackBatchDisplay(batchResult);
-                return;
-            }
+            // Update progress
+            const progress = batchResult.progress;
+            document.getElementById('batch-progress-text').textContent = 
+                `${progress.completed} of ${progress.total} completed`;
+            document.getElementById('batch-progress-bar').style.width = `${progress.progress_percent}%`;
             
-            // Update progress with null checks
-            const progress = batchResult.progress || { completed: 0, total: 1, progress_percent: 0 };
-            
-            const progressText = document.getElementById('batch-progress-text');
-            if (progressText) {
-                progressText.textContent = `${progress.completed} of ${progress.total} completed`;
-            }
-            
-            const progressBar = document.getElementById('batch-progress-bar');
-            if (progressBar) {
-                progressBar.style.width = `${progress.progress_percent}%`;
-            }
-            
-            // Create locale status indicators with null check
+            // Create locale status indicators
             const statusList = document.getElementById('locale-status-list');
-            if (statusList) {
-                statusList.innerHTML = '';
-                
-                Object.entries(batchResult.results).forEach(([locale, result]) => {
-                    const div = document.createElement('div');
-                    div.style.cssText = 'display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #e2e8f0;';
-                    
-                    const localeConfig = availableLocales.find(l => l.code === locale);
-                    const status = result.status === 'success' ? '✓' : '✗';
-                    const statusColor = result.status === 'success' ? '#48bb78' : '#e53e3e';
-                    
-                    div.innerHTML = `
-                        <span>${localeConfig ? localeConfig.display_name : locale}</span>
-                        <span style="color: ${statusColor};">${status}</span>
-                    `;
-                    
-                    statusList.appendChild(div);
-                });
-            } else {
-                console.warn('locale-status-list not found, skipping status display');
-            }
+            statusList.innerHTML = '';
             
-            // Create detailed result tabs with null checks
-            createBatchResultTabs(batchResult);
-        }
-        
-        // Fallback display for production environments missing batch result elements
-        function createFallbackBatchDisplay(batchResult) {
-            console.log('Creating fallback batch display for production environment');
-            
-            // Find the batch form or any suitable container
-            const batchForm = document.getElementById('batch-form');
-            const container = batchForm || document.body;
-            
-            // Create a simple results display
-            const fallbackDiv = document.createElement('div');
-            fallbackDiv.id = 'fallback-batch-results';
-            fallbackDiv.style.cssText = `
-                background: white;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                padding: 20px;
-                margin: 20px 0;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            `;
-            
-            const progress = batchResult.progress || { completed: 0, total: 1, progress_percent: 0 };
-            
-            fallbackDiv.innerHTML = `
-                <h3 style="margin-top: 0; color: #2d3748;">Batch Processing Results</h3>
-                <div style="margin-bottom: 15px;">
-                    <div style="background: #f7fafc; padding: 10px; border-radius: 4px;">
-                        Progress: ${progress.completed} of ${progress.total} completed (${progress.progress_percent}%)
-                        <div style="background: #e2e8f0; height: 8px; border-radius: 4px; margin-top: 5px;">
-                            <div style="background: #4299e1; height: 100%; width: ${progress.progress_percent}%; border-radius: 4px;"></div>
-                        </div>
-                    </div>
-                </div>
-                <div id="fallback-results-content"></div>
-            `;
-            
-            container.appendChild(fallbackDiv);
-            
-            // Display results for each locale
-            const resultsContent = document.getElementById('fallback-results-content');
             Object.entries(batchResult.results).forEach(([locale, result]) => {
-                const localeConfig = availableLocales.find(l => l.code === locale);
-                const localeDiv = document.createElement('div');
-                localeDiv.style.cssText = 'margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 15px;';
+                const div = document.createElement('div');
+                div.style.cssText = 'display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #e2e8f0;';
                 
-                const status = result.status === 'success' ? 'Success' : 'Failed';
+                const localeConfig = availableLocales.find(l => l.code === locale);
+                const status = result.status === 'success' ? '✓' : '✗';
                 const statusColor = result.status === 'success' ? '#48bb78' : '#e53e3e';
                 
-                localeDiv.innerHTML = `
-                    <h4 style="margin: 0 0 10px 0; color: #2d3748;">
-                        ${localeConfig ? localeConfig.display_name : locale}
-                        <span style="color: ${statusColor}; margin-left: 10px;">(${status})</span>
-                    </h4>
-                    <div style="font-size: 0.9em; color: #4a5568;">
-                        ${result.status === 'success' ? 'Validation completed successfully' : 'Validation failed - check console for details'}
-                    </div>
+                div.innerHTML = `
+                    <span>${localeConfig ? localeConfig.display_name : locale}</span>
+                    <span style="color: ${statusColor};">${status} ${result.status}</span>
                 `;
                 
-                resultsContent.appendChild(localeDiv);
+                statusList.appendChild(div);
             });
-        }
-        
-        // Create batch result tabs with production-safe handling
-        function createBatchResultTabs(batchResult) {
-            // Find tabs container - use correct ID from HTML
-            let tabsContainer = document.getElementById('batch-results-tabs');
-            if (!tabsContainer) {
-                console.warn('batch-results-tabs not found, creating in fallback display');
-                const fallbackContainer = document.getElementById('fallback-batch-results') || 
-                                        document.getElementById('batch-form') || 
-                                        document.body;
-                
-                tabsContainer = document.createElement('div');
-                tabsContainer.id = 'batch-results-tabs';
-                tabsContainer.style.cssText = 'margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 20px;';
-                fallbackContainer.appendChild(tabsContainer);
-            }
             
-            tabsContainer.innerHTML = ''; // Clear existing tabs
+            // Create results tabs
+            const tabsContainer = document.getElementById('batch-results-tabs');
+            const contentContainer = document.getElementById('batch-results-content');
             
-            // Create tabs for each locale result
+            tabsContainer.innerHTML = '';
+            contentContainer.innerHTML = '';
+            
             Object.entries(batchResult.results).forEach(([locale, result], index) => {
                 const localeConfig = availableLocales.find(l => l.code === locale);
-                const tab = document.createElement('button');
-                tab.style.cssText = `
-                    background-color: #f7fafc;
-                    border: 1px solid #e2e8f0;
-                    padding: 8px 16px;
-                    margin-right: 5px;
-                    cursor: pointer;
-                    border-radius: 4px 4px 0 0;
-                `;
-                tab.textContent = localeConfig ? localeConfig.display_name : locale;
                 
-                tab.addEventListener('click', function() {
-                    // Use the correct content container from HTML
-                    let contentContainer = document.getElementById('batch-results-content');
-                    if (!contentContainer) {
-                        contentContainer = document.createElement('div');
-                        contentContainer.id = 'batch-results-content';
-                        contentContainer.style.cssText = 'border: 1px solid #e2e8f0; padding: 20px; min-height: 200px;';
-                        tabsContainer.parentNode.appendChild(contentContainer);
-                    }
-                    
-                    // Update all tabs appearance
+                // Create tab
+                const tab = document.createElement('button');
+                tab.textContent = localeConfig ? localeConfig.display_name : locale;
+                tab.style.cssText = `
+                    padding: 10px 20px; 
+                    border: none; 
+                    background-color: ${index === 0 ? '#4299e1' : '#f7fafc'}; 
+                    color: ${index === 0 ? 'white' : '#4a5568'};
+                    cursor: pointer;
+                    border-bottom: 2px solid transparent;
+                `;
+                
+                tab.addEventListener('click', () => {
+                    // Update tab styles
                     tabsContainer.querySelectorAll('button').forEach(btn => {
                         btn.style.backgroundColor = '#f7fafc';
                         btn.style.color = '#4a5568';
@@ -4191,102 +3959,22 @@
                     tab.style.backgroundColor = '#4299e1';
                     tab.style.color = 'white';
                     
-                    // Show detailed content for this locale
+                    // Show detailed content matching single email QA format
                     displayLocaleResults(contentContainer, locale, result.result || result, localeConfig);
                 });
                 
                 tabsContainer.appendChild(tab);
             });
             
-            // Activate first tab by default
+            // Show first tab by default
             if (tabsContainer.firstChild) {
                 tabsContainer.firstChild.click();
             }
         }
         
-        // Display detailed results for a specific locale in batch processing with null safety
-        function displayLocaleResults(container, locale, result, localeConfig) {
-            if (!container) {
-                console.error('No container provided for locale results');
-                return;
-            }
-            
-            const localeName = localeConfig ? localeConfig.display_name : locale;
-            
-            container.innerHTML = `
-                <h3 style="margin-top: 0; color: #2d3748;">${localeName} QA Results</h3>
-                <div style="background: #f7fafc; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0;">Email Metadata</h4>
-                    ${result.metadata ? displayMetadataTable(result.metadata) : '<p>No metadata available</p>'}
-                </div>
-                <div style="background: #f7fafc; padding: 15px; border-radius: 4px;">
-                    <h4 style="margin: 0 0 10px 0;">Links Analysis</h4>
-                    ${result.links ? displayLinksTable(result.links) : '<p>No links available</p>'}
-                </div>
-            `;
-        }
-        
-        // Helper function to display metadata in batch results
-        function displayMetadataTable(metadata) {
-            if (!metadata) return '<p>No metadata available</p>';
-            
-            let html = '<table style="width: 100%; border-collapse: collapse;">';
-            Object.entries(metadata).forEach(([key, value]) => {
-                html += `
-                    <tr>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px; font-weight: bold;">${key}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${value || 'N/A'}</td>
-                    </tr>
-                `;
-            });
-            html += '</table>';
-            return html;
-        }
-        
-        // Helper function to display links in batch results
-        function displayLinksTable(links) {
-            if (!links || links.length === 0) return '<p>No links found</p>';
-            
-            let html = `
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background-color: #f7fafc;">
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">URL</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Issues</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            links.forEach(link => {
-                const statusClass = link.status === 200 ? 'color: #48bb78;' : 'color: #e53e3e;';
-                const issues = link.issues || [];
-                const issuesText = issues.length > 0 ? issues.join(', ') : 'None';
-                
-                html += `
-                    <tr>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px; word-break: break-all;">${link.url}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px; ${statusClass}">${link.status}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${issuesText}</td>
-                    </tr>
-                `;
-            });
-            
-            html += '</tbody></table>';
-            return html;
-        }
-        
         // Display detailed results for a specific locale in batch processing
         function displayLocaleResults(container, locale, result, localeConfig) {
             const localeName = localeConfig ? localeConfig.display_name : locale;
-            
-            // Build complete HTML with data inline to avoid timing issues
-            console.log('displayLocaleResults called with:', {locale, result, localeConfig});
-            console.log('Full result object for debugging:', JSON.stringify(result, null, 2));
-            const metadataHtml = buildMetadataHtml(result);
-            const imagesHtml = buildImagesHtml(result);
-            const linksHtml = buildLinksHtml(result, locale);
             
             container.innerHTML = `
                 <div style="padding: 20px; background-color: white; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -4295,270 +3983,38 @@
                     <!-- Metadata Section -->
                     <div style="margin-bottom: 30px;">
                         <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">📧 Email Metadata</h4>
-                        <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
-                            ${metadataHtml}
+                        <div id="batch-metadata-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            <!-- Metadata content will be populated here -->
                         </div>
                     </div>
                     
                     <!-- Images Section -->
                     <div style="margin-bottom: 30px;">
                         <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">🖼️ Standalone Images</h4>
-                        <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
-                            ${imagesHtml}
+                        <div id="batch-images-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            <!-- Images content will be populated here -->
                         </div>
                     </div>
                     
                     <!-- Links Section -->
                     <div style="margin-bottom: 30px;">
                         <h4 style="margin-bottom: 15px; color: #4a5568; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">🔗 Links Analysis</h4>
-                        <div style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
-                            ${linksHtml}
+                        <div id="batch-links-${locale}" style="background-color: #f7fafc; padding: 15px; border-radius: 6px;">
+                            <!-- Links content will be populated here -->
                         </div>
                     </div>
                 </div>
             `;
+            
+            // Populate each section with actual data
+            populateBatchMetadata(locale, result);
+            populateBatchImages(locale, result);
+            populateBatchLinks(locale, result);
         }
         
-        // Build metadata HTML inline
-        function buildMetadataHtml(result) {
-            console.log('buildMetadataHtml called with result:', result);
-            console.log('Result keys:', Object.keys(result));
-            
-            let metadataItems = [];
-            
-            // Check if result has the batch processing format with nested metadata array
-            if (result.metadata && Array.isArray(result.metadata)) {
-                console.log('Using array format metadata from batch result');
-                metadataItems = result.metadata;
-            } else {
-                console.log('Building metadata from individual fields');
-                
-                // Handle different result structures based on actual console output
-                let metadata = {};
-                let requirements = {};
-                
-                console.log('Analyzing result structure for metadata extraction');
-                console.log('Result type:', typeof result);
-                console.log('Has metadata property:', 'metadata' in result);
-                console.log('Has result property:', 'result' in result);
-                
-                // Try single QA format first (nested structure)
-                if (result.result && result.result.metadata) {
-                    console.log('Using single QA nested structure');
-                    metadata = result.result.metadata;
-                    requirements = result.result.requirements || {};
-                } else if (result.metadata && typeof result.metadata === 'object' && !Array.isArray(result.metadata)) {
-                    console.log('Using direct metadata object');
-                    metadata = result.metadata;
-                    requirements = result.requirements || result.requirements_used || {};
-                } else {
-                    console.log('Using batch result direct properties');
-                    // For batch results, the validation result IS the result object
-                    // Extract from the validation result properties
-                    metadata = result;  // The result object itself contains the metadata fields
-                    requirements = result.requirements_used || {};
-                }
-                
-                console.log('Final extracted metadata:', metadata);
-                console.log('Final extracted requirements:', requirements);
-                
-                const fieldMappings = [
-                    { field: 'sender_address', actual: metadata.sender_address, expected: requirements.sender_address },
-                    { field: 'sender_name', actual: metadata.sender_name, expected: requirements.sender_name },
-                    { field: 'reply_address', actual: metadata.reply_address, expected: requirements.reply_address },
-                    { field: 'subject', actual: metadata.subject, expected: requirements.subject },
-                    { field: 'preheader', actual: metadata.preheader, expected: requirements.preheader },
-                    { field: 'footer_campaign_code', actual: metadata.footer_campaign_code, expected: requirements.campaign_code },
-                    { field: 'copyright_year', actual: metadata.copyright_year, expected: '2025' }
-                ];
-                
-                metadataItems = fieldMappings.map(item => ({
-                    field: item.field,
-                    expected: item.expected,
-                    actual: item.actual || 'Not found',
-                    status: (item.actual === item.expected) ? 'PASS' : 'FAIL'
-                }));
-            }
-            
-            const fieldNameMap = {
-                'sender_address': 'Sender Address',
-                'sender_name': 'Sender Name',
-                'reply_address': 'Reply Address',
-                'subject': 'Subject',
-                'preheader': 'Preheader',
-                'footer_campaign_code': 'Campaign Code',
-                'copyright_year': 'Copyright Year'
-            };
-            
-            let html = `
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background-color: #f7fafc;">
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Field</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Expected</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Actual</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            metadataItems.forEach(item => {
-                if (!item.expected && !item.actual) return;
-                
-                const statusColor = item.status === 'PASS' ? '#48bb78' : '#e53e3e';
-                html += `
-                    <tr>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${fieldNameMap[item.field] || item.field}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${item.expected || ''}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${item.actual || 'Not found'}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px; color: ${statusColor}; font-weight: bold;">${item.status || 'FAIL'}</td>
-                    </tr>
-                `;
-            });
-            
-            html += '</tbody></table>';
-            return html;
-        }
-        
-        // Build images HTML inline
-        function buildImagesHtml(result) {
-            // Handle both single QA and batch QA result structures
-            let images = result.images || result.standalone_images || [];
-            
-            // Check for nested structure in single QA results
-            if (images.length === 0 && result.result) {
-                images = result.result.images || result.result.standalone_images || [];
-            }
-            
-            if (images.length === 0) {
-                return '<p style="color: #718096; font-style: italic;">No standalone images found.</p>';
-            }
-            
-            let html = `
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background-color: #f7fafc;">
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Image</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Alt Text</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Location</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Dimensions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            images.forEach(image => {
-                const altStatus = (image.alt_warning || !image.has_alt) ? 'Missing alt text' : 'OK';
-                const altStatusColor = (image.alt_warning || !image.has_alt) ? '#e53e3e' : '#48bb78';
-                const altText = image.has_alt && image.alt ? image.alt : '⚠️ alt: none detected';
-                const altTextColor = image.has_alt && image.alt ? '#2d3748' : '#e53e3e';
-                
-                html += `
-                    <tr>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">
-                            <img src="${image.src}" alt="${image.alt || ''}" style="max-width: 100px; max-height: 50px; object-fit: contain;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                            <div style="display: none; color: #718096; font-style: italic;">Image not available</div>
-                        </td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px; color: ${altTextColor};">${altText}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px; color: ${altStatusColor}; font-weight: bold;">${altStatus}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">
-                            ${image.location || 'Unknown'}
-                            ${image.likely_purpose ? `<div style="font-size: 12px; color: #718096; margin-top: 4px;">${image.likely_purpose}</div>` : ''}
-                        </td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${image.dimensions || 'Unknown'}</td>
-                    </tr>
-                `;
-            });
-            
-            html += '</tbody></table>';
-            return html;
-        }
-        
-        // Build links HTML inline  
-        function buildLinksHtml(result, locale) {
-            // Handle both single QA and batch QA result structures
-            let links = result.links || [];
-            
-            // Check for nested structure in single QA results
-            if (links.length === 0 && result.result) {
-                links = result.result.links || [];
-            }
-            
-            if (links.length === 0) {
-                return '<p style="color: #718096; font-style: italic;">No links found.</p>';
-            }
-            
-            let html = `
-                <div style="background-color: #e6f3ff; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
-                    <p style="margin: 0 0 8px 0; color: #2563eb; font-weight: bold;">Browser Automation Status: Available (Cloud API)</p>
-                    <p style="margin: 0 0 8px 0; font-size: 0.9em;">When unavailable, you'll need to verify product tables manually for each link.</p>
-                    <p style="margin: 0; font-size: 0.9em; color: #dc2626;">Warning: Browser automation should be available in deployment - check server configuration.</p>
-                </div>
-                
-                <div style="margin-bottom: 15px;">
-                    <label for="batch-timeout-${locale}">Product Table Detection Timeout:</label>
-                    <select id="batch-timeout-${locale}" style="margin-left: 5px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-                        <option value="5">5 seconds (default)</option>
-                        <option value="10">10 seconds</option>
-                        <option value="30">30 seconds</option>
-                        <option value="60">60 seconds (slow connections)</option>
-                    </select>
-                </div>
-                
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-                    <button type="button" onclick="selectAllLinks('${locale}')" style="background-color: #4299e1; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Select All</button>
-                    <button type="button" onclick="deselectAllLinks('${locale}')" style="background-color: #a0aec0; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Deselect All</button>
-                    <button type="button" onclick="checkSelectedLinks('${locale}')" style="background-color: #48bb78; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Check Selected Links</button>
-                </div>
-                <p style="font-size: 0.9em; color: #718096; margin-bottom: 15px;">
-                    Select links to check for product tables and click "Check Selected Links" to validate.
-                </p>
-                
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="background-color: #f7fafc;">
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Link Source</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">URL</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Status</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Product Table Detection</th>
-                            <th style="border: 1px solid #e2e8f0; padding: 8px; text-align: left;">Issues</th>
-                        </tr>
-                    </thead>
-                    <tbody id="batch-links-table-${locale}">
-            `;
-            
-            links.forEach((link, index) => {
-                const statusColor = link.status === 200 ? '#48bb78' : '#e53e3e';
-                const issues = link.issues || [];
-                const issuesText = issues.length > 0 ? issues.join(', ') : 'None';
-                
-                html += `
-                    <tr>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${link.source || 'Unknown'}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px; word-break: break-all;">${link.url}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px; color: ${statusColor}; font-weight: bold;">${link.status}</td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">
-                            <input type="checkbox" class="product-table-checkbox" value="${link.url}" style="margin-right: 5px;">
-                            <span>Not checked</span>
-                        </td>
-                        <td style="border: 1px solid #e2e8f0; padding: 8px;">${issuesText}</td>
-                    </tr>
-                `;
-            });
-            
-            html += '</tbody></table>';
-            return html;
-        }
-        
-        // Populate metadata section for batch results with null safety
+        // Populate metadata section for batch results
         function populateBatchMetadata(locale, result) {
             const container = document.getElementById(`batch-metadata-${locale}`);
-            if (!container) {
-                console.warn(`Metadata container for locale ${locale} not found`);
-                return;
-            }
             
             // Check if we have metadata array format (like single email QA) or need to construct it
             let metadataItems = [];
@@ -4665,14 +4121,9 @@
             });
         }
         
-        // Populate images section for batch results with null safety
+        // Populate images section for batch results
         function populateBatchImages(locale, result) {
             const container = document.getElementById(`batch-images-${locale}`);
-            if (!container) {
-                console.warn(`Images container for locale ${locale} not found`);
-                return;
-            }
-            
             const images = result.images || [];
             
             if (images.length === 0) {
@@ -4783,14 +4234,9 @@
             });
         }
         
-        // Populate links section for batch results with null safety
+        // Populate links section for batch results
         function populateBatchLinks(locale, result) {
             const container = document.getElementById(`batch-links-${locale}`);
-            if (!container) {
-                console.warn(`Links container for locale ${locale} not found`);
-                return;
-            }
-            
             const links = result.links || [];
             
             if (links.length === 0) {
@@ -4841,10 +4287,6 @@
             `;
             
             const tableBody = document.getElementById(`batch-links-table-${locale}`);
-            if (!tableBody) {
-                console.warn(`Links table body for locale ${locale} not found`);
-                return;
-            }
             
             links.forEach((link, index) => {
                 const row = document.createElement('tr');
