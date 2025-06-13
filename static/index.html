@@ -4651,12 +4651,44 @@
             try {
                 // Process each file for locale detection
                 console.log('Starting file processing...');
+                
+                // Validate required functions and variables exist
+                if (typeof readFileContent !== 'function') {
+                    throw new Error('readFileContent function is not defined');
+                }
+                if (typeof detectLocaleFromTemplate !== 'function') {
+                    throw new Error('detectLocaleFromTemplate function is not defined');
+                }
+                if (typeof enhancedBatchTemplates === 'undefined') {
+                    throw new Error('enhancedBatchTemplates is not defined');
+                }
+                if (typeof detectedLocales === 'undefined') {
+                    throw new Error('detectedLocales is not defined');
+                }
+                
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
                     console.log(`Processing file ${i + 1}/${files.length}: ${file.name}`);
                     
-                    const content = await readFileContent(file);
-                    const detectedInfo = await detectLocaleFromTemplate(content, file.name);
+                    let detectedInfo;
+                    try {
+                        const content = await readFileContent(file);
+                        console.log(`File content loaded for ${file.name}, length: ${content.length}`);
+                        
+                        detectedInfo = await detectLocaleFromTemplate(content, file.name);
+                        console.log(`Locale detection completed for ${file.name}:`, detectedInfo);
+                    } catch (fileError) {
+                        console.error(`Error processing file ${file.name}:`, fileError);
+                        // Create a fallback detectedInfo object for failed files
+                        detectedInfo = {
+                            filename: file.name,
+                            locale: null,
+                            language: null,
+                            country: null,
+                            campaign_code: null,
+                            errors: [`Processing error: ${fileError.message}`]
+                        };
+                    }
                     
                     console.log(`File ${file.name} detection result:`, detectedInfo);
                     
@@ -4675,12 +4707,18 @@
                 console.log('Template map size:', enhancedBatchTemplates.size);
                 
                 // Always display results first
-                displayDetectionResults();
+                try {
+                    displayDetectionResults();
+                } catch (displayError) {
+                    console.error('Error displaying detection results:', displayError);
+                    throw new Error(`Failed to display results: ${displayError.message}`);
+                }
                 
                 // Force UI updates with timeout to ensure DOM is ready
                 setTimeout(() => {
-                    // Update step 2 status based on results
-                    if (detectionStatus) {
+                    try {
+                        // Update step 2 status based on results
+                        if (detectionStatus) {
                         if (detectedLocales.size > 0) {
                             detectionStatus.innerHTML = '<p style="margin: 0; color: #155724; background-color: #c6f6d5; padding: 10px; border-radius: 4px;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
                             
@@ -4715,21 +4753,42 @@
                             }
                             
                             // Generate the locale forms
-                            generateLocaleRequirementsForms();
+                            try {
+                                generateLocaleRequirementsForms();
+                            } catch (formError) {
+                                console.error('Error generating locale forms:', formError);
+                            }
                             
                             // Update button state after templates are uploaded
-                            updateBatchProcessingButtonState();
+                            try {
+                                updateBatchProcessingButtonState();
+                            } catch (buttonError) {
+                                console.error('Error updating button state:', buttonError);
+                            }
                             
                         } else {
                             detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Check your template files have proper lang attributes and campaign codes (format: ABC2505 - MX)</p>';
+                        }
+                        }
+                    } catch (uiError) {
+                        console.error('Error updating UI:', uiError);
+                        if (detectionStatus) {
+                            detectionStatus.innerHTML = `<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ Error updating interface: ${uiError.message}</p>`;
                         }
                     }
                 }, 100);
                 
             } catch (error) {
                 console.error('Error processing templates:', error);
+                console.error('Error stack:', error.stack);
+                console.error('Error details:', {
+                    message: error.message,
+                    name: error.name,
+                    fileName: error.fileName,
+                    lineNumber: error.lineNumber
+                });
                 if (detectionStatus) {
-                    detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ Error processing templates. Please try again.</p>';
+                    detectionStatus.innerHTML = `<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ Error processing templates: ${error.message}. Please check console for details.</p>`;
                 }
             }
         });
