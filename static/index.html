@@ -598,13 +598,14 @@
             </div>
         </div>
 
-        <!-- Step 5: Process Batch -->
+        <!-- Process Batch -->
         <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">5. Process Batch</h3>
+            <h3 style="margin-bottom: 15px;">Process Batch</h3>
             <div style="display: flex; gap: 10px; align-items: center;">
-                <button type="button" id="start-enhanced-batch-processing" class="button" style="background-color: #48bb78; min-width: 150px;">Start Enhanced Batch QA</button>
+                <button type="button" id="start-enhanced-batch-processing" class="button" style="background-color: #a0aec0; min-width: 150px;" disabled>Start Enhanced Batch QA</button>
                 <button type="button" id="cancel-batch-processing" class="button hidden" style="background-color: #e53e3e; min-width: 100px;">Cancel</button>
             </div>
+            <p id="batch-button-status" style="color: #718096; font-size: 0.9em; margin-top: 8px;">Upload templates and fill out requirements to enable processing</p>
         </div>
 
         <!-- Batch Progress -->
@@ -4677,6 +4678,9 @@
                                 globalSection.removeAttribute('hidden');
                                 globalSection.classList.remove('hidden');
                                 console.log('Forced global requirements section to display with !important');
+                                
+                                // Add event listeners to global form fields
+                                setupGlobalFormEventListeners();
                             }
                             
                             // Force show step 4 - Locale Requirements
@@ -4696,6 +4700,9 @@
                             
                             // Generate the locale forms
                             generateLocaleRequirementsForms();
+                            
+                            // Update button state after templates are uploaded
+                            updateBatchProcessingButtonState();
                             
                         } else {
                             detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Check your template files have proper lang attributes and campaign codes (format: ABC2505 - MX)</p>';
@@ -4905,6 +4912,17 @@
             });
             
             container.innerHTML = html;
+            
+            // Add event listeners to all form fields to update button state
+            Array.from(detectedLocales).forEach(locale => {
+                const senderNameField = document.getElementById(`locale-sender-name-${locale}`);
+                const subjectField = document.getElementById(`locale-subject-${locale}`);
+                const preheaderField = document.getElementById(`locale-preheader-${locale}`);
+                
+                if (senderNameField) senderNameField.addEventListener('input', updateBatchProcessingButtonState);
+                if (subjectField) subjectField.addEventListener('input', updateBatchProcessingButtonState);
+                if (preheaderField) preheaderField.addEventListener('input', updateBatchProcessingButtonState);
+            });
         }
         
         // Get display name for locale
@@ -4921,21 +4939,81 @@
             return names[locale] || locale;
         }
         
+        // Function to set up event listeners for global form fields
+        function setupGlobalFormEventListeners() {
+            const globalFields = [
+                'global-sender-address',
+                'global-reply-address', 
+                'global-campaign-code',
+                'global-domain',
+                'global-utm-source',
+                'global-utm-campaign',
+                'global-utm-medium'
+            ];
+            
+            globalFields.forEach(fieldId => {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.addEventListener('input', updateBatchProcessingButtonState);
+                }
+            });
+        }
+
+        // Function to check if all requirements are met and update button state
+        function updateBatchProcessingButtonState() {
+            const startBtn = document.getElementById('start-enhanced-batch-processing');
+            const statusText = document.getElementById('batch-button-status');
+            
+            let canProcess = true;
+            let statusMessage = '';
+            
+            // Check if templates are uploaded
+            if (detectedLocales.size === 0) {
+                canProcess = false;
+                statusMessage = 'Upload templates to continue';
+            }
+            // Check if global requirements are filled
+            else if (!collectGlobalRequirements()) {
+                canProcess = false;
+                statusMessage = 'Complete global requirements to continue';
+            }
+            // Check if locale-specific requirements are filled
+            else if (!collectLocaleRequirements()) {
+                canProcess = false;
+                statusMessage = 'Complete locale-specific requirements to continue';
+            }
+            else {
+                statusMessage = 'Ready to process batch';
+            }
+            
+            // Update button state
+            if (canProcess) {
+                startBtn.disabled = false;
+                startBtn.style.backgroundColor = '#48bb78';
+                statusText.style.color = '#38a169';
+            } else {
+                startBtn.disabled = true;
+                startBtn.style.backgroundColor = '#a0aec0';
+                statusText.style.color = '#718096';
+            }
+            
+            statusText.textContent = statusMessage;
+        }
+
         // Enhanced batch processing handler
         document.getElementById('start-enhanced-batch-processing').addEventListener('click', async function() {
+            // Final validation (button should already be disabled if requirements not met)
             if (detectedLocales.size === 0) {
                 alert('Please upload templates first and ensure at least one valid locale is detected.');
                 return;
             }
             
-            // Validate global requirements
             const globalRequirements = collectGlobalRequirements();
             if (!globalRequirements) {
                 alert('Please fill in all global requirements.');
                 return;
             }
             
-            // Validate locale-specific requirements
             const localeRequirements = collectLocaleRequirements();
             if (!localeRequirements) {
                 alert('Please fill in requirements for all detected locales.');
