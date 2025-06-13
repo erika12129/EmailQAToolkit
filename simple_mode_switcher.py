@@ -1150,6 +1150,9 @@ async def generate_locale_requirements_preview(
 
 # Enhanced Batch Processing with Automatic Locale Detection
 @app.post("/api/enhanced-batch-validate")
+@app.post("/api/enhanced_batch_validate") 
+@app.post("/enhanced-batch-validate")  # Add non-API prefixed version 
+@app.post("/enhanced_batch_validate")  # Additional non-API endpoint for compatibility
 async def enhanced_batch_validate(
     templates: List[UploadFile] = File(..., description="Email template files with automatic locale detection"),
     locale_mapping: str = Form(..., description="JSON mapping of template files to detected locale codes"),
