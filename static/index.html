@@ -550,6 +550,9 @@
         <!-- Step 3: Global Requirements -->
         <div id="global-requirements-section" style="margin-bottom: 25px; display: none;">
             <h3 style="margin-bottom: 15px;">3. Global Settings</h3>
+            <div id="global-requirements-status" style="padding: 20px; background-color: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; text-align: center; margin-bottom: 20px;">
+                <p style="margin: 0; color: #856404;">Waiting for global requirements...</p>
+            </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
                     <label for="global-sender-address">Sender Address:</label>
@@ -591,7 +594,7 @@
         <div id="locale-requirements-section" style="margin-bottom: 25px; display: none;">
             <h3 style="margin-bottom: 15px;">4. Locale-Specific Content</h3>
             <div id="locale-requirements-status" style="padding: 20px; background-color: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; text-align: center; display: none;">
-                <p style="margin: 0; color: #856404;">Waiting for global requirements...</p>
+                <p style="margin: 0; color: #856404;">Waiting for locale-specific requirements...</p>
             </div>
             <div id="locale-forms-container">
                 <!-- Locale-specific forms will be generated here -->
@@ -4694,7 +4697,7 @@
                                 localeStatus.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; padding: 20px; background-color: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; text-align: center;';
                                 localeStatus.removeAttribute('hidden');
                                 localeStatus.classList.remove('hidden');
-                                localeStatus.innerHTML = '<p style="margin: 0; color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px;">⏳ Waiting for global requirements to be filled...</p>';
+                                localeStatus.innerHTML = '<p style="margin: 0; color: #856404;">Waiting for locale-specific requirements...</p>';
                                 console.log('Forced locale requirements section to display with !important');
                             }
                             
@@ -4963,6 +4966,8 @@
         function updateBatchProcessingButtonState() {
             const startBtn = document.getElementById('start-enhanced-batch-processing');
             const statusText = document.getElementById('batch-button-status');
+            const globalStatus = document.getElementById('global-requirements-status');
+            const localeStatus = document.getElementById('locale-requirements-status');
             
             let canProcess = true;
             let statusMessage = '';
@@ -4976,14 +4981,48 @@
             else if (!collectGlobalRequirements()) {
                 canProcess = false;
                 statusMessage = 'Complete global requirements to continue';
-            }
-            // Check if locale-specific requirements are filled
-            else if (!collectLocaleRequirements()) {
-                canProcess = false;
-                statusMessage = 'Complete locale-specific requirements to continue';
+                
+                // Update global requirements status
+                if (globalStatus) {
+                    globalStatus.style.display = 'block';
+                    globalStatus.style.backgroundColor = '#fff8e1';
+                    globalStatus.style.borderColor = '#ffc107';
+                    globalStatus.innerHTML = '<p style="margin: 0; color: #856404;">Waiting for global requirements...</p>';
+                }
             }
             else {
-                statusMessage = 'Ready to process batch';
+                // Global requirements completed - update status
+                if (globalStatus) {
+                    globalStatus.style.display = 'block';
+                    globalStatus.style.backgroundColor = '#d4edda';
+                    globalStatus.style.borderColor = '#28a745';
+                    globalStatus.innerHTML = '<p style="margin: 0; color: #155724;">✓ Global requirements completed</p>';
+                }
+                
+                // Check if locale-specific requirements are filled
+                if (!collectLocaleRequirements()) {
+                    canProcess = false;
+                    statusMessage = 'Complete locale-specific requirements to continue';
+                    
+                    // Update locale requirements status
+                    if (localeStatus) {
+                        localeStatus.style.display = 'block';
+                        localeStatus.style.backgroundColor = '#fff8e1';
+                        localeStatus.style.borderColor = '#ffc107';
+                        localeStatus.innerHTML = '<p style="margin: 0; color: #856404;">Waiting for locale-specific requirements...</p>';
+                    }
+                }
+                else {
+                    statusMessage = 'Ready to process batch';
+                    
+                    // Update locale requirements status
+                    if (localeStatus) {
+                        localeStatus.style.display = 'block';
+                        localeStatus.style.backgroundColor = '#d4edda';
+                        localeStatus.style.borderColor = '#28a745';
+                        localeStatus.innerHTML = '<p style="margin: 0; color: #155724;">✓ Locale-specific requirements completed</p>';
+                    }
+                }
             }
             
             // Update button state

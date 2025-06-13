@@ -104,6 +104,15 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
+- **June 13, 2025**: Enhanced batch QA user interface improvements completed
+  - Made "Start Enhanced Batch QA" button inactive by default until all requirements are filled
+  - Removed confusing "5." step number from "Process Batch" section for cleaner UI flow
+  - Added real-time button state updates based on template upload and form completion
+  - Implemented clear status messages to guide users through the process
+  - Button automatically enables when templates uploaded and all forms completed
+  - Fixed status message placement: moved "Waiting for global requirements..." from section 4 to section 3 (Global Settings)
+  - Added real-time status updates that change to "✓ Global requirements completed" when fields are filled
+
 - **June 13, 2025**: RESOLVED critical campaign code validation bug in enhanced batch system
   - Fixed frontend custom requirements generation to include footer_campaign_code in metadata section
   - Enhanced batch system now properly formats campaign codes with country suffix ("ABC2505 - US")
