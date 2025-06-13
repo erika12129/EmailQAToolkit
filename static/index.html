@@ -3964,24 +3964,29 @@
             Object.entries(currentBatchResults).forEach(([locale, result]) => {
                 let shouldShow = false;
                 
+                // Get the actual validation result
+                const validationResult = result.result || result;
+                const hasMetadataIssues = validationResult.metadata_issues && validationResult.metadata_issues.length > 0;
+                const hasLinkIssues = validationResult.links && validationResult.links.some(link => 
+                    link.status === 'FAIL' || (link.utm_issues && link.utm_issues.length > 0)
+                );
+                const hasAnyIssues = hasMetadataIssues || hasLinkIssues;
+                
                 switch(filterValue) {
                     case 'all':
                         shouldShow = true;
                         break;
                     case 'success':
-                        shouldShow = result.status === 'success';
+                        // Show only results with no metadata issues and all links passing
+                        shouldShow = result.status === 'success' && !hasMetadataIssues && !hasLinkIssues;
                         break;
                     case 'failed':
-                        shouldShow = result.status === 'error' || result.status === 'failed';
+                        // Show results with critical failures (error status or failed links)
+                        shouldShow = result.status === 'error' || result.status === 'failed' || hasLinkIssues;
                         break;
                     case 'warnings':
-                        // Check if there are any warnings in the validation results
-                        shouldShow = result.validation_results && 
-                                   Object.values(result.validation_results).some(section => 
-                                       section.details && Object.values(section.details).some(detail => 
-                                           detail.status === 'WARNING'
-                                       )
-                                   );
+                        // Show results with metadata issues but no critical failures
+                        shouldShow = result.status === 'success' && hasMetadataIssues && !hasLinkIssues;
                         break;
                 }
                 
