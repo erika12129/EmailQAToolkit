@@ -193,10 +193,13 @@ class BatchProcessor:
                 request.base_requirements, locale
             )
             
-            # Override metadata fields with actual values from template (so Expected matches Actual)
-            for field in ['sender_name', 'subject', 'preheader', 'sender_address', 'reply_address']:
-                if field in actual_metadata and actual_metadata[field]:
+            # Only override metadata fields that are actually present and valid in the template
+            # This preserves requirements for fields that should be validated (like sender_address, reply_address)
+            for field in ['sender_name', 'subject', 'preheader']:
+                if field in actual_metadata and actual_metadata[field] and actual_metadata[field] != 'Not found':
                     locale_requirements[field] = actual_metadata[field]
+            
+            # Do NOT override sender_address and reply_address - these should be validated against requirements
             
             with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_req:
                 json.dump(locale_requirements, temp_req, indent=2)
