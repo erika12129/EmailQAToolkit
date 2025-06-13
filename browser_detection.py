@@ -14,6 +14,11 @@ logger = logging.getLogger(__name__)
 
 def check_chrome_installed():
     """Check if Chrome/Chromium is installed in the system."""
+    # Skip browser checks in deployment environments to prevent startup failures
+    if os.environ.get("SKIP_BROWSER_CHECK") == "true" or os.environ.get("DEPLOYMENT_MODE") == "production":
+        logger.info("Skipping Chrome detection in deployment mode")
+        return False, "Chrome detection skipped for deployment"
+    
     try:
         # Try to run chrome with version flag
         process = subprocess.run(
@@ -40,8 +45,10 @@ def check_chrome_installed():
                 version = process.stdout.strip()
                 logger.info(f"Chrome detected: {version}")
                 return True, version
-    except (subprocess.SubprocessError, FileNotFoundError) as e:
+    except (subprocess.SubprocessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
         logger.warning(f"Chrome detection error: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error during Chrome detection: {e}")
     
     logger.warning("Chrome not found in system")
     return False, None

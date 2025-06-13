@@ -322,8 +322,8 @@ async def run_qa(
             content={
                 "results": {
                     "error": error_detail,
-                    "mode": config.get_mode() if 'config' in globals() else "production",
-                    "requirements": requirements_json if 'requirements_json' in locals() else {},
+                    "mode": getattr(config, 'mode', 'production'),
+                    "requirements": locals().get('requirements_json', {}),
                     "product_tables_checked": bool(check_product_tables)
                 }
             },
@@ -766,6 +766,29 @@ async def generate_locale_requirements_preview(
         raise HTTPException(status_code=500, detail=f"Failed to generate requirements: {str(e)}")
 
 if __name__ == "__main__":
-    # Use port 8000 or environment variable for production
+    # Set production environment variables for deployment
+    os.environ.setdefault("DEPLOYMENT_MODE", "production")
+    os.environ.setdefault("SKIP_BROWSER_CHECK", "true")
+    
+    # Use port 8000 for Cloud Run deployment (required by .replit config)
     port = int(os.environ.get("PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    
+    # Log startup configuration
+    logger.info(f"Starting Email QA System on port {port}")
+    logger.info(f"Deployment mode: {os.environ.get('DEPLOYMENT_MODE', 'development')}")
+    logger.info(f"Skip browser check: {os.environ.get('SKIP_BROWSER_CHECK', 'false')}")
+    
+    # Prevent Chrome WebDriver initialization issues during startup
+    try:
+        uvicorn.run(
+            app, 
+            host="0.0.0.0", 
+            port=port,
+            log_level="info",
+            access_log=True
+        )
+    except Exception as e:
+        logger.error(f"Failed to start server: {str(e)}")
+        # Fallback without Chrome WebDriver dependencies
+        logger.info("Attempting fallback startup without browser dependencies...")
+        uvicorn.run(app, host="0.0.0.0", port=port)

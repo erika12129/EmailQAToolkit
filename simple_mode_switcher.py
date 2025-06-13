@@ -101,15 +101,22 @@ except ImportError:
             'confidence_score': 0
         }
 
-# Try to import the Selenium browser check function
-try:
-    from selenium_automation import check_for_product_tables_selenium_sync as browser_check
-    BROWSER_AUTOMATION_AVAILABLE = True
-    logging.info("Selenium browser automation module loaded successfully")
-except ImportError:
-    browser_check = browser_check_fallback  # Use the fallback function
-    BROWSER_AUTOMATION_AVAILABLE = False
-    logging.warning("Browser automation module not available. Using HTTP-only checks.")
+# Try to import the Selenium browser check function with deployment-aware loading
+BROWSER_AUTOMATION_AVAILABLE = False
+browser_check = browser_check_fallback  # Default to fallback
+
+# Skip expensive browser imports in deployment mode to speed up startup
+if os.environ.get("SKIP_BROWSER_CHECK") != "true" and os.environ.get("DEPLOYMENT_MODE") != "production":
+    try:
+        from selenium_automation import check_for_product_tables_selenium_sync as browser_check
+        BROWSER_AUTOMATION_AVAILABLE = True
+        logging.info("Selenium browser automation module loaded successfully")
+    except ImportError:
+        browser_check = browser_check_fallback  # Use the fallback function
+        BROWSER_AUTOMATION_AVAILABLE = False
+        logging.warning("Browser automation module not available. Using HTTP-only checks.")
+else:
+    logging.info("Skipping browser automation import in deployment mode for faster startup")
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -215,21 +222,22 @@ async def test_page():
 @app.get("/config")
 @app.get("/api/config")
 async def get_config():
-    """Get current configuration settings."""
-    # For Replit deployment, SKIP the browser availability check and use cloud browser only
+    """Get current configuration settings with optimized checks for deployment."""
+    # For deployment environments, optimize configuration loading
     cloud_browser_available = False
     
-    # Fast check if we're in Replit
+    # Fast check if we're in Replit or deployment mode
     is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+    is_deployment = os.environ.get('DEPLOYMENT_MODE') == 'production' or os.environ.get('SKIP_BROWSER_CHECK') == 'true'
     
-    if is_replit:
-        # In Replit, we only check for API keys, not for browser installation
+    if is_replit or is_deployment:
+        # In deployment environments, only check for API keys, not for browser installation
         scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
         browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
         cloud_browser_available = bool(scrapingbee_key or browserless_key)
-        logger.info(f"Replit environment detected, using cloud browser availability: {cloud_browser_available}")
+        logger.info(f"Deployment environment detected, using cloud browser availability: {cloud_browser_available}")
     else:
-        # Only in non-Replit environments, check traditionally
+        # Only in development environments, check traditionally (with timeout)
         try:
             from browser_detection import check_cloud_browser_available
             cloud_browser_available = check_cloud_browser_available()
@@ -237,8 +245,8 @@ async def get_config():
             logger.error(f"Error checking cloud browser availability: {str(e)}")
             cloud_browser_available = False
     
-    # In Replit, we use cloud browser availability as the overall availability
-    browser_automation_available = cloud_browser_available if is_replit else (BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available)
+    # In deployment environments, prioritize cloud browser availability
+    browser_automation_available = cloud_browser_available if (is_replit or is_deployment) else (BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available)
     
     # Check if this is a deployment environment (Replit production)
     is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
