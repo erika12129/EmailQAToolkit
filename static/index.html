@@ -3994,8 +3994,8 @@
             buildResultsTabs(filteredResults);
         }
         
-        // Build results tabs and content
-        function buildResultsTabs(results) {
+        // Build results tabs with content for batch processing
+        function buildResultsTabsWithContent(results) {
             const tabsContainer = document.getElementById('batch-results-tabs');
             const contentContainer = document.getElementById('batch-results-content');
             
@@ -4026,39 +4026,22 @@
                     tab.style.backgroundColor = '#4299e1';
                     tab.style.color = 'white';
                     
-                    // Show corresponding content
-                    contentContainer.querySelectorAll('.locale-results').forEach(content => {
-                        content.style.display = 'none';
-                    });
-                    document.getElementById(`results-${locale}`).style.display = 'block';
+                    // Show detailed content matching single email QA format
+                    displayLocaleResults(contentContainer, locale, result.result || result, localeConfig);
                 });
                 
                 tabsContainer.appendChild(tab);
-                
-                // Create content div
-                const contentDiv = document.createElement('div');
-                contentDiv.id = `results-${locale}`;
-                contentDiv.className = 'locale-results';
-                contentDiv.style.display = index === 0 ? 'block' : 'none';
-                
-                if (result.validation_results) {
-                    contentDiv.innerHTML = formatValidationResults(result.validation_results);
-                } else if (result.error) {
-                    contentDiv.innerHTML = `
-                        <div style="color: #e53e3e; padding: 20px; background-color: #fed7d7; border: 1px solid #feb2b2; border-radius: 4px;">
-                            <strong>Error:</strong> ${result.error}
-                        </div>
-                    `;
-                } else {
-                    contentDiv.innerHTML = `
-                        <div style="color: #718096; padding: 20px;">
-                            No detailed results available for ${locale}
-                        </div>
-                    `;
-                }
-                
-                contentContainer.appendChild(contentDiv);
             });
+            
+            // Show first tab by default
+            if (tabsContainer.firstChild) {
+                tabsContainer.firstChild.click();
+            }
+        }
+        
+        // Build results tabs for filtering (simplified version)
+        function buildResultsTabs(results) {
+            buildResultsTabsWithContent(results);
         }
 
         // Display batch results
