@@ -4684,6 +4684,9 @@
                                 
                                 // Add event listeners to global form fields
                                 setupGlobalFormEventListeners();
+                                
+                                // Auto-populate global fields with detected data
+                                populateGlobalFieldsFromDetectedData();
                             }
                             
                             // Force show step 4 - Locale Requirements
@@ -4942,6 +4945,146 @@
             return names[locale] || locale;
         }
         
+        // Function to auto-populate global fields with detected data
+        function populateGlobalFieldsFromDetectedData() {
+            if (enhancedBatchTemplates.size === 0) return;
+            
+            // Extract common data from detected templates
+            let campaignCode = '';
+            let domain = '';
+            let utmSource = '';
+            let utmCampaign = '';
+            let utmMedium = '';
+            
+            // Get data from first template (they should be consistent across locales)
+            const firstTemplate = Array.from(enhancedBatchTemplates.values())[0];
+            if (firstTemplate && firstTemplate.detected_info) {
+                campaignCode = firstTemplate.detected_info.campaign_code || '';
+                
+                // First, try to get domain from domain_config.json
+                fetch('/config')
+                    .then(response => response.json())
+                    .then(config => {
+                        const domainConfig = config.domain_list || {};
+                        const primaryDomains = domainConfig.primary || {};
+                        
+                        // Look for a configured primary domain
+                        const configuredDomains = Object.keys(primaryDomains);
+                        if (configuredDomains.length > 0) {
+                            // Use the first configured primary domain
+                            domain = `https://${configuredDomains[0]}`;
+                        }
+                        
+                        // If no domain from config, fall back to template extraction
+                        if (!domain) {
+                            return extractDomainFromTemplate();
+                        } else {
+                            return extractUTMParametersFromTemplate();
+                        }
+                    })
+                    .catch(error => {
+                        console.warn('Could not load domain config, falling back to template extraction:', error);
+                        return extractDomainFromTemplate();
+                    });
+                
+                function extractDomainFromTemplate() {
+                    const templateFile = firstTemplate.file;
+                    if (templateFile) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const htmlContent = e.target.result;
+                            
+                            // Extract domain from company header logo link (utm_content=companyLogo)
+                            const companyLogoMatch = htmlContent.match(/href="(https?:\/\/[^"]*utm_content=companyLogo[^"]*)"/) ||
+                                                   htmlContent.match(/href="(https?:\/\/[^"]*utm_content=headerLogo[^"]*)"/) ||
+                                                   htmlContent.match(/href="(https?:\/\/[^"]*utm_content=mainLogo[^"]*)"/) ||
+                                                   htmlContent.match(/href="(https?:\/\/[^"]*utm_content=logo[^"]*)"/) ||
+                                                   htmlContent.match(/href="(https?:\/\/[^"]*)"[^>]*utm_content=(?:company|header|main)?[Ll]ogo/);
+                            
+                            if (companyLogoMatch) {
+                                const fullUrl = companyLogoMatch[1];
+                                const urlMatch = fullUrl.match(/https?:\/\/([^\/\s"'?]+)/);
+                                if (urlMatch) {
+                                    domain = `https://${urlMatch[1]}`;
+                                }
+                            }
+                            
+                            extractUTMParametersFromTemplate(htmlContent);
+                        };
+                        reader.readAsText(templateFile);
+                    }
+                }
+                
+                function extractUTMParametersFromTemplate(htmlContent = null) {
+                    if (!htmlContent) {
+                        // If no HTML content provided, read from template
+                        const templateFile = firstTemplate.file;
+                        if (templateFile) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                extractUTMParametersFromTemplate(e.target.result);
+                            };
+                            reader.readAsText(templateFile);
+                            return;
+                        }
+                    }
+                    
+                    if (htmlContent) {
+                        // Extract UTM parameters from the template
+                        const utmSourceMatch = htmlContent.match(/utm_source=([^&"'\s]+)/);
+                        if (utmSourceMatch) {
+                            utmSource = decodeURIComponent(utmSourceMatch[1]);
+                        }
+                        
+                        const utmCampaignMatch = htmlContent.match(/utm_campaign=([^&"'\s]+)/);
+                        if (utmCampaignMatch) {
+                            utmCampaign = decodeURIComponent(utmCampaignMatch[1]);
+                        }
+                        
+                        const utmMediumMatch = htmlContent.match(/utm_medium=([^&"'\s]+)/);
+                        if (utmMediumMatch) {
+                            utmMedium = decodeURIComponent(utmMediumMatch[1]);
+                        }
+                    }
+                    
+                    // Populate the form fields
+                    populateFields();
+                }
+                
+                function populateFields() {
+                    const campaignField = document.getElementById('global-campaign-code');
+                    const domainField = document.getElementById('global-domain');
+                    const utmSourceField = document.getElementById('global-utm-source');
+                    const utmCampaignField = document.getElementById('global-utm-campaign');
+                    const utmMediumField = document.getElementById('global-utm-medium');
+                    
+                    if (campaignField && campaignCode) {
+                        campaignField.value = campaignCode;
+                    }
+                    if (domainField && domain) {
+                        domainField.value = domain;
+                    }
+                    if (utmSourceField && utmSource) {
+                        utmSourceField.value = utmSource;
+                    }
+                    if (utmCampaignField && utmCampaign) {
+                        utmCampaignField.value = utmCampaign;
+                    }
+                    if (utmMediumField && utmMedium) {
+                        utmMediumField.value = utmMedium;
+                    }
+                    
+                    // Trigger button state update after populating fields
+                    updateBatchProcessingButtonState();
+                    
+                    console.log('Auto-populated global fields:', {
+                        campaignCode, domain, utmSource, utmCampaign, utmMedium,
+                        source: domain.includes('partly-products-showcase.lovable.app') ? 'domain_config' : 'template_extraction'
+                    });
+                }
+            }
+        }
+
         // Function to set up event listeners for global form fields
         function setupGlobalFormEventListeners() {
             const globalFields = [

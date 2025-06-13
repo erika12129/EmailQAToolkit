@@ -112,6 +112,9 @@ This is a comprehensive web application for automated QA testing of HTML emails.
   - Button automatically enables when templates uploaded and all forms completed
   - Fixed status message placement: moved "Waiting for global requirements..." from section 4 to section 3 (Global Settings)
   - Added real-time status updates that change to "✓ Global requirements completed" when fields are filled
+  - Added auto-population of global fields from detected template data (campaign code, domain, UTM parameters)
+  - Fixed domain extraction to target company logo links with utm_content=companyLogo parameter
+  - All auto-populated fields remain fully editable while minimizing data entry requirements
 
 - **June 13, 2025**: RESOLVED critical campaign code validation bug in enhanced batch system
   - Fixed frontend custom requirements generation to include footer_campaign_code in metadata section
