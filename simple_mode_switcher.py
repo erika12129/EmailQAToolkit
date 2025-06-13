@@ -1047,21 +1047,27 @@ async def batch_validate(
         # Parse locale mapping
         try:
             mapping = json.loads(locale_mapping)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid locale_mapping JSON format")
+            logger.info(f"Successfully parsed locale mapping: {mapping}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse locale_mapping JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid locale_mapping JSON format: {str(e)}")
         
         # Parse selected locales
         try:
             selected_locales_list = json.loads(selected_locales)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid selected_locales JSON format")
+            logger.info(f"Successfully parsed selected locales: {selected_locales_list}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse selected_locales JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid selected_locales JSON format: {str(e)}")
         
         # Parse base requirements
         base_req_content = await base_requirements.read()
         try:
             base_req_dict = json.loads(base_req_content.decode('utf-8'))
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid base requirements JSON format")
+            logger.info(f"Successfully parsed base requirements with keys: {list(base_req_dict.keys())}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse base_requirements JSON: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid base requirements JSON format: {str(e)}")
         
         # Map templates to locales
         template_dict = {}

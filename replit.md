@@ -104,6 +104,12 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
+- **June 13, 2025**: RESOLVED 422 error in batch QA functionality  
+  - Enhanced error logging with detailed JSON validation messages
+  - Fixed batch validation endpoint parameter handling
+  - Added comprehensive debugging information for troubleshooting
+  - Batch QA now returns proper 400 status codes with specific error details
+
 - **June 13, 2025**: Enhanced batch QA interface simplification and field width improvements completed
   - Removed dropdown filter completely to simplify interface after complexity issues
   - Increased locale-specific input field widths to 600px to accommodate up to 100 characters
