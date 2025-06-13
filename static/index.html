@@ -4673,31 +4673,25 @@
                             // Force show step 3 - Global Requirements
                             const globalSection = document.getElementById('global-requirements-section');
                             if (globalSection) {
-                                globalSection.style.display = 'block';
-                                globalSection.style.visibility = 'visible';
-                                globalSection.style.opacity = '1';
+                                globalSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; margin-bottom: 25px;';
                                 globalSection.removeAttribute('hidden');
                                 globalSection.classList.remove('hidden');
-                                console.log('Forced global requirements section to display');
+                                console.log('Forced global requirements section to display with !important');
                             }
                             
                             // Force show step 4 - Locale Requirements
                             const localeSection = document.getElementById('locale-requirements-section');
                             const localeStatus = document.getElementById('locale-requirements-status');
                             if (localeSection && localeStatus) {
-                                localeSection.style.display = 'block';
-                                localeSection.style.visibility = 'visible';
-                                localeSection.style.opacity = '1';
+                                localeSection.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; margin-bottom: 25px;';
                                 localeSection.removeAttribute('hidden');
                                 localeSection.classList.remove('hidden');
                                 
-                                localeStatus.style.display = 'block';
-                                localeStatus.style.visibility = 'visible';
-                                localeStatus.style.opacity = '1';
+                                localeStatus.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; padding: 20px; background-color: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; text-align: center;';
                                 localeStatus.removeAttribute('hidden');
                                 localeStatus.classList.remove('hidden');
                                 localeStatus.innerHTML = '<p style="margin: 0; color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px;">⏳ Waiting for global requirements to be filled...</p>';
-                                console.log('Forced locale requirements section to display');
+                                console.log('Forced locale requirements section to display with !important');
                             }
                             
                             // Generate the locale forms
