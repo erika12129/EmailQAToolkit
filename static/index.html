@@ -5026,6 +5026,9 @@
                     const [language, country] = locale.split('_');
                     const localeReq = localeRequirements[locale];
                     
+                    // Format campaign code with country suffix for validation
+                    const formattedCampaignCode = `${globalRequirements.campaign_code} - ${country}`;
+                    
                     allRequirements[locale] = {
                         ...globalRequirements,
                         country: country,
@@ -5033,7 +5036,17 @@
                         sender_name: localeReq.sender_name,
                         subject: localeReq.subject,
                         preheader: localeReq.preheader,
-                        domain: buildLocalizedDomain(globalRequirements.domain, language, country)
+                        campaign_code: formattedCampaignCode,
+                        domain: buildLocalizedDomain(globalRequirements.domain, language, country),
+                        metadata: {
+                            sender_name: localeReq.sender_name,
+                            sender_address: globalRequirements.sender_address,
+                            reply_address: globalRequirements.reply_address,
+                            subject: localeReq.subject,
+                            preheader: localeReq.preheader,
+                            campaign_code: formattedCampaignCode,
+                            footer_campaign_code: formattedCampaignCode
+                        }
                     };
                 });
                 
