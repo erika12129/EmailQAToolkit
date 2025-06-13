@@ -539,9 +539,17 @@
             </div>
         </div>
 
-        <!-- Step 2: Global Requirements -->
+        <!-- Step 2: Locale Detection Status -->
+        <div id="locale-detection-section" style="margin-bottom: 25px; display: none;">
+            <h3 style="margin-bottom: 15px;">2. Locale Detection</h3>
+            <div id="locale-detection-status" style="padding: 20px; background-color: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; text-align: center;">
+                <p style="margin: 0; color: #856404;">Waiting for template upload...</p>
+            </div>
+        </div>
+
+        <!-- Step 3: Global Requirements -->
         <div id="global-requirements-section" style="margin-bottom: 25px; display: none;">
-            <h3 style="margin-bottom: 15px;">2. Global Settings</h3>
+            <h3 style="margin-bottom: 15px;">3. Global Settings</h3>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div>
                     <label for="global-sender-address">Sender Address:</label>
@@ -579,17 +587,20 @@
             </div>
         </div>
 
-        <!-- Step 3: Locale-Specific Requirements -->
+        <!-- Step 4: Locale-Specific Requirements -->
         <div id="locale-requirements-section" style="margin-bottom: 25px; display: none;">
-            <h3 style="margin-bottom: 15px;">3. Locale-Specific Content</h3>
+            <h3 style="margin-bottom: 15px;">4. Locale-Specific Content</h3>
+            <div id="locale-requirements-status" style="padding: 20px; background-color: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; text-align: center; display: none;">
+                <p style="margin: 0; color: #856404;">Waiting for global requirements...</p>
+            </div>
             <div id="locale-forms-container">
                 <!-- Locale-specific forms will be generated here -->
             </div>
         </div>
 
-        <!-- Step 4: Process Batch -->
+        <!-- Step 5: Process Batch -->
         <div style="margin-bottom: 25px;">
-            <h3 style="margin-bottom: 15px;">4. Process Batch</h3>
+            <h3 style="margin-bottom: 15px;">5. Process Batch</h3>
             <div style="display: flex; gap: 10px; align-items: center;">
                 <button type="button" id="start-enhanced-batch-processing" class="button" style="background-color: #48bb78; min-width: 150px;">Start Enhanced Batch QA</button>
                 <button type="button" id="cancel-batch-processing" class="button hidden" style="background-color: #e53e3e; min-width: 100px;">Cancel</button>
@@ -4576,8 +4587,17 @@
             enhancedBatchTemplates.clear();
             detectedLocales.clear();
             
+            // Show step 2 with processing message
+            showElement(document.getElementById('locale-detection-section'));
+            const detectionStatus = document.getElementById('locale-detection-status');
+            detectionStatus.innerHTML = '<p style="margin: 0; color: #856404;">Analyzing ' + files.length + ' templates...</p>';
+            
             const detectionResults = document.getElementById('templates-detection-results');
-            detectionResults.innerHTML = '<p>Analyzing templates...</p>';
+            detectionResults.innerHTML = '<p>Processing files...</p>';
+            
+            // Hide subsequent steps
+            hideElement(document.getElementById('global-requirements-section'));
+            hideElement(document.getElementById('locale-requirements-section'));
             
             try {
                 // Process each file for locale detection
@@ -4599,14 +4619,25 @@
                 displayDetectionResults();
                 
                 if (detectedLocales.size > 0) {
+                    // Update step 2 status
+                    detectionStatus.innerHTML = '<p style="margin: 0; color: #155724; background-color: #d4edda; padding: 10px; border-radius: 4px;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
+                    
+                    // Show step 3 with waiting message
                     showElement(document.getElementById('global-requirements-section'));
+                    
+                    // Show step 4 with waiting message
                     showElement(document.getElementById('locale-requirements-section'));
+                    const localeStatus = document.getElementById('locale-requirements-status');
+                    showElement(localeStatus);
+                    
                     generateLocaleRequirementsForms();
+                } else {
+                    detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ No valid locales detected. Please check your templates.</p>';
                 }
                 
             } catch (error) {
                 console.error('Error processing templates:', error);
-                detectionResults.innerHTML = '<p style="color: #e53e3e;">Error processing templates. Please try again.</p>';
+                detectionStatus.innerHTML = '<p style="margin: 0; color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 4px;">✗ Error processing templates. Please try again.</p>';
             }
         });
         

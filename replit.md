@@ -102,8 +102,18 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 - **Port configuration** for external access
 - **Workflow automation** for streamlined deployment
 
+## Recent Changes
+
+- **June 13, 2025**: Enhanced batch processing system implemented
+  - Multi-file upload with automatic locale detection from HTML lang attributes and campaign codes
+  - Simplified requirements interface with individual forms per detected locale
+  - Global settings form for sender addresses, campaign codes, and UTM parameters
+  - Automatic domain URL generation with locale-specific parameters
+  - Support for 7 locales: en_US, en_CA, fr_CA, es_MX, fr_FR, it_IT, ja_JP
+
 ## Changelog
 
+- June 13, 2025. Enhanced batch QA system with multi-file upload and automatic locale detection
 - June 13, 2025. Initial setup
 
 ## User Preferences
