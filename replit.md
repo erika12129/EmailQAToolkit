@@ -104,7 +104,7 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
-- **June 13, 2025**: Enhanced batch QA user interface improvements completed
+- **June 13, 2025**: Enhanced batch QA user interface improvements and export functionality completed
   - Made "Start Enhanced Batch QA" button inactive by default until all requirements are filled
   - Removed confusing "5." step number from "Process Batch" section for cleaner UI flow
   - Added real-time button state updates based on template upload and form completion
@@ -115,6 +115,9 @@ This is a comprehensive web application for automated QA testing of HTML emails.
   - Added auto-population of global fields from detected template data (campaign code, domain, UTM parameters)
   - Updated domain extraction to prioritize domain_config.json as primary source with template fallback
   - All auto-populated fields remain fully editable while minimizing data entry requirements
+  - Fixed export functionality to export results directly from memory with proper JSON format
+  - Implemented functional dropdown filter with categories: All, Successful Only, Failed Only, Warnings Only
+  - Added debug logging to track filter behavior and result categorization
 
 - **June 13, 2025**: RESOLVED critical campaign code validation bug in enhanced batch system
   - Fixed frontend custom requirements generation to include footer_campaign_code in metadata section

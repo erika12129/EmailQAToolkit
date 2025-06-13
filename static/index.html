@@ -631,14 +631,8 @@
         <!-- Batch Results -->
         <div id="batch-results-section" class="hidden" style="margin-bottom: 25px;">
             <h3 style="margin-bottom: 15px;">Batch Results</h3>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <div style="margin-bottom: 15px;">
                 <button type="button" id="export-batch-results" class="button" style="background-color: #4299e1;">Export Results (JSON)</button>
-                <select id="batch-results-filter" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-                    <option value="all">Show All Results</option>
-                    <option value="success">Show Successful Only</option>
-                    <option value="failed">Show Failed Only</option>
-                    <option value="warnings">Show Warnings Only</option>
-                </select>
             </div>
             <div id="batch-results-tabs" style="border-bottom: 1px solid #e2e8f0; margin-bottom: 15px;">
                 <!-- Locale tabs will be generated here -->
@@ -3834,15 +3828,6 @@
                     }
                 });
             }
-            
-            // Add dropdown filter functionality
-            const batchResultsFilter = document.getElementById('batch-results-filter');
-            if (batchResultsFilter) {
-                batchResultsFilter.addEventListener('change', function() {
-                    const filterValue = this.value;
-                    filterBatchResults(filterValue);
-                });
-            }
         });
         
         // Start batch processing
@@ -3948,57 +3933,6 @@
             }
         }
         
-        // Filter batch results based on dropdown selection
-        function filterBatchResults(filterValue) {
-            if (!currentBatchResults) return;
-            
-            const tabsContainer = document.getElementById('batch-results-tabs');
-            const contentContainer = document.getElementById('batch-results-content');
-            
-            // Clear and rebuild results with filter applied
-            tabsContainer.innerHTML = '';
-            contentContainer.innerHTML = '';
-            
-            const filteredResults = {};
-            
-            Object.entries(currentBatchResults).forEach(([locale, result]) => {
-                let shouldShow = false;
-                
-                // Get the actual validation result
-                const validationResult = result.result || result;
-                const hasMetadataIssues = validationResult.metadata_issues && validationResult.metadata_issues.length > 0;
-                const hasLinkIssues = validationResult.links && validationResult.links.some(link => 
-                    link.status === 'FAIL' || (link.utm_issues && link.utm_issues.length > 0)
-                );
-                const hasAnyIssues = hasMetadataIssues || hasLinkIssues;
-                
-                switch(filterValue) {
-                    case 'all':
-                        shouldShow = true;
-                        break;
-                    case 'success':
-                        // Show only results with no metadata issues and all links passing
-                        shouldShow = result.status === 'success' && !hasMetadataIssues && !hasLinkIssues;
-                        break;
-                    case 'failed':
-                        // Show results with critical failures (error status or failed links)
-                        shouldShow = result.status === 'error' || result.status === 'failed' || hasLinkIssues;
-                        break;
-                    case 'warnings':
-                        // Show results with metadata issues but no critical failures
-                        shouldShow = result.status === 'success' && hasMetadataIssues && !hasLinkIssues;
-                        break;
-                }
-                
-                if (shouldShow) {
-                    filteredResults[locale] = result;
-                }
-            });
-            
-            // Rebuild the display with filtered results
-            buildResultsTabs(filteredResults);
-        }
-        
         // Build results tabs with content for batch processing
         function buildResultsTabsWithContent(results) {
             const tabsContainer = document.getElementById('batch-results-tabs');
@@ -4042,11 +3976,6 @@
             if (tabsContainer.firstChild) {
                 tabsContainer.firstChild.click();
             }
-        }
-        
-        // Build results tabs for filtering (simplified version)
-        function buildResultsTabs(results) {
-            buildResultsTabsWithContent(results);
         }
 
         // Display batch results
@@ -4983,7 +4912,7 @@
                         <div style="display: grid; grid-template-columns: 1fr; gap: 15px;">
                             <div>
                                 <label for="locale-sender-name-${locale}">Sender Name:</label>
-                                <input type="text" id="locale-sender-name-${locale}" class="form-control" placeholder="Marketing Team">
+                                <input type="text" id="locale-sender-name-${locale}" class="form-control" placeholder="Marketing Team" style="width: 600px; max-width: 100%;">
                             </div>
                             <div>
                                 <label for="locale-subject-${locale}">Subject:</label>
