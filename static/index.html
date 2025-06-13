@@ -4807,18 +4807,29 @@
             return result;
         }
         
-        // Display template detection results
+        // Display template detection results with comprehensive error handling
         function displayDetectionResults() {
             console.log('displayDetectionResults called');
-            const container = document.getElementById('templates-detection-results');
-            const uploadedList = document.getElementById('uploaded-templates-list');
             
-            console.log('Container element:', container);
-            console.log('Uploaded list element:', uploadedList);
-            
-            if (enhancedBatchTemplates.size === 0) {
-                if (container) container.innerHTML = '<p style="color: #718096;">No templates uploaded.</p>';
-                hideElement(uploadedList);
+            try {
+                const container = document.getElementById('templates-detection-results');
+                const uploadedList = document.getElementById('uploaded-templates-list');
+                
+                console.log('Container element:', container);
+                console.log('Uploaded list element:', uploadedList);
+                
+                if (!container) {
+                    console.error('templates-detection-results container not found');
+                    return;
+                }
+                
+                if (!enhancedBatchTemplates || enhancedBatchTemplates.size === 0) {
+                    container.innerHTML = '<p style="color: #718096;">No templates uploaded.</p>';
+                    hideElement(uploadedList);
+                    return;
+                }
+            } catch (error) {
+                console.error('Error in displayDetectionResults initialization:', error);
                 return;
             }
             
@@ -4830,12 +4841,15 @@
                 console.log('Forced uploadedList to display, current style:', uploadedList.style.cssText);
             }
             
-            let html = '<div style="display: grid; gap: 10px;">';
-            
-            enhancedBatchTemplates.forEach((templateData, filename) => {
-                const info = templateData.detected_info;
-                const hasErrors = info.errors.length > 0;
-                const borderColor = hasErrors ? '#e53e3e' : (info.locale ? '#48bb78' : '#f59e0b');
+            try {
+                let html = '<div style="display: grid; gap: 10px;">';
+                
+                enhancedBatchTemplates.forEach((templateData, filename) => {
+                    try {
+                        // Add null checks to prevent JavaScript errors in production
+                        const info = templateData.detected_info || {};
+                        const hasErrors = (info.errors && info.errors.length > 0) || false;
+                        const borderColor = hasErrors ? '#e53e3e' : (info.locale ? '#48bb78' : '#f59e0b');
                 
                 html += `
                     <div style="border: 2px solid ${borderColor}; border-radius: 8px; padding: 15px; background-color: white;">
@@ -4854,16 +4868,16 @@
                         ${hasErrors ? `
                             <div style="margin-top: 10px; padding: 8px; background-color: #fed7d7; border-radius: 4px;">
                                 <div style="color: #e53e3e; font-weight: bold; margin-bottom: 5px;">Issues:</div>
-                                ${info.errors.map(error => `<div style="color: #e53e3e; font-size: 0.9em;">• ${error}</div>`).join('')}
+                                ${(info.errors || []).map(error => `<div style="color: #e53e3e; font-size: 0.9em;">• ${error}</div>`).join('')}
                             </div>
                         ` : ''}
                     </div>
                 `;
             });
             
-            html += '</div>';
-            
-            if (detectedLocales.size > 0) {
+                html += '</div>';
+                
+                if (detectedLocales && detectedLocales.size > 0) {
                 html += `
                     <div style="margin-top: 20px; padding: 15px; background-color: #e6f3ff; border-radius: 8px;">
                         <h4 style="margin: 0 0 10px 0; color: #2563eb;">Detected Locales (${detectedLocales.size})</h4>
@@ -4876,14 +4890,20 @@
                 `;
             }
             
-            if (container) {
-                container.innerHTML = html;
-                container.style.display = 'block';
-                container.style.visibility = 'visible';
-                console.log('Updated container HTML, content length:', html.length);
-                console.log('Container display after update:', window.getComputedStyle(container).display);
-            } else {
-                console.error('Container element not found!');
+                if (container) {
+                    container.innerHTML = html;
+                    container.style.display = 'block';
+                    container.style.visibility = 'visible';
+                    console.log('Updated container HTML, content length:', html.length);
+                    console.log('Container display after update:', window.getComputedStyle(container).display);
+                } else {
+                    console.error('Container element not found!');
+                }
+            } catch (renderError) {
+                console.error('Error rendering detection results:', renderError);
+                if (container) {
+                    container.innerHTML = '<p style="color: #e53e3e;">Error displaying template results. Please refresh and try again.</p>';
+                }
             }
         }
         
