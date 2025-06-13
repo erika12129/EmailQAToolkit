@@ -175,6 +175,19 @@ async def read_root():
     
     return HTMLResponse(content=html_content, status_code=200)
 
+@app.get("/debug/routes")
+async def debug_routes():
+    """Debug endpoint to list all available routes."""
+    routes = []
+    for route in app.routes:
+        if hasattr(route, 'path') and hasattr(route, 'methods'):
+            routes.append({
+                'path': route.path,
+                'methods': list(route.methods),
+                'name': getattr(route, 'name', 'unnamed')
+            })
+    return {"routes": routes}
+
 @app.get("/test")
 async def test_page():
     """Serve a simple test page directly."""
