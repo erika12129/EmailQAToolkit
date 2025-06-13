@@ -1432,6 +1432,15 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
                 # Also set footer_campaign_code to match the same format
                 expected_metadata['footer_campaign_code'] = f"{campaign_code} - {country}"
         
+        # Special case: if footer_campaign_code is in expected metadata without country suffix,
+        # but we have country info, format it properly
+        if 'footer_campaign_code' in expected_metadata and 'country' in requirements:
+            footer_code = expected_metadata.get('footer_campaign_code')
+            country = requirements.get('country')
+            
+            if footer_code and country and not footer_code.endswith(f" - {country}"):
+                expected_metadata['footer_campaign_code'] = f"{footer_code} - {country}"
+        
         # Add copyright year as expected metadata for validation
         current_year = str(datetime.now().year)
         expected_metadata['copyright_year'] = current_year

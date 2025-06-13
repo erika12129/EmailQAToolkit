@@ -104,6 +104,13 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
+- **June 13, 2025**: Fixed critical campaign code validation bug in enhanced batch system
+  - Updated locale requirements generation to include country suffix for footer_campaign_code
+  - Enhanced metadata validation logic to properly format expected values as "ABC2505 - US"
+  - Fixed mismatch between expected "ABC2505" and actual "ABC2505 - US" causing false FAIL results
+  - Campaign code validation now consistently expects full format with country code
+  - Both email_qa_enhanced.py and locale_config.py updated for consistent handling
+
 - **June 13, 2025**: Enhanced batch processing system completed with UI improvements
   - Multi-file upload with automatic locale detection from HTML lang attributes and campaign codes
   - Fixed step progression to show all 5 steps: Upload → Locale Detection → Global Settings → Locale Content → Process

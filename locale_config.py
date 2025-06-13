@@ -94,6 +94,12 @@ def generate_locale_requirements(base_requirements: dict, locale: str) -> dict:
         # If campaign code doesn't already have country, add it
         locale_req["campaign_code"] = f"{base_campaign_code} - {locale_config['country']}"
     
+    # Also update footer_campaign_code in metadata if it exists
+    if "metadata" in locale_req and "footer_campaign_code" in locale_req["metadata"]:
+        footer_code = locale_req["metadata"]["footer_campaign_code"]
+        if footer_code and " - " not in footer_code:
+            locale_req["metadata"]["footer_campaign_code"] = f"{footer_code} - {locale_config['country']}"
+    
     # Update domain with URL parameters
     base_domain = locale_req.get("domain", "")
     if locale == "en_US":
