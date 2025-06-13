@@ -950,6 +950,12 @@
             const file = event.target.files[0];
             const statusSpan = document.querySelector(`span[data-locale="${locale}"]`);
             
+            // Add null safety check
+            if (!statusSpan) {
+                console.warn(`Status span for locale ${locale} not found`);
+                return;
+            }
+            
             if (file) {
                 uploadedTemplates.set(locale, file);
                 statusSpan.textContent = `✓ ${file.name}`;
@@ -964,10 +970,22 @@
         // Update locale preview select dropdowns for both sides
         function updateLocalePreviewSelects() {
             const rightSelect = document.getElementById('right-locale-select');
+            
+            // Add null safety check for the select element
+            if (!rightSelect) {
+                console.warn('right-locale-select element not found');
+                return;
+            }
+            
             rightSelect.innerHTML = '<option value="">Select locale...</option>';
             
             selectedLocales.forEach(locale => {
                 const localeConfig = availableLocales.find(l => l.code === locale);
+                if (!localeConfig) {
+                    console.warn(`Locale config not found for ${locale}`);
+                    return;
+                }
+                
                 const option = document.createElement('option');
                 option.value = locale;
                 option.textContent = localeConfig.display_name;
@@ -1131,54 +1149,62 @@
             transactionalRadio.addEventListener('change', setDefaultsByEmailType);
         }
         
-        // Toggle between form fields and JSON upload
-        toggleButton.addEventListener('click', function() {
-            useJsonUpload = !useJsonUpload;
-            
-            if (useJsonUpload) {
-                hideElement(requirementsForm);
-                showElement(jsonUploadContainer);
-                toggleButton.textContent = 'Switch to Form Fields';
-            } else {
-                showElement(requirementsForm);
-                hideElement(jsonUploadContainer);
-                toggleButton.textContent = 'Switch to JSON';
-            }
-        });
+        // Toggle between form fields and JSON upload (with null safety)
+        if (toggleButton) {
+            toggleButton.addEventListener('click', function() {
+                useJsonUpload = !useJsonUpload;
+                
+                if (useJsonUpload) {
+                    if (requirementsForm) hideElement(requirementsForm);
+                    if (jsonUploadContainer) showElement(jsonUploadContainer);
+                    toggleButton.textContent = 'Switch to Form Fields';
+                } else {
+                    if (requirementsForm) showElement(requirementsForm);
+                    if (jsonUploadContainer) hideElement(jsonUploadContainer);
+                    toggleButton.textContent = 'Switch to JSON';
+                }
+            });
+        }
         
-        // Update file name display
-        emailFileInput.addEventListener('change', function() {
-            if (this.files.length > 0) {
-                emailFileName.textContent = this.files[0].name;
-            } else {
-                emailFileName.textContent = '';
-            }
-            hideElement(errorMessage);
-        });
+        // Update file name display (with null safety)
+        if (emailFileInput && emailFileName) {
+            emailFileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    emailFileName.textContent = this.files[0].name;
+                } else {
+                    emailFileName.textContent = '';
+                }
+                if (errorMessage) hideElement(errorMessage);
+            });
+        }
         
-        reqFileInput.addEventListener('change', function() {
-            if (this.files.length > 0) {
-                reqFileName.textContent = this.files[0].name;
-            } else {
-                reqFileName.textContent = '';
-            }
-            hideElement(errorMessage);
-        });
+        if (reqFileInput && reqFileName) {
+            reqFileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    reqFileName.textContent = this.files[0].name;
+                } else {
+                    reqFileName.textContent = '';
+                }
+                if (errorMessage) hideElement(errorMessage);
+            });
+        }
         
-        // Toggle between JSON file upload and JSON textarea
-        toggleJsonInputButton.addEventListener('click', function() {
-            useJsonTextarea = !useJsonTextarea;
-            
-            if (useJsonTextarea) {
-                hideElement(jsonFileContainer);
-                showElement(jsonEditorContainer);
-                toggleJsonInputButton.textContent = 'Switch to File Upload';
-            } else {
-                showElement(jsonFileContainer);
-                hideElement(jsonEditorContainer);
-                toggleJsonInputButton.textContent = 'Switch to JSON Editor';
-            }
-        });
+        // Toggle between JSON file upload and JSON textarea (with null safety)
+        if (toggleJsonInputButton) {
+            toggleJsonInputButton.addEventListener('click', function() {
+                useJsonTextarea = !useJsonTextarea;
+                
+                if (useJsonTextarea) {
+                    if (jsonFileContainer) hideElement(jsonFileContainer);
+                    if (jsonEditorContainer) showElement(jsonEditorContainer);
+                    toggleJsonInputButton.textContent = 'Switch to File Upload';
+                } else {
+                    if (jsonFileContainer) showElement(jsonFileContainer);
+                    if (jsonEditorContainer) hideElement(jsonEditorContainer);
+                    toggleJsonInputButton.textContent = 'Switch to JSON Editor';
+                }
+            });
+        }
         
         // JSON validation function
         function validateJson(jsonString) {
