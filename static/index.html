@@ -4873,7 +4873,16 @@
                         ` : ''}
                     </div>
                 `;
-            });
+                    } catch (templateError) {
+                        console.error(`Error processing template ${filename}:`, templateError);
+                        html += `
+                            <div style="border: 2px solid #e53e3e; border-radius: 8px; padding: 15px; background-color: white;">
+                                <h4 style="margin: 0; color: #e53e3e;">${filename}</h4>
+                                <p style="color: #e53e3e; margin: 10px 0 0 0;">Error processing template</p>
+                            </div>
+                        `;
+                    }
+                });
             
                 html += '</div>';
                 
