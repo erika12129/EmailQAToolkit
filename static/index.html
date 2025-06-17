@@ -198,6 +198,25 @@
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
             background-color: #fff;
         }
+        
+        /* Form control styling for dropdowns and selects */
+        .form-control, select {
+            width: auto;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: #f7fafc;
+            color: #4a5568;
+        }
+        
+        .form-control:focus, select:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+            background-color: #fff;
+        }
         #requirements-form {
             padding: 16px;
             background-color: #f8fafc;
@@ -529,10 +548,10 @@
                     </div>
                 </div>
                 
-                <!-- Timeout dropdown in its own row -->
-                <div style="margin-bottom: 15px;">
-                    <label for="selected-timeout">Product Table Detection Timeout:</label>
-                    <select id="selected-timeout" class="form-control" style="margin-left: 5px;">
+                <!-- Timeout dropdown in its own row with proper styling -->
+                <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <label for="selected-timeout" style="font-weight: 500; color: #4a5568; white-space: nowrap;">Product Table Detection Timeout:</label>
+                    <select id="selected-timeout" class="form-control" style="min-width: 250px;">
                         <option value="5">5 seconds (default)</option>
                         <option value="10">10 seconds</option>
                         <option value="30">30 seconds</option>
@@ -3273,15 +3292,20 @@
                 
                 // Only display product table status if it was explicitly checked and exists in the response
                 if (item.product_table_checked === true) {
+                    // Check multiple possible fields for product table detection
+                    const productTableFound = item.has_product_table === true || 
+                                            item.product_table_found === true ||
+                                            (item.product_table_class && item.product_table_class !== 'None');
+                    
                     // If product table was found, update accordingly
-                    if (item.has_product_table === true) {
+                    if (productTableFound) {
                         hasProductTable = true;
                         statusSpan.textContent = 'Yes';
                         statusSpan.style.color = '#38a169'; // Green
                         row.style.backgroundColor = '#f0fff4'; // Light green background
                         
                         // Add class name if available
-                        if (item.product_table_class) {
+                        if (item.product_table_class && item.product_table_class !== 'None') {
                             const classSpan = document.createElement('span');
                             classSpan.style.fontSize = '0.9em';
                             classSpan.style.display = 'block';
@@ -3290,14 +3314,26 @@
                             statusContainer.appendChild(classSpan);
                         }
                         
+                        // Add detection method if available
+                        if (item.product_table_detection_method) {
+                            const methodSpan = document.createElement('span');
+                            methodSpan.style.fontSize = '0.9em';
+                            methodSpan.style.display = 'block';
+                            methodSpan.style.color = '#718096'; // Gray
+                            methodSpan.textContent = `Method: ${item.product_table_detection_method}`;
+                            statusContainer.appendChild(methodSpan);
+                        }
+                        
                         // Log for debugging
                         console.log("Product table found for URL: " + item.url);
                         if (item.product_table_class) {
                             console.log(`Found product table with class: ${item.product_table_class}`);
                         }
                     } 
-                    // Handle case where manual verification is required (found is null)
-                    else if (item.has_product_table === null || item.product_table_detection_method === 'manual_check_required') {
+                    // Handle case where manual verification is required (found is null or detection method indicates manual check)
+                    else if (item.has_product_table === null || 
+                            item.product_table_detection_method === 'manual_check_required' ||
+                            item.product_table_detection_method === 'browser_unavailable') {
                         statusSpan.textContent = 'Unknown';
                         statusSpan.style.color = '#dd6b20'; // Orange
                         
