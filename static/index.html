@@ -50,6 +50,56 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
+        
+        /* Ensure batch form respects container width limits */
+        #batch-form {
+            max-width: none; /* Reset any conflicting max-width */
+            width: 100%; /* Use full container width */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+        
+        /* Ensure all content within batch form respects container boundaries */
+        #batch-form * {
+            box-sizing: border-box;
+        }
+        
+        /* Prevent batch form sections from exceeding container width */
+        #batch-form > div,
+        #locale-forms-container,
+        #batch-results-section,
+        #batch-progress-section {
+            max-width: 100%;
+            overflow-x: auto; /* Handle overflow gracefully */
+        }
+        
+        /* Ensure input fields in batch form don't exceed container width */
+        #batch-form .text-input,
+        #batch-form input[type="text"],
+        #batch-form input[type="url"],
+        #batch-form textarea {
+            max-width: 100%;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* Ensure tables in batch results respect container width */
+        #batch-form table {
+            max-width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+        }
+        
+        /* Responsive design for locale forms */
+        .locale-form {
+            max-width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        /* Ensure batch results content doesn't overflow */
+        #batch-results-content {
+            max-width: 100%;
+            overflow-x: auto;
+        }
         h1 {
             text-align: center;
             margin-bottom: 20px;
