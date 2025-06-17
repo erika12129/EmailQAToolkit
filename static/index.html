@@ -3293,9 +3293,12 @@
                 // Only display product table status if it was explicitly checked and exists in the response
                 if (item.product_table_checked === true) {
                     // Check multiple possible fields for product table detection
+                    // Priority: Check if found is explicitly true first, regardless of detection method
                     const productTableFound = item.has_product_table === true || 
                                             item.product_table_found === true ||
-                                            (item.product_table_class && item.product_table_class !== 'None');
+                                            item.found === true ||
+                                            (item.product_table_class && item.product_table_class !== 'None' && item.product_table_class !== null) ||
+                                            (item.class_name && item.class_name !== 'None' && item.class_name !== null);
                     
                     // If product table was found, update accordingly
                     if (productTableFound) {
@@ -3304,36 +3307,53 @@
                         statusSpan.style.color = '#38a169'; // Green
                         row.style.backgroundColor = '#f0fff4'; // Light green background
                         
-                        // Add class name if available
-                        if (item.product_table_class && item.product_table_class !== 'None') {
+                        // Add class name if available - check both possible field names
+                        const className = item.product_table_class || item.class_name;
+                        if (className && className !== 'None' && className !== null) {
                             const classSpan = document.createElement('span');
                             classSpan.style.fontSize = '0.9em';
                             classSpan.style.display = 'block';
                             classSpan.style.color = '#718096'; // Gray
-                            classSpan.textContent = `Class: ${item.product_table_class}`;
+                            classSpan.textContent = `Class: ${className}`;
                             statusContainer.appendChild(classSpan);
                         }
                         
-                        // Add detection method if available
-                        if (item.product_table_detection_method) {
+                        // Add detection method if available - check both possible field names
+                        const detectionMethod = item.product_table_detection_method || item.detection_method;
+                        if (detectionMethod) {
                             const methodSpan = document.createElement('span');
                             methodSpan.style.fontSize = '0.9em';
                             methodSpan.style.display = 'block';
                             methodSpan.style.color = '#718096'; // Gray
-                            methodSpan.textContent = `Method: ${item.product_table_detection_method}`;
+                            methodSpan.textContent = `Method: ${detectionMethod}`;
                             statusContainer.appendChild(methodSpan);
                         }
                         
                         // Log for debugging
                         console.log("Product table found for URL: " + item.url);
-                        if (item.product_table_class) {
-                            console.log(`Found product table with class: ${item.product_table_class}`);
+                        const logClassName = item.product_table_class || item.class_name;
+                        if (logClassName) {
+                            console.log(`Found product table with class: ${logClassName}`);
                         }
                     } 
-                    // Handle case where manual verification is required (found is null or detection method indicates manual check)
-                    else if (item.has_product_table === null || 
-                            item.product_table_detection_method === 'manual_check_required' ||
-                            item.product_table_detection_method === 'browser_unavailable') {
+                    // Handle case where product table was explicitly not found
+                    else if (item.has_product_table === false || item.product_table_found === false || item.found === false) {
+                        statusSpan.textContent = 'No';
+                        statusSpan.style.color = '#4a5568'; // Gray
+                        
+                        // Add detection method if available
+                        const detectionMethod = item.product_table_detection_method || item.detection_method;
+                        if (detectionMethod) {
+                            const methodSpan = document.createElement('span');
+                            methodSpan.style.fontSize = '0.9em';
+                            methodSpan.style.display = 'block';
+                            methodSpan.style.color = '#718096'; // Gray
+                            methodSpan.textContent = `Method: ${detectionMethod}`;
+                            statusContainer.appendChild(methodSpan);
+                        }
+                    }
+                    // Handle case where manual verification is required (found is null and no class found)
+                    else {
                         statusSpan.textContent = 'Unknown';
                         statusSpan.style.color = '#dd6b20'; // Orange
                         
@@ -3343,25 +3363,24 @@
                         manualCheckDiv.style.marginTop = '4px';
                         manualCheckDiv.style.color = '#4299e1'; // Blue
                         
-                        if (item.product_table_message) {
-                            manualCheckDiv.textContent = item.product_table_message;
+                        const message = item.product_table_message || item.message;
+                        if (message) {
+                            manualCheckDiv.textContent = message;
                         } else {
                             manualCheckDiv.textContent = 'Unknown - Browser automation unavailable - manual verification required';
                         }
                         statusContainer.appendChild(manualCheckDiv);
                         
                         // Add detection method if available
-                        if (item.product_table_detection_method) {
+                        const detectionMethod = item.product_table_detection_method || item.detection_method;
+                        if (detectionMethod) {
                             const methodSpan = document.createElement('span');
                             methodSpan.style.fontSize = '0.9em';
                             methodSpan.style.display = 'block';
                             methodSpan.style.color = '#718096'; // Gray
-                            methodSpan.textContent = `Method: ${item.product_table_detection_method}`;
+                            methodSpan.textContent = `Method: ${detectionMethod}`;
                             statusContainer.appendChild(methodSpan);
                         }
-                    } else {
-                        statusSpan.textContent = 'No';
-                        statusSpan.style.color = '#4a5568'; // Gray
                     }
                     
                     // Show errors for any checked page
