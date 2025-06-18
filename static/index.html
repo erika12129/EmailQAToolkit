@@ -232,19 +232,67 @@
             overflow: visible;
         }
         
-        /* Fix for all select dropdowns in production - reset to native appearance */
-        select {
-            appearance: menulist !important;
-            -webkit-appearance: menulist !important;
-            -moz-appearance: menulist !important;
-            background-image: none !important;
-            padding-right: 12px !important;
+        /* Custom dropdown styling that works across all environments */
+        .custom-dropdown {
+            position: relative;
+            display: inline-block;
+            min-width: 250px;
         }
         
-        /* Ensure native dropdown behavior is preserved */
-        select option {
+        .custom-dropdown-button {
+            width: 100%;
+            padding: 8px 30px 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            background-color: #f7fafc;
+            color: #4a5568;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            position: relative;
+        }
+        
+        .custom-dropdown-button:after {
+            content: '▼';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .custom-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
             background: white;
-            color: black;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .custom-dropdown-menu.open {
+            display: block;
+        }
+        
+        .custom-dropdown-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .custom-dropdown-option:hover {
+            background-color: #f8fafc;
+        }
+        
+        .custom-dropdown-option:last-child {
+            border-bottom: none;
         }
         #requirements-form {
             padding: 16px;
@@ -579,13 +627,17 @@
                 
                 <!-- Timeout dropdown in its own row with proper styling -->
                 <div class="timeout-dropdown-container" style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
-                    <label for="selected-timeout" style="font-weight: 500; color: #4a5568; white-space: nowrap;">Product Table Detection Timeout:</label>
-                    <select id="selected-timeout" class="form-control" style="min-width: 250px;">
-                        <option value="5">5 seconds (default)</option>
-                        <option value="10">10 seconds</option>
-                        <option value="30">30 seconds</option>
-                        <option value="60">60 seconds (slow connections)</option>
-                    </select>
+                    <label style="font-weight: 500; color: #4a5568; white-space: nowrap;">Product Table Detection Timeout:</label>
+                    <div class="custom-dropdown" id="timeout-dropdown">
+                        <div class="custom-dropdown-button" id="timeout-button">5 seconds (default)</div>
+                        <div class="custom-dropdown-menu" id="timeout-menu">
+                            <div class="custom-dropdown-option" data-value="5">5 seconds (default)</div>
+                            <div class="custom-dropdown-option" data-value="10">10 seconds</div>
+                            <div class="custom-dropdown-option" data-value="30">30 seconds</div>
+                            <div class="custom-dropdown-option" data-value="60">60 seconds (slow connections)</div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="selected-timeout" value="5">
                 </div>
                 
                 <!-- All buttons in a single row with consistent spacing -->
@@ -4430,14 +4482,18 @@
                     <p style="margin: 0; font-size: 0.9em; color: #dc2626;">Warning: Browser automation should be available in deployment - check server configuration.</p>
                 </div>
                 
-                <div class="timeout-dropdown-container" style="margin-bottom: 15px;">
-                    <label for="batch-timeout-${locale}" style="font-weight: 500; color: #4a5568;">Product Table Detection Timeout:</label>
-                    <select id="batch-timeout-${locale}" class="form-control" style="margin-left: 10px; min-width: 250px;">
-                        <option value="5">5 seconds (default)</option>
-                        <option value="10">10 seconds</option>
-                        <option value="30">30 seconds</option>
-                        <option value="60">60 seconds (slow connections)</option>
-                    </select>
+                <div class="timeout-dropdown-container" style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <label style="font-weight: 500; color: #4a5568; white-space: nowrap;">Product Table Detection Timeout:</label>
+                    <div class="custom-dropdown" id="batch-timeout-dropdown-${locale}">
+                        <div class="custom-dropdown-button batch-timeout-button" id="batch-timeout-button-${locale}">5 seconds (default)</div>
+                        <div class="custom-dropdown-menu" id="batch-timeout-menu-${locale}">
+                            <div class="custom-dropdown-option batch-timeout-option" data-value="5">5 seconds (default)</div>
+                            <div class="custom-dropdown-option batch-timeout-option" data-value="10">10 seconds</div>
+                            <div class="custom-dropdown-option batch-timeout-option" data-value="30">30 seconds</div>
+                            <div class="custom-dropdown-option batch-timeout-option" data-value="60">60 seconds (slow connections)</div>
+                        </div>
+                    </div>
+                    <input type="hidden" class="batch-timeout-hidden" id="batch-timeout-${locale}" value="5">
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
@@ -5596,6 +5652,73 @@
             url.searchParams.set('cc', country);
             return url.toString();
         }
+
+        // Custom dropdown functionality for consistent behavior across environments
+        function initializeCustomDropdowns() {
+            // Initialize timeout dropdown
+            const timeoutDropdown = document.getElementById('timeout-dropdown');
+            const timeoutButton = document.getElementById('timeout-button');
+            const timeoutMenu = document.getElementById('timeout-menu');
+            const timeoutHidden = document.getElementById('selected-timeout');
+
+            if (timeoutButton && timeoutMenu) {
+                // Toggle dropdown menu
+                timeoutButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    timeoutMenu.classList.toggle('open');
+                });
+
+                // Handle option selection
+                timeoutMenu.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('custom-dropdown-option')) {
+                        const value = e.target.getAttribute('data-value');
+                        const text = e.target.textContent;
+                        
+                        timeoutButton.textContent = text;
+                        timeoutHidden.value = value;
+                        timeoutMenu.classList.remove('open');
+                    }
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!timeoutDropdown.contains(e.target)) {
+                        timeoutMenu.classList.remove('open');
+                    }
+                });
+            }
+
+            // Initialize batch timeout dropdowns (they get created dynamically)
+            initializeBatchTimeoutDropdowns();
+        }
+
+        function initializeBatchTimeoutDropdowns() {
+            // This will be called when batch dropdowns are created
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('batch-timeout-button')) {
+                    e.stopPropagation();
+                    const dropdown = e.target.closest('.custom-dropdown');
+                    const menu = dropdown.querySelector('.custom-dropdown-menu');
+                    menu.classList.toggle('open');
+                } else if (e.target.classList.contains('batch-timeout-option')) {
+                    const value = e.target.getAttribute('data-value');
+                    const text = e.target.textContent;
+                    const dropdown = e.target.closest('.custom-dropdown');
+                    const button = dropdown.querySelector('.batch-timeout-button');
+                    const hidden = dropdown.querySelector('.batch-timeout-hidden');
+                    const menu = dropdown.querySelector('.custom-dropdown-menu');
+                    
+                    button.textContent = text;
+                    hidden.value = value;
+                    menu.classList.remove('open');
+                }
+            });
+        }
+
+        // Initialize dropdowns when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCustomDropdowns();
+        });
 
     </script>
 </body>
