@@ -104,6 +104,14 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
+- **June 18, 2025**: RESOLVED application startup and port configuration issues
+  - Fixed deploy.py and main.py to use port 5000 for Replit compatibility
+  - Server now starts successfully with all modules loading properly
+  - Cloud browser automation working with ScrapingBee API integration
+  - Application handling HTTP requests correctly with 200 status responses
+  - Frontend interface loading with proper configuration and cloud browser support
+  - All email validation and batch processing functionality operational
+
 - **June 18, 2025**: RESOLVED timeout dropdown UI consistency issues across all deployment environments
   - Implemented custom dropdown solution to replace native select elements that were rendering inconsistently
   - Fixed dropdown positioning issues that appeared detached in production environments using Chrome on macOS
