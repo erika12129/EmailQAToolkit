@@ -50,6 +50,56 @@
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
+        
+        /* Ensure batch form respects container width limits */
+        #batch-form {
+            max-width: none; /* Reset any conflicting max-width */
+            width: 100%; /* Use full container width */
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+        
+        /* Ensure all content within batch form respects container boundaries */
+        #batch-form * {
+            box-sizing: border-box;
+        }
+        
+        /* Prevent batch form sections from exceeding container width */
+        #batch-form > div,
+        #locale-forms-container,
+        #batch-results-section,
+        #batch-progress-section {
+            max-width: 100%;
+            overflow-x: auto; /* Handle overflow gracefully */
+        }
+        
+        /* Ensure input fields in batch form don't exceed container width */
+        #batch-form .text-input,
+        #batch-form input[type="text"],
+        #batch-form input[type="url"],
+        #batch-form textarea {
+            max-width: 100%;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        /* Ensure tables in batch results respect container width */
+        #batch-form table {
+            max-width: 100%;
+            table-layout: fixed;
+            word-wrap: break-word;
+        }
+        
+        /* Responsive design for locale forms */
+        .locale-form {
+            max-width: 100%;
+            margin-bottom: 20px;
+        }
+        
+        /* Ensure batch results content doesn't overflow */
+        #batch-results-content {
+            max-width: 100%;
+            overflow-x: auto;
+        }
         h1 {
             text-align: center;
             margin-bottom: 20px;
@@ -147,6 +197,102 @@
             border-color: #4299e1;
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
             background-color: #fff;
+        }
+        
+        /* Form control styling for dropdowns and selects */
+        .form-control, select {
+            width: auto;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: #f7fafc;
+            color: #4a5568;
+        }
+        
+        .form-control:focus, select:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
+            background-color: #fff;
+        }
+        
+        /* Specific styling for timeout dropdown - use native browser behavior */
+        #selected-timeout {
+            min-width: 250px;
+            position: static !important;
+            z-index: auto !important;
+        }
+        
+        /* Container for timeout dropdown to ensure proper overflow handling */
+        .timeout-dropdown-container {
+            position: relative;
+            z-index: 999;
+            overflow: visible;
+        }
+        
+        /* Custom dropdown styling that works across all environments */
+        .custom-dropdown {
+            position: relative;
+            display: inline-block;
+            min-width: 250px;
+        }
+        
+        .custom-dropdown-button {
+            width: 100%;
+            padding: 8px 30px 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            background-color: #f7fafc;
+            color: #4a5568;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            position: relative;
+        }
+        
+        .custom-dropdown-button:after {
+            content: '▼';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .custom-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .custom-dropdown-menu.open {
+            display: block;
+        }
+        
+        .custom-dropdown-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .custom-dropdown-option:hover {
+            background-color: #f8fafc;
+        }
+        
+        .custom-dropdown-option:last-child {
+            border-bottom: none;
         }
         #requirements-form {
             padding: 16px;
@@ -479,15 +625,19 @@
                     </div>
                 </div>
                 
-                <!-- Timeout dropdown in its own row -->
-                <div style="margin-bottom: 15px;">
-                    <label for="selected-timeout">Product Table Detection Timeout:</label>
-                    <select id="selected-timeout" class="form-control" style="margin-left: 5px;">
-                        <option value="5">5 seconds (default)</option>
-                        <option value="10">10 seconds</option>
-                        <option value="30">30 seconds</option>
-                        <option value="60">60 seconds (slow connections)</option>
-                    </select>
+                <!-- Timeout dropdown in its own row with proper styling -->
+                <div class="timeout-dropdown-container" style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <label style="font-weight: 500; color: #4a5568; white-space: nowrap;">Product Table Detection Timeout:</label>
+                    <div class="custom-dropdown" id="timeout-dropdown">
+                        <div class="custom-dropdown-button" id="timeout-button">5 seconds (default)</div>
+                        <div class="custom-dropdown-menu" id="timeout-menu">
+                            <div class="custom-dropdown-option" data-value="5">5 seconds (default)</div>
+                            <div class="custom-dropdown-option" data-value="10">10 seconds</div>
+                            <div class="custom-dropdown-option" data-value="30">30 seconds</div>
+                            <div class="custom-dropdown-option" data-value="60">60 seconds (slow connections)</div>
+                        </div>
+                    </div>
+                    <input type="hidden" id="selected-timeout" value="5">
                 </div>
                 
                 <!-- All buttons in a single row with consistent spacing -->
@@ -516,10 +666,9 @@
                 </tbody>
             </table>
         </div>
-    </div>
-
-    <!-- Enhanced Batch Processing Form (hidden by default) -->
-    <div id="batch-form" class="hidden" style="background-color: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 20px;">
+        
+        <!-- Enhanced Batch Processing Form (hidden by default) -->
+        <div id="batch-form" class="hidden" style="background-color: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-top: 20px;">
         <h2 style="margin-top: 0;">Enhanced Batch Processing</h2>
         
         <!-- Step 1: Multi-File Template Upload -->
@@ -640,6 +789,8 @@
             <div id="batch-results-content">
                 <!-- Individual locale results will be displayed here -->
             </div>
+        </div>
+        <!-- End of Enhanced Batch Processing Form -->
         </div>
     </div>
 
@@ -3222,31 +3373,68 @@
                 
                 // Only display product table status if it was explicitly checked and exists in the response
                 if (item.product_table_checked === true) {
+                    // Check multiple possible fields for product table detection
+                    // Priority: Check if found is explicitly true first, regardless of detection method
+                    const productTableFound = item.has_product_table === true || 
+                                            item.product_table_found === true ||
+                                            item.found === true ||
+                                            (item.product_table_class && item.product_table_class !== 'None' && item.product_table_class !== null) ||
+                                            (item.class_name && item.class_name !== 'None' && item.class_name !== null);
+                    
                     // If product table was found, update accordingly
-                    if (item.has_product_table === true) {
+                    if (productTableFound) {
                         hasProductTable = true;
                         statusSpan.textContent = 'Yes';
                         statusSpan.style.color = '#38a169'; // Green
                         row.style.backgroundColor = '#f0fff4'; // Light green background
                         
-                        // Add class name if available
-                        if (item.product_table_class) {
+                        // Add class name if available - check both possible field names
+                        const className = item.product_table_class || item.class_name;
+                        if (className && className !== 'None' && className !== null) {
                             const classSpan = document.createElement('span');
                             classSpan.style.fontSize = '0.9em';
                             classSpan.style.display = 'block';
                             classSpan.style.color = '#718096'; // Gray
-                            classSpan.textContent = `Class: ${item.product_table_class}`;
+                            classSpan.textContent = `Class: ${className}`;
                             statusContainer.appendChild(classSpan);
+                        }
+                        
+                        // Add detection method if available - check both possible field names
+                        const detectionMethod = item.product_table_detection_method || item.detection_method;
+                        if (detectionMethod) {
+                            const methodSpan = document.createElement('span');
+                            methodSpan.style.fontSize = '0.9em';
+                            methodSpan.style.display = 'block';
+                            methodSpan.style.color = '#718096'; // Gray
+                            methodSpan.textContent = `Method: ${detectionMethod}`;
+                            statusContainer.appendChild(methodSpan);
                         }
                         
                         // Log for debugging
                         console.log("Product table found for URL: " + item.url);
-                        if (item.product_table_class) {
-                            console.log(`Found product table with class: ${item.product_table_class}`);
+                        const logClassName = item.product_table_class || item.class_name;
+                        if (logClassName) {
+                            console.log(`Found product table with class: ${logClassName}`);
                         }
                     } 
-                    // Handle case where manual verification is required (found is null)
-                    else if (item.has_product_table === null || item.product_table_detection_method === 'manual_check_required') {
+                    // Handle case where product table was explicitly not found
+                    else if (item.has_product_table === false || item.product_table_found === false || item.found === false) {
+                        statusSpan.textContent = 'No';
+                        statusSpan.style.color = '#4a5568'; // Gray
+                        
+                        // Add detection method if available
+                        const detectionMethod = item.product_table_detection_method || item.detection_method;
+                        if (detectionMethod) {
+                            const methodSpan = document.createElement('span');
+                            methodSpan.style.fontSize = '0.9em';
+                            methodSpan.style.display = 'block';
+                            methodSpan.style.color = '#718096'; // Gray
+                            methodSpan.textContent = `Method: ${detectionMethod}`;
+                            statusContainer.appendChild(methodSpan);
+                        }
+                    }
+                    // Handle case where manual verification is required (found is null and no class found)
+                    else {
                         statusSpan.textContent = 'Unknown';
                         statusSpan.style.color = '#dd6b20'; // Orange
                         
@@ -3256,25 +3444,24 @@
                         manualCheckDiv.style.marginTop = '4px';
                         manualCheckDiv.style.color = '#4299e1'; // Blue
                         
-                        if (item.product_table_message) {
-                            manualCheckDiv.textContent = item.product_table_message;
+                        const message = item.product_table_message || item.message;
+                        if (message) {
+                            manualCheckDiv.textContent = message;
                         } else {
                             manualCheckDiv.textContent = 'Unknown - Browser automation unavailable - manual verification required';
                         }
                         statusContainer.appendChild(manualCheckDiv);
                         
                         // Add detection method if available
-                        if (item.product_table_detection_method) {
+                        const detectionMethod = item.product_table_detection_method || item.detection_method;
+                        if (detectionMethod) {
                             const methodSpan = document.createElement('span');
                             methodSpan.style.fontSize = '0.9em';
                             methodSpan.style.display = 'block';
                             methodSpan.style.color = '#718096'; // Gray
-                            methodSpan.textContent = `Method: ${item.product_table_detection_method}`;
+                            methodSpan.textContent = `Method: ${detectionMethod}`;
                             statusContainer.appendChild(methodSpan);
                         }
-                    } else {
-                        statusSpan.textContent = 'No';
-                        statusSpan.style.color = '#4a5568'; // Gray
                     }
                     
                     // Show errors for any checked page
@@ -4295,14 +4482,18 @@
                     <p style="margin: 0; font-size: 0.9em; color: #dc2626;">Warning: Browser automation should be available in deployment - check server configuration.</p>
                 </div>
                 
-                <div style="margin-bottom: 15px;">
-                    <label for="batch-timeout-${locale}">Product Table Detection Timeout:</label>
-                    <select id="batch-timeout-${locale}" style="margin-left: 5px; padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-                        <option value="5">5 seconds (default)</option>
-                        <option value="10">10 seconds</option>
-                        <option value="30">30 seconds</option>
-                        <option value="60">60 seconds (slow connections)</option>
-                    </select>
+                <div class="timeout-dropdown-container" style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px;">
+                    <label style="font-weight: 500; color: #4a5568; white-space: nowrap;">Product Table Detection Timeout:</label>
+                    <div class="custom-dropdown" id="batch-timeout-dropdown-${locale}">
+                        <div class="custom-dropdown-button batch-timeout-button" id="batch-timeout-button-${locale}">5 seconds (default)</div>
+                        <div class="custom-dropdown-menu" id="batch-timeout-menu-${locale}">
+                            <div class="custom-dropdown-option batch-timeout-option" data-value="5">5 seconds (default)</div>
+                            <div class="custom-dropdown-option batch-timeout-option" data-value="10">10 seconds</div>
+                            <div class="custom-dropdown-option batch-timeout-option" data-value="30">30 seconds</div>
+                            <div class="custom-dropdown-option batch-timeout-option" data-value="60">60 seconds (slow connections)</div>
+                        </div>
+                    </div>
+                    <input type="hidden" class="batch-timeout-hidden" id="batch-timeout-${locale}" value="5">
                 </div>
                 
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
@@ -4720,7 +4911,9 @@
                         // Update step 2 status based on results
                         if (detectionStatus) {
                         if (detectedLocales.size > 0) {
-                            detectionStatus.innerHTML = '<p style="margin: 0; color: #155724; background-color: #c6f6d5; padding: 10px; border-radius: 4px;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
+                            // Update the entire status container to green styling matching other completed sections
+                            detectionStatus.style.cssText = 'padding: 20px; background-color: #d4edda; border: 1px solid #28a745; border-radius: 8px; text-align: center;';
+                            detectionStatus.innerHTML = '<p style="margin: 0; color: #155724;">✓ Detected ' + detectedLocales.size + ' locales from ' + files.length + ' templates</p>';
                             
                             // Force show step 3 - Global Requirements
                             const globalSection = document.getElementById('global-requirements-section');
@@ -5461,6 +5654,84 @@
             url.searchParams.set('cc', country);
             return url.toString();
         }
+
+        // Custom dropdown functionality for consistent behavior across environments
+        function initializeCustomDropdowns() {
+            // Initialize timeout dropdown
+            const timeoutDropdown = document.getElementById('timeout-dropdown');
+            const timeoutButton = document.getElementById('timeout-button');
+            const timeoutMenu = document.getElementById('timeout-menu');
+            const timeoutHidden = document.getElementById('selected-timeout');
+
+            if (timeoutButton && timeoutMenu) {
+                // Toggle dropdown menu
+                timeoutButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    timeoutMenu.classList.toggle('open');
+                });
+
+                // Handle option selection
+                timeoutMenu.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('custom-dropdown-option')) {
+                        e.stopPropagation();
+                        const value = e.target.getAttribute('data-value');
+                        const text = e.target.textContent;
+                        
+                        if (value && text) {
+                            timeoutButton.textContent = text;
+                            timeoutHidden.value = value;
+                            timeoutMenu.classList.remove('open');
+                        }
+                    }
+                });
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', function(e) {
+                    if (!timeoutDropdown.contains(e.target)) {
+                        timeoutMenu.classList.remove('open');
+                    }
+                });
+            }
+
+            // Initialize batch timeout dropdowns (they get created dynamically)
+            initializeBatchTimeoutDropdowns();
+        }
+
+        function initializeBatchTimeoutDropdowns() {
+            // This will be called when batch dropdowns are created
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('batch-timeout-button')) {
+                    e.stopPropagation();
+                    const dropdown = e.target.closest('.custom-dropdown');
+                    if (dropdown) {
+                        const menu = dropdown.querySelector('.custom-dropdown-menu');
+                        if (menu) {
+                            menu.classList.toggle('open');
+                        }
+                    }
+                } else if (e.target.classList.contains('batch-timeout-option')) {
+                    e.stopPropagation();
+                    const value = e.target.getAttribute('data-value');
+                    const text = e.target.textContent;
+                    const dropdown = e.target.closest('.custom-dropdown');
+                    
+                    if (dropdown && value && text) {
+                        const button = dropdown.querySelector('.batch-timeout-button');
+                        const hidden = dropdown.querySelector('.batch-timeout-hidden');
+                        const menu = dropdown.querySelector('.custom-dropdown-menu');
+                        
+                        if (button) button.textContent = text;
+                        if (hidden) hidden.value = value;
+                        if (menu) menu.classList.remove('open');
+                    }
+                }
+            });
+        }
+
+        // Initialize dropdowns when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCustomDropdowns();
+        });
 
     </script>
 </body>

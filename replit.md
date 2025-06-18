@@ -104,6 +104,21 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
+- **June 18, 2025**: RESOLVED application startup and port configuration issues
+  - Fixed deploy.py and main.py to use port 5000 for Replit compatibility
+  - Server now starts successfully with all modules loading properly
+  - Cloud browser automation working with ScrapingBee API integration
+  - Application handling HTTP requests correctly with 200 status responses
+  - Frontend interface loading with proper configuration and cloud browser support
+  - All email validation and batch processing functionality operational
+
+- **June 18, 2025**: RESOLVED timeout dropdown UI consistency issues across all deployment environments
+  - Implemented custom dropdown solution to replace native select elements that were rendering inconsistently
+  - Fixed dropdown positioning issues that appeared detached in production environments using Chrome on macOS
+  - Added comprehensive JavaScript error handling with null checks and proper event propagation
+  - Ensured consistent dropdown behavior across Replit development and production deployment environments
+  - Both single QA and batch QA timeout dropdowns now render properly attached in all browser/OS combinations
+
 - **June 13, 2025**: RESOLVED production deployment issues and JavaScript errors
   - Fixed deployment port configuration to use port 8000 as required by Cloud Run
   - Added comprehensive error handling for Chrome WebDriver initialization issues

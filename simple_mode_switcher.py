@@ -535,16 +535,31 @@ async def check_product_tables(
                         logger.warning(f"Could not verify browser availability: {str(browser_check_error)}")
                         browsers_actually_available = False
                     
-                    # Use HTTP detection first - treating this as a REAL production domain
-                    logger.info(f"Using HTTP detection method for {url} in production")
-                    http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
-                    # Use browser_unavailable for detection_method to ensure consistent reporting
-                    http_result['detection_method'] = 'browser_unavailable'
-                    http_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
+                    # Use cloud browser detection first if available, otherwise fallback to HTTP
+                    logger.info(f"Using cloud browser detection method for {url} in production")
                     
-                    # Use standardized message if browser automation is unavailable
-                    if http_result.get('found') is None or http_result.get('message', '').startswith('Browser automation unavailable'):
-                        http_result['message'] = 'Unknown - Browser automation unavailable - manual verification required'
+                    # Check if cloud browser API is available
+                    if os.environ.get('SCRAPINGBEE_API_KEY') or os.environ.get('BROWSERLESS_API_KEY'):
+                        try:
+                            from cloud_browser_automation import check_for_product_tables_cloud
+                            http_result = check_for_product_tables_cloud(url, timeout=timeout)
+                            http_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
+                            logger.info(f"Cloud browser detection result for {url}: {http_result}")
+                        except Exception as e:
+                            logger.error(f"Cloud browser detection failed for {url}: {str(e)}")
+                            # Fallback to regular HTTP detection
+                            http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                            http_result['detection_method'] = 'cloud_fallback'
+                            http_result['is_test_domain'] = False
+                    else:
+                        # No cloud browser available, use regular HTTP detection
+                        http_result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                        http_result['detection_method'] = 'browser_unavailable'
+                        http_result['is_test_domain'] = False
+                        
+                        # Use standardized message if browser automation is unavailable
+                        if http_result.get('found') is None or http_result.get('message', '').startswith('Browser automation unavailable'):
+                            http_result['message'] = 'Unknown - Browser automation unavailable - manual verification required'
                     
                     # If product tables are found, use that result
                     if http_result.get('found', False):
@@ -571,59 +586,39 @@ async def check_product_tables(
                         except Exception as e:
                             logger.warning(f"Browser automation failed in production mode for {url}: {str(e)}")
                         
-                    # Try text analysis for all URLs where browser automation isn't available
-                    # This is more proactive - we use text analysis not just as a last resort
-                    if TEXT_ANALYSIS_AVAILABLE:
+                    # Skip text analysis fallback since we already used cloud browser detection above
+                    # Only use text analysis if cloud browser detection wasn't already performed
+                    if not http_result.get('detection_method') == 'cloud_browser_api' and TEXT_ANALYSIS_AVAILABLE:
                         try:
                             logger.info(f"Using text-based detection for {url}")
                             text_result = check_for_product_tables_with_text_analysis(url)
-                            text_result['detection_method'] = 'browser_unavailable'
+                            text_result['detection_method'] = 'text_analysis'
                             text_result['is_test_domain'] = False  # Explicitly mark as NOT a test domain
                             
                             # If text analysis gives a confident result, use it
                             if text_result.get('found', True) and text_result.get('confidence') in ['high', 'medium']:
                                 logger.info(f"Text analysis found product content with {text_result.get('confidence')} confidence for {url}")
                                 results[url] = text_result
-                            # FIXED: For URLs in the /products/ path, we now use actual cloud detection results
-                            # instead of always returning Unknown status
-                            elif '/products/' in url or '/product/' in url or url.endswith('/products'):
-                                logger.info(f"IMPROVED: URL {url} contains product path - using cloud detection results")
-                                
-                                # Use cloud browser API if available (check for API key directly)
-                                if os.environ.get('SCRAPINGBEE_API_KEY'):
-                                    try:
-                                        from cloud_browser_automation import check_for_product_tables_cloud
-                                        cloud_result = check_for_product_tables_cloud(url, timeout=20)
-                                        # Use the cloud detection result directly
-                                        results[url] = cloud_result
-                                        logger.info(f"Cloud detection found: {cloud_result.get('found')} for {url}")
-                                    except Exception as e:
-                                        logger.error(f"Error with cloud detection for {url}: {str(e)}")
-                                        # Only use fallback if cloud detection fails
-                                        results[url] = {
-                                            'found': None,
-                                            'class_name': None,
-                                            'detection_method': 'cloud_error',
-                                            'message': f'Cloud detection error: {str(e)}',
-                                            'is_test_domain': False
-                                        }
-                                else:
-                                    # Only if cloud browser is not available
-                                    results[url] = {
-                                        'found': None,
-                                        'class_name': None,
-                                        'detection_method': 'browser_unavailable',
-                                        'message': 'Unknown - Browser automation unavailable - manual verification required',
-                                        'is_test_domain': False
-                                    }
-                            # Otherwise, keep the current result
+                            # Otherwise, keep the current result from cloud detection
                         except Exception as text_error:
                             logger.warning(f"Text analysis failed for {url}: {str(text_error)}")
                 else:
-                    # Use hybrid approach for better detection - try browser automation first with fallback to HTTP
-                    if BROWSER_AUTOMATION_AVAILABLE:
-                        # Try browser automation first
-                        logger.info(f"Attempting browser-based check for {url}")
+                    # For general URLs, prioritize cloud browser detection when available
+                    if os.environ.get('SCRAPINGBEE_API_KEY') or os.environ.get('BROWSERLESS_API_KEY'):
+                        # Use cloud browser detection first
+                        logger.info(f"Using cloud browser detection for general URL: {url}")
+                        try:
+                            from cloud_browser_automation import check_for_product_tables_cloud
+                            result = check_for_product_tables_cloud(url, timeout=timeout)
+                            logger.info(f"Cloud browser detection result for {url}: {result}")
+                        except Exception as cloud_error:
+                            logger.error(f"Cloud browser detection failed for {url}: {str(cloud_error)}")
+                            # Fallback to regular detection
+                            result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
+                            result['detection_method'] = 'cloud_fallback'
+                    elif BROWSER_AUTOMATION_AVAILABLE:
+                        # Try local browser automation if cloud is not available
+                        logger.info(f"Attempting local browser-based check for {url}")
                         try:
                             result = browser_check(url, timeout=timeout)
                             logger.info(f"Browser check completed for {url} with result: {result}")
@@ -653,8 +648,8 @@ async def check_product_tables(
                             if result.get('bot_blocked', False):
                                 logger.warning(f"Bot blocking detected for {url} during fallback - will report this in the response")
                     else:
-                        # Browser automation is not available, use direct HTTP check
-                        logger.info(f"Browser automation not available, using direct HTTP check for {url}")
+                        # No browser automation available, use direct HTTP check
+                        logger.info(f"No browser automation available, using direct HTTP check for {url}")
                         result = email_qa_enhanced.check_for_product_tables(url, timeout=timeout)
                         
                         # Add additional context to the result to show we used direct HTTP
