@@ -104,6 +104,13 @@ This is a comprehensive web application for automated QA testing of HTML emails.
 
 ## Recent Changes
 
+- **June 18, 2025**: RESOLVED timeout dropdown UI consistency issues across all deployment environments
+  - Implemented custom dropdown solution to replace native select elements that were rendering inconsistently
+  - Fixed dropdown positioning issues that appeared detached in production environments using Chrome on macOS
+  - Added comprehensive JavaScript error handling with null checks and proper event propagation
+  - Ensured consistent dropdown behavior across Replit development and production deployment environments
+  - Both single QA and batch QA timeout dropdowns now render properly attached in all browser/OS combinations
+
 - **June 13, 2025**: RESOLVED production deployment issues and JavaScript errors
   - Fixed deployment port configuration to use port 8000 as required by Cloud Run
   - Added comprehensive error handling for Chrome WebDriver initialization issues
