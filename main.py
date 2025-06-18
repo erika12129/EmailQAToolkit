@@ -789,8 +789,8 @@ if __name__ == "__main__":
     os.environ.setdefault("DEPLOYMENT_MODE", "production")
     os.environ.setdefault("SKIP_BROWSER_CHECK", "true")
     
-    # Use port 8000 for Cloud Run deployment (required by .replit config)
-    port = int(os.environ.get("PORT", "8000"))
+    # Use port 5000 for Replit deployment (required by .replit config)
+    port = int(os.environ.get("PORT", "5000"))
     
     # Log startup configuration
     logger.info(f"Starting Email QA System on port {port}")
