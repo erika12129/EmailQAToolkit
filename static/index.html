@@ -5671,12 +5671,15 @@
                 // Handle option selection
                 timeoutMenu.addEventListener('click', function(e) {
                     if (e.target.classList.contains('custom-dropdown-option')) {
+                        e.stopPropagation();
                         const value = e.target.getAttribute('data-value');
                         const text = e.target.textContent;
                         
-                        timeoutButton.textContent = text;
-                        timeoutHidden.value = value;
-                        timeoutMenu.classList.remove('open');
+                        if (value && text) {
+                            timeoutButton.textContent = text;
+                            timeoutHidden.value = value;
+                            timeoutMenu.classList.remove('open');
+                        }
                     }
                 });
 
@@ -5698,19 +5701,27 @@
                 if (e.target.classList.contains('batch-timeout-button')) {
                     e.stopPropagation();
                     const dropdown = e.target.closest('.custom-dropdown');
-                    const menu = dropdown.querySelector('.custom-dropdown-menu');
-                    menu.classList.toggle('open');
+                    if (dropdown) {
+                        const menu = dropdown.querySelector('.custom-dropdown-menu');
+                        if (menu) {
+                            menu.classList.toggle('open');
+                        }
+                    }
                 } else if (e.target.classList.contains('batch-timeout-option')) {
+                    e.stopPropagation();
                     const value = e.target.getAttribute('data-value');
                     const text = e.target.textContent;
                     const dropdown = e.target.closest('.custom-dropdown');
-                    const button = dropdown.querySelector('.batch-timeout-button');
-                    const hidden = dropdown.querySelector('.batch-timeout-hidden');
-                    const menu = dropdown.querySelector('.custom-dropdown-menu');
                     
-                    button.textContent = text;
-                    hidden.value = value;
-                    menu.classList.remove('open');
+                    if (dropdown && value && text) {
+                        const button = dropdown.querySelector('.batch-timeout-button');
+                        const hidden = dropdown.querySelector('.batch-timeout-hidden');
+                        const menu = dropdown.querySelector('.custom-dropdown-menu');
+                        
+                        if (button) button.textContent = text;
+                        if (hidden) hidden.value = value;
+                        if (menu) menu.classList.remove('open');
+                    }
                 }
             });
         }
