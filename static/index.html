@@ -209,8 +209,6 @@
             font-size: 14px;
             background-color: #f7fafc;
             color: #4a5568;
-            position: relative;
-            z-index: 1000;
         }
         
         .form-control:focus, select:focus {
@@ -218,22 +216,13 @@
             border-color: #4299e1;
             box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.2);
             background-color: #fff;
-            z-index: 1001;
         }
         
-        /* Specific styling for timeout dropdown to ensure proper positioning */
+        /* Specific styling for timeout dropdown - use native browser behavior */
         #selected-timeout {
-            position: relative;
-            z-index: 1000;
             min-width: 250px;
-            display: block;
-            appearance: menulist;
-            -webkit-appearance: menulist;
-            -moz-appearance: menulist;
-        }
-        
-        #selected-timeout:focus {
-            z-index: 1001;
+            position: static !important;
+            z-index: auto !important;
         }
         
         /* Container for timeout dropdown to ensure proper overflow handling */
@@ -243,16 +232,19 @@
             overflow: visible;
         }
         
-        /* Fix for all select dropdowns in production */
+        /* Fix for all select dropdowns in production - reset to native appearance */
         select {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-            background-position: right 8px center;
-            background-repeat: no-repeat;
-            background-size: 16px;
-            padding-right: 32px;
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
+            appearance: menulist !important;
+            -webkit-appearance: menulist !important;
+            -moz-appearance: menulist !important;
+            background-image: none !important;
+            padding-right: 12px !important;
+        }
+        
+        /* Ensure native dropdown behavior is preserved */
+        select option {
+            background: white;
+            color: black;
         }
         #requirements-form {
             padding: 16px;
