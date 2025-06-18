@@ -24,8 +24,8 @@ def main():
     os.environ.setdefault("SKIP_BROWSER_CHECK", "true")
     os.environ.setdefault("PYTHONUNBUFFERED", "1")
     
-    # Cloud Run expects port 8000 (configured in .replit)
-    port = int(os.environ.get("PORT", "8000"))
+    # Replit expects port 5000 for external access
+    port = int(os.environ.get("PORT", "5000"))
     host = os.environ.get("HOST", "0.0.0.0")
     
     # Log deployment configuration
