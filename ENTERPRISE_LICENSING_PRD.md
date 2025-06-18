@@ -203,6 +203,112 @@ This document outlines the requirements and configuration updates needed to lice
 - Domain + path-based language detection
 - Client-specific error reporting
 
+## Enhancement Roadmap
+
+### Phase 1: Translation Spreadsheet Integration
+**Objective**: Eliminate manual copy/paste of sender names, subject lines, and preheaders by enabling direct Excel/Google Sheets import.
+
+#### Features:
+- **Spreadsheet Upload Interface**: Support for .xlsx, .csv, and Google Sheets URL import
+- **Automatic Column Mapping**: Smart detection of columns containing:
+  - Locale/Language codes (en_US, es_MX, fr_CA, etc.)
+  - Subject lines
+  - Preheader text
+  - Sender names
+  - Campaign codes
+- **Template Validation**: Cross-reference spreadsheet data with uploaded HTML templates
+- **Bulk Requirements Generation**: Auto-populate locale-specific requirements from spreadsheet data
+- **Data Preview**: Show parsed spreadsheet data before processing for validation
+
+#### Technical Implementation:
+```python
+# New module: spreadsheet_processor.py
+class SpreadsheetProcessor:
+    def parse_translation_spreadsheet(self, file_path):
+        # Extract locale data from Excel/CSV
+        # Map columns to metadata fields
+        # Generate requirements for each locale
+        pass
+    
+    def validate_spreadsheet_format(self, data):
+        # Ensure required columns exist
+        # Validate locale codes
+        # Check for missing translations
+        pass
+```
+
+### Phase 2: Error Analytics Dashboard
+**Objective**: Transform batch QA results into actionable insights through persistent data storage and trend analysis.
+
+#### Features:
+- **SQLite Database Integration**: Store all QA results with timestamps and campaign metadata
+- **Error Pattern Detection**: Identify recurring issues across campaigns and locales
+- **Dashboard Visualization**: 
+  - Most common validation failures
+  - Error trends over time
+  - Locale-specific issues
+  - Campaign performance metrics
+- **Automated Reporting**: Weekly/monthly QA health reports
+- **Export Capabilities**: Export filtered results to Excel for stakeholder sharing
+
+#### Database Schema:
+```sql
+-- qa_results.db tables
+CREATE TABLE campaigns (
+    id INTEGER PRIMARY KEY,
+    campaign_code TEXT,
+    client_name TEXT,
+    created_date TIMESTAMP
+);
+
+CREATE TABLE validation_results (
+    id INTEGER PRIMARY KEY,
+    campaign_id INTEGER,
+    locale TEXT,
+    validation_type TEXT,
+    status TEXT,
+    error_details TEXT,
+    timestamp TIMESTAMP
+);
+
+CREATE TABLE error_patterns (
+    id INTEGER PRIMARY KEY,
+    error_type TEXT,
+    frequency INTEGER,
+    last_occurrence TIMESTAMP
+);
+```
+
+#### Dashboard Components:
+- **Error Frequency Charts**: Bar charts showing most common validation failures
+- **Locale Performance Matrix**: Heatmap of error rates by locale
+- **Campaign Timeline**: Historical view of QA results per campaign
+- **Export Tools**: Generate Excel reports filtered by date, locale, or error type
+
+### Phase 3: Streamlined QA Experience
+**Objective**: Simplify the user interface by consolidating single and batch QA into one unified workflow.
+
+#### Features:
+- **Unified QA Interface**: Single upload area that handles both individual and batch processing
+- **Smart Template Detection**: Automatically determine if upload is single template or batch
+- **Progressive Enhancement**: 
+  - Start with single template → option to add more
+  - Batch mode becomes default with single-template fallback
+- **Simplified Navigation**: Remove separate "Single QA" and "Batch QA" modes
+- **Contextual Help**: Dynamic guidance based on number of templates uploaded
+
+#### User Experience Flow:
+1. **Single Entry Point**: One "Upload Templates" button
+2. **Dynamic Interface**: UI adapts based on number of files uploaded
+3. **Quick Actions**: Common workflows accessible with fewer clicks
+4. **Smart Defaults**: Auto-populate settings based on previous campaigns
+
+#### Benefits:
+- **Reduced Cognitive Load**: Fewer decisions for users to make
+- **Faster Onboarding**: New users learn one workflow instead of two
+- **Consistent Experience**: Same validation engine regardless of template count
+- **Future-Proof**: Easier to add new features to single codebase
+
 ## Client Onboarding Checklist
 
 ### Pre-Deployment Requirements
