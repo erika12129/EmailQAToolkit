@@ -11,44 +11,104 @@ import json
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Helper function to load secrets from Replit
-def _load_api_keys_from_replit():
-    """Load API keys from Replit secrets files."""
+# Helper function to detect environment and load secrets appropriately
+def _detect_environment():
+    """Detect the deployment environment (Replit, Azure, local, etc.)."""
+    # Check for Replit environment
+    if os.environ.get('REPL_ID') or os.environ.get('REPLIT_ENVIRONMENT'):
+        return 'replit'
+    
+    # Check for Azure DevOps environment
+    if (os.environ.get('AZURE_HTTP_USER_AGENT') or 
+        os.environ.get('BUILD_BUILDID') or 
+        os.environ.get('AZURE_PIPELINE') or
+        os.environ.get('SYSTEM_TEAMFOUNDATIONCOLLECTIONURI')):
+        return 'azure'
+    
+    # Check for other common Azure environment indicators
+    if (os.environ.get('WEBSITE_SITE_NAME') or  # Azure App Service
+        os.environ.get('APPSETTING_WEBSITE_SITE_NAME') or  # Azure Functions
+        os.environ.get('AZURE_CLIENT_ID')):  # Azure managed identity
+        return 'azure'
+    
+    # Check for other cloud environments
+    if os.environ.get('GOOGLE_CLOUD_PROJECT'):
+        return 'gcp'
+    
+    if os.environ.get('AWS_EXECUTION_ENV') or os.environ.get('AWS_LAMBDA_FUNCTION_NAME'):
+        return 'aws'
+    
+    # Default to local/generic environment
+    return 'local'
+
+def _load_api_keys_from_environment():
+    """Load API keys from appropriate sources based on environment."""
+    environment = _detect_environment()
+    logger.info(f"Detected environment: {environment}")
+    
     try:
-        # Check if we're in Replit environment
-        is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+        # For all environments, first check if the keys are already in environment variables
+        # This is the primary method for Azure, AWS, GCP, and most production deployments
+        scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+        browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
         
-        if is_replit:
-            # Define paths for potential secret storage locations in Replit
-            replit_secret_path = "/tmp/secrets.json"
-            alt_secret_path = os.path.expanduser("~/.config/secrets.json")
-            
-            # Try to load from potential secret locations
-            secret_locations = [replit_secret_path, alt_secret_path]
-            for secret_file in secret_locations:
-                if os.path.exists(secret_file):
-                    try:
-                        with open(secret_file, "r") as f:
-                            secrets = json.load(f)
-                            # Check for API keys in the loaded secrets
-                            if "SCRAPINGBEE_API_KEY" in secrets and not os.environ.get("SCRAPINGBEE_API_KEY"):
-                                os.environ["SCRAPINGBEE_API_KEY"] = secrets["SCRAPINGBEE_API_KEY"]
-                                logger.info(f"Loaded ScrapingBee API key from {secret_file}")
-                            
-                            if "BROWSERLESS_API_KEY" in secrets and not os.environ.get("BROWSERLESS_API_KEY"):
-                                os.environ["BROWSERLESS_API_KEY"] = secrets["BROWSERLESS_API_KEY"]
-                                logger.info(f"Loaded Browserless API key from {secret_file}")
-                                
-                            return True
-                    except Exception as e:
-                        logger.error(f"Error loading secrets from {secret_file}: {str(e)}")
+        if scrapingbee_key:
+            logger.info(f"ScrapingBee API key found in environment variables: {scrapingbee_key[:4]}...")
+        if browserless_key:
+            logger.info(f"Browserless API key found in environment variables: {browserless_key[:4]}...")
+        
+        # Replit-specific secret loading (file-based secrets)
+        if environment == 'replit' and not (scrapingbee_key or browserless_key):
+            return _load_api_keys_from_replit_files()
+        
+        # For Azure environments, we primarily rely on environment variables
+        # Azure DevOps can set these through variable groups or pipeline variables
+        # Azure App Service can set these through application settings
+        if environment == 'azure':
+            logger.info("Azure environment detected - using environment variables for API keys")
+            # Azure uses environment variables, so no additional loading needed
+            return bool(scrapingbee_key or browserless_key)
+        
+        # For other environments, also rely on environment variables
+        return bool(scrapingbee_key or browserless_key)
+        
     except Exception as e:
-        logger.error(f"Error loading API keys from Replit secrets: {str(e)}")
+        logger.error(f"Error loading API keys: {str(e)}")
+        return False
+
+def _load_api_keys_from_replit_files():
+    """Load API keys from Replit-specific secret files."""
+    try:
+        # Define paths for potential secret storage locations in Replit
+        replit_secret_path = "/tmp/secrets.json"
+        alt_secret_path = os.path.expanduser("~/.config/secrets.json")
+        
+        # Try to load from potential secret locations
+        secret_locations = [replit_secret_path, alt_secret_path]
+        for secret_file in secret_locations:
+            if os.path.exists(secret_file):
+                try:
+                    with open(secret_file, "r") as f:
+                        secrets = json.load(f)
+                        # Check for API keys in the loaded secrets
+                        if "SCRAPINGBEE_API_KEY" in secrets and not os.environ.get("SCRAPINGBEE_API_KEY"):
+                            os.environ["SCRAPINGBEE_API_KEY"] = secrets["SCRAPINGBEE_API_KEY"]
+                            logger.info(f"Loaded ScrapingBee API key from {secret_file}")
+                        
+                        if "BROWSERLESS_API_KEY" in secrets and not os.environ.get("BROWSERLESS_API_KEY"):
+                            os.environ["BROWSERLESS_API_KEY"] = secrets["BROWSERLESS_API_KEY"]
+                            logger.info(f"Loaded Browserless API key from {secret_file}")
+                            
+                        return True
+                except Exception as e:
+                    logger.error(f"Error loading secrets from {secret_file}: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error loading API keys from Replit secret files: {str(e)}")
     
     return False
 
 # Try to load secrets at module import time
-_load_api_keys_from_replit()
+_load_api_keys_from_environment()
 
 class RuntimeConfig:
     """Runtime configuration that can be changed without restarting."""
@@ -145,8 +205,8 @@ class RuntimeConfig:
     
     def refresh_browser_automation_status(self):
         """Refresh the browser automation status without restarting the application."""
-        # Try to load API keys from Replit secrets first
-        _load_api_keys_from_replit()
+        # Try to load API keys from environment first
+        _load_api_keys_from_environment()
         
         # Store old status to check if it changed
         old_status = self.browser_automation_available
