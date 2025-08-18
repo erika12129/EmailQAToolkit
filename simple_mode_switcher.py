@@ -226,16 +226,24 @@ async def get_config():
     # For deployment environments, optimize configuration loading
     cloud_browser_available = False
     
-    # Fast check if we're in Replit or deployment mode
-    is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
-    is_deployment = os.environ.get('DEPLOYMENT_MODE') == 'production' or os.environ.get('SKIP_BROWSER_CHECK') == 'true'
+    # Use environment detection to determine deployment context
+    try:
+        from runtime_config import _detect_environment
+        environment = _detect_environment()
+        is_cloud_env = environment in ['replit', 'azure', 'gcp', 'aws']
+    except ImportError:
+        # Fallback to legacy detection
+        is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+        is_deployment = os.environ.get('DEPLOYMENT_MODE') == 'production' or os.environ.get('SKIP_BROWSER_CHECK') == 'true'
+        is_cloud_env = is_replit or is_deployment
+        environment = 'replit' if is_replit else 'unknown'
     
-    if is_replit or is_deployment:
-        # In deployment environments, only check for API keys, not for browser installation
+    if is_cloud_env:
+        # In cloud environments, only check for API keys, not for browser installation
         scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
         browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
         cloud_browser_available = bool(scrapingbee_key or browserless_key)
-        logger.info(f"Deployment environment detected, using cloud browser availability: {cloud_browser_available}")
+        logger.info(f"{environment.title()} environment detected, using cloud browser availability: {cloud_browser_available}")
     else:
         # Only in development environments, check traditionally (with timeout)
         try:
@@ -245,8 +253,8 @@ async def get_config():
             logger.error(f"Error checking cloud browser availability: {str(e)}")
             cloud_browser_available = False
     
-    # In deployment environments, prioritize cloud browser availability
-    browser_automation_available = cloud_browser_available if (is_replit or is_deployment) else (BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available)
+    # In cloud environments, prioritize cloud browser availability
+    browser_automation_available = cloud_browser_available if is_cloud_env else (BROWSER_AUTOMATION_AVAILABLE or cloud_browser_available)
     
     # Check if this is a deployment environment (Replit production)
     is_deployment = os.environ.get("REPL_SLUG") is not None and os.environ.get("REPL_OWNER") is not None
