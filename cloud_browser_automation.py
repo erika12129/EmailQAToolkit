@@ -31,8 +31,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Helper function to load secrets from Replit
-def _load_secrets_from_replit():
-    """Load API keys from Replit secrets files."""
+def _load_secrets_from_environment():
+    """Load API keys from environment-appropriate sources."""
+    try:
+        # Import environment detection from runtime_config
+        from runtime_config import _detect_environment, _load_api_keys_from_environment
+        return _load_api_keys_from_environment()
+    except ImportError:
+        # Fallback to legacy Replit-only loading if runtime_config is not available
+        return _load_secrets_from_replit_legacy()
+
+def _load_secrets_from_replit_legacy():
+    """Legacy function for loading API keys from Replit secrets files."""
     try:
         # Check if we're in Replit environment
         is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
@@ -67,7 +77,7 @@ def _load_secrets_from_replit():
     return False
 
 # Try to load secrets before defining constants
-_load_secrets_from_replit()
+_load_secrets_from_environment()
 
 # Constants - reload from environment after secret attempt
 SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
@@ -96,7 +106,7 @@ def check_for_product_tables_cloud(url: str, timeout: Optional[int] = None) -> D
     global SCRAPINGBEE_API_KEY, BROWSERLESS_API_KEY
     
     # Try to load from Replit secrets again
-    _load_secrets_from_replit()
+    _load_secrets_from_environment()
     
     current_scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
     current_browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
@@ -187,7 +197,7 @@ def check_with_scrapingbee(url: str, timeout: int) -> Dict[str, Any]:
     global SCRAPINGBEE_API_KEY
     
     # Try to load from Replit secrets again
-    _load_secrets_from_replit()
+    _load_secrets_from_environment()
     
     current_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
     if current_key and current_key != SCRAPINGBEE_API_KEY:
@@ -897,7 +907,7 @@ def check_with_browserless(url: str, timeout: int) -> Dict[str, Any]:
     global BROWSERLESS_API_KEY
     
     # Try to load from Replit secrets again
-    _load_secrets_from_replit()
+    _load_secrets_from_environment()
     
     current_key = os.environ.get('BROWSERLESS_API_KEY', '')
     if current_key and current_key != BROWSERLESS_API_KEY:
