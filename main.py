@@ -76,31 +76,36 @@ async def get_config():
     """Get current configuration settings for frontend."""
     logger.info(f"Serving config endpoint, mode={config.mode}")
     
-    # REPLIT OPTIMIZATION: Skip the Selenium check in Replit environments
-    # as it may cause hangs and isn't needed with cloud browser API
+    # ENVIRONMENT OPTIMIZATION: Skip expensive browser checks in cloud environments
+    # and prioritize cloud browser APIs when available
     browser_available = False
     
-    # Fast check if we're in Replit
-    is_replit = os.environ.get('REPL_ID') is not None or os.environ.get('REPLIT_ENVIRONMENT') is not None
+    # Import environment detection from runtime_config
+    from runtime_config import _detect_environment
+    environment = _detect_environment()
     
-    if is_replit:
-        # In Replit, don't check for local browsers - just check for API keys
-        scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
-        browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
-        browser_available = bool(scrapingbee_key or browserless_key)
-        logger.info(f"Replit environment detected, using cloud browser availability: {browser_available}")
+    # Check for cloud browser API keys first (works in all environments)
+    scrapingbee_key = os.environ.get('SCRAPINGBEE_API_KEY', '')
+    browserless_key = os.environ.get('BROWSERLESS_API_KEY', '')
+    cloud_browser_available = bool(scrapingbee_key or browserless_key)
+    
+    if environment in ['replit', 'azure', 'gcp', 'aws']:
+        # In cloud environments, prioritize cloud browser APIs and skip local browser checks
+        browser_available = cloud_browser_available
+        logger.info(f"{environment.title()} environment detected, using cloud browser availability: {browser_available}")
     else:
-        # Only in non-Replit environments, check traditionally
+        # In local/development environments, check both cloud and local browsers
         try:
             # Import selenium_automation for browser availability check
             from selenium_automation import check_browser_availability
             
-            # Check if browser automation is available
-            browser_available = check_browser_availability()
-            logger.info(f"Checking browser automation for config endpoint: {browser_available}")
+            # Check if local browser automation is available
+            local_browser_available = check_browser_availability()
+            browser_available = cloud_browser_available or local_browser_available
+            logger.info(f"Local environment - Cloud: {cloud_browser_available}, Local: {local_browser_available}, Combined: {browser_available}")
         except Exception as e:
             logger.error(f"Error checking browser automation availability: {str(e)}")
-            browser_available = False
+            browser_available = cloud_browser_available
     
     # Create safe version of the test domains for response
     # The test_domains might include complex objects that aren't JSON serializable
