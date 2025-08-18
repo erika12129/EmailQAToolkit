@@ -42,7 +42,7 @@ try:
     SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
     BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', '')
     CLOUD_BROWSER_AVAILABLE = bool(SCRAPINGBEE_API_KEY or BROWSERLESS_API_KEY)
-    
+
     if CLOUD_BROWSER_AVAILABLE:
         if SCRAPINGBEE_API_KEY:
             logger.info(f"Cloud browser automation is available with ScrapingBee API key: {SCRAPINGBEE_API_KEY[:4]}...")
@@ -62,16 +62,16 @@ try:
     logger.info("Text analysis module loaded successfully - enhanced detection available")
 except ImportError:
     logger.warning("Text analysis module not available - some advanced detection features will be disabled")
-    
+
     # Define a fallback function to prevent unbound errors
     def check_for_product_tables_with_text_analysis(url):
         """
         Function that ALWAYS returns a standardized message about browser automation
         being unavailable, and NEVER relies on text analysis fallbacks.
-        
+
         Args:
             url: The URL to check
-            
+
         Returns:
             dict: Standard response indicating browser automation is unavailable
         """
@@ -116,14 +116,14 @@ def extract_email_metadata(soup):
         soup.find('from') or 
         None
     )
-    
+
     sender_name = (
         soup.find('meta', {'name': 'sender-name'}) or 
         soup.find('meta', {'name': 'sender_name'}) or 
         soup.find('from-name') or 
         None
     )
-    
+
     reply_to = (
         soup.find('meta', {'name': 'reply-to'}) or 
         soup.find('meta', {'name': 'reply_to'}) or 
@@ -132,29 +132,29 @@ def extract_email_metadata(soup):
         soup.find('reply-to') or 
         None
     )
-    
+
     subject = soup.find('meta', {'name': 'subject'}) or soup.find('title') or None
-    
+
     # Try various common preheader class names
     preheader_classes = ['preheader', 'preview-text', 'preview', 'hidden-preheader']
     preheader = None
     attempted_classes = []
-    
+
     for cls in preheader_classes:
         attempted_classes.append(cls)
         element = soup.find('div', {'class': cls}) or soup.find('span', {'class': cls})
         if element:
             preheader = element
             break
-    
+
     if not preheader:
         preheader = {}
         logger.warning(f"Preheader not found. Attempted classes: {', '.join(attempted_classes)}")
-    
+
     # Clean up preheader text by removing hidden characters
     # Extract preheader text safely based on the object type
     preheader_text = 'Not found'  # Default value
-    
+
     try:
         if preheader is None:
             preheader_text = 'Not found'
@@ -188,7 +188,7 @@ def extract_email_metadata(soup):
             preheader_text = str(preheader)
         except:
             preheader_text = 'Unprintable content'
-    
+
     # Extract just the readable text from the preheader
     # This strips out invisible characters used for email client spacing/preview control
     if preheader_text != 'Not found':
@@ -200,17 +200,17 @@ def extract_email_metadata(soup):
             # Take the first 100 chars as a fallback
             visible_preheader = preheader_text[:100]
         preheader_text = visible_preheader.strip()
-    
+
     # Standard campaign code extraction logic
     footer_campaign_code = "Not found"
     campaign_code = ""
     country_code = ""
-    
+
     # Look for footer campaign code in specific format like ABC2505 - US
     # Try different patterns based on known email formats - now with more flexible pattern
     # Allow 5-8 chars for campaign code to support various formats
     campaign_code_pattern = re.compile(r'([A-Z0-9]{5,8})\s*[-–—]\s*([A-Z]{2})', re.IGNORECASE)
-    
+
     # Debug the entire HTML for troubleshooting
     html_content = str(soup)
     if 'ABC2505' in html_content:
@@ -220,48 +220,48 @@ def extract_email_metadata(soup):
         context_start = max(0, code_index - 50)
         context_end = min(len(html_content), code_index + 50)
         logger.info(f"Context around code: '{html_content[context_start:context_end]}'")
-    
+
     # Enhanced campaign code detection - check entire email with better pattern match
     # First look for specific common patterns in the footer
     footer_tags = soup.find_all(['div', 'p', 'span', 'td', 'footer'])
     for tag in footer_tags:
         # Get the text content of the tag
         tag_text = tag.get_text(strip=True) if hasattr(tag, 'get_text') else str(tag)
-        
+
         # Check if this tag might contain the campaign code based on quick check
         if 'ABC' in tag_text or '-' in tag_text:
             # Debug the raw text content character by character to find invisible characters
             logger.info(f"Raw content: '{tag_text[:100]}'")
             logger.info(f"Character codes: {[ord(c) for c in tag_text[:20]]}")
-            
+
             # Clean the tag text - remove any suspicious characters before matching
             clean_text = re.sub(r'[^\w\s\-–—]', '', tag_text)
-            
+
             match = campaign_code_pattern.search(clean_text)
             if match:
                 # Extract and ensure no unwanted characters
                 campaign_code = match.group(1).strip()
                 country_code = match.group(2).strip()
-                
+
                 # Debug the extracted values
                 logger.info(f"Raw match: campaign={match.group(1)}, country={match.group(2)}")
-                
+
                 # Build clean version without any invisible characters
                 footer_campaign_code = f"{campaign_code} - {country_code}"
                 logger.info(f"Found campaign code in footer: '{footer_campaign_code}'")
                 break
-    
+
     # If still not found, check all text nodes with extra character handling
     if footer_campaign_code == "Not found":
         for tag in soup.find_all(text=True):
             # Get raw text and strip whitespace
             raw_text = str(tag).strip()
-            
+
             # Check if likely to contain campaign code to avoid processing all text nodes
             if 'ABC' in raw_text or '-' in raw_text:
                 logger.info(f"Checking text node (original): '{raw_text[:50]}'")
                 logger.info(f"First 20 character codes: {[ord(c) for c in raw_text[:20] if c]}")
-                
+
                 # First, check for the 'r' prefix with the campaign code directly after it
                 if 'rABC' in raw_text:
                     logger.info(f"Found 'rABC' sequence in text, examining characters")
@@ -272,38 +272,38 @@ def extract_email_metadata(soup):
                 else:
                     # Otherwise just strip any non-alphanumeric, whitespace or dash characters
                     clean_text = re.sub(r'[^\w\s\-–—]', '', raw_text)
-                    
+
                 # Now look for the pattern in the cleaned text
                 match = campaign_code_pattern.search(clean_text)
                 if match:
                     # Extract and ensure clean values
                     campaign_code = match.group(1).strip()
                     country_code = match.group(2).strip()
-                    
+
                     # Debug the extracted values
                     logger.info(f"Text node match: campaign={campaign_code}, country={country_code}")
-                    
+
                     # Build clean version with explicit format
                     footer_campaign_code = f"{campaign_code} - {country_code}"
                     logger.info(f"Found campaign code in text node: '{footer_campaign_code}'")
                     break
-    
+
     # Check for utm_campaign in links as fallback
     if footer_campaign_code == "Not found":
         for link in soup.find_all('a', href=True):
             href = link['href']
             campaign_param = re.search(r'utm_campaign=([^&]+)', href)
             country_param = re.search(r'country=([^&]+)', href)
-            
+
             if campaign_param:
                 # Clean the campaign code from the URL to remove any unwanted characters
                 campaign_code = campaign_param.group(1).strip()
                 if '_' in campaign_code:
                     # If the campaign code contains a prefix like "0_ABC2505", use the part after _
                     campaign_code = campaign_code.split('_', 1)[1].strip()
-                    
+
                 logger.info(f"Found campaign code in URL: '{campaign_code}'")
-                
+
                 if country_param:
                     country_code = country_param.group(1).strip()
                     footer_campaign_code = f"{campaign_code} - {country_code}"
@@ -314,7 +314,7 @@ def extract_email_metadata(soup):
                     footer_campaign_code = f"{campaign_code} - {country_code}"
                     logger.info(f"Created footer campaign code with existing country: '{footer_campaign_code}'")
                     break
-    
+
     # Helper function to safely extract content from elements that might be various types
     def safe_extract(element):
         if element is None:
@@ -327,7 +327,7 @@ def extract_email_metadata(soup):
             content = element.get('content')
             if content:
                 return content
-                
+
         # Handle BeautifulSoup elements with text content
         if hasattr(element, 'get_text') and callable(getattr(element, 'get_text', None)):
             return element.get_text(strip=True)
@@ -339,17 +339,17 @@ def extract_email_metadata(soup):
                 return str(element).strip()
             except:
                 return ''
-            
+
     # Final cleanup for campaign code - explicitly remove any 'r' prefix
     if footer_campaign_code.startswith('r') and footer_campaign_code != 'Not found':
         logger.info(f"Removing 'r' prefix from campaign code: {footer_campaign_code}")
         footer_campaign_code = footer_campaign_code[1:]
         logger.info(f"Cleaned campaign code: {footer_campaign_code}")
-    
+
     # Extract copyright year from footer
     copyright_year = "Not found"
     current_year = str(datetime.now().year)
-    
+
     # Look for copyright symbol followed by year in various formats
     copyright_patterns = [
         r'©\s*(\d{4})',  # © 2025
@@ -361,11 +361,11 @@ def extract_email_metadata(soup):
         r'©.*?(\d{4})',  # © Company Name 2025 (more flexible)
         r'copyright.*?(\d{4})',  # copyright text 2025 (more flexible)
     ]
-    
+
     # Search through all text content for copyright year
     html_content = str(soup)
     text_content = soup.get_text()
-    
+
     for pattern in copyright_patterns:
         # Check in HTML content first (handles HTML entities)
         match = re.search(pattern, html_content, re.IGNORECASE)
@@ -373,17 +373,17 @@ def extract_email_metadata(soup):
             copyright_year = match.group(1)
             logger.info(f"Found copyright year in HTML: {copyright_year} using pattern: {pattern}")
             break
-        
+
         # Also check in plain text content
         match = re.search(pattern, text_content, re.IGNORECASE)
         if match:
             copyright_year = match.group(1)
             logger.info(f"Found copyright year in text: {copyright_year} using pattern: {pattern}")
             break
-    
+
     if copyright_year == "Not found":
         logger.info("No copyright year found in email content")
-        
+
     # Create metadata dictionary with clean field names
     metadata_dict = {
         'sender_address': safe_extract(sender) or 'Not found',
@@ -393,39 +393,39 @@ def extract_email_metadata(soup):
         'preheader': preheader_text,
         'footer_campaign_code': footer_campaign_code
     }
-    
+
     # Add copyright year as a regular metadata field with expected value
     metadata_dict['copyright_year'] = copyright_year
-    
+
     return metadata_dict
 
 def extract_standalone_images(soup):
     """
     Extract all standalone images (not inside links) from email HTML.
-    
+
     Args:
         soup: BeautifulSoup object of the email HTML
-        
+
     Returns:
         list: List of dictionaries containing image details
     """
     images = []
-    
+
     # Get all images
     all_images = soup.find_all('img')
-    
+
     # Filter out images that are inside links
     for img in all_images:
         # Skip if this image is inside a link
         if img.parent.name == 'a' or img.find_parent('a'):
             continue
-        
+
         # Get image attributes
         src = img.get('src', '')
         alt = img.get('alt', '')
         width = img.get('width', '')
         height = img.get('height', '')
-        
+
         # Create image entry
         image_entry = {
             'src': src,
@@ -434,12 +434,12 @@ def extract_standalone_images(soup):
             'height': height,
             'has_alt': bool(alt.strip()),  # Flag for whether alt text exists
         }
-        
+
         # Add location context
         parent_id = img.parent.get('id', '')
         parent_class = ' '.join(img.parent.get('class', [])) if isinstance(img.parent.get('class', []), list) else str(img.parent.get('class', ''))
         parent_tag = img.parent.name
-        
+
         # Add location context to help identify where the image is in the email
         location_context = []
         if parent_id:
@@ -448,9 +448,9 @@ def extract_standalone_images(soup):
             location_context.append(f"Class: {parent_class}")
         if parent_tag:
             location_context.append(f"Parent tag: {parent_tag}")
-            
+
         image_entry['location'] = ', '.join(location_context) if location_context else 'Standalone image'
-        
+
         # Check for common locations based on parent classes
         if any(c.lower() in ['header', 'logo', 'brand'] for c in img.parent.get('class', [])):
             image_entry['likely_purpose'] = 'Logo or header image'
@@ -460,9 +460,9 @@ def extract_standalone_images(soup):
             image_entry['likely_purpose'] = 'Product image'
         else:
             image_entry['likely_purpose'] = 'Content image'
-        
+
         images.append(image_entry)
-    
+
     return images
 
 def extract_links(soup):
@@ -473,7 +473,7 @@ def extract_links(soup):
         link_entry = {
             'href': a['href']
         }
-        
+
         # Extract UTM content parameter if present
         utm_content = None
         url_parts = urlparse(a['href'])
@@ -481,19 +481,19 @@ def extract_links(soup):
         if 'utm_content' in query_params:
             utm_content = query_params['utm_content'][0]
         link_entry['utm_content'] = utm_content
-        
+
         # Include source context (text, image, or button)
         if a.find('img'):
             # Image link
             img = a.find('img')
             alt_text = img.get('alt', '')
             img_src = img.get('src', '')
-            
+
             # Add image-specific properties
             link_entry['is_image_link'] = True
             link_entry['image_alt'] = alt_text[:50] if alt_text else ''
             link_entry['image_src'] = img_src
-            
+
             # Set display text
             source_context = f"Image: {alt_text[:50]}" if alt_text else "Image link"
             link_text = alt_text[:50] if alt_text else ''
@@ -502,10 +502,10 @@ def extract_links(soup):
             text = a.get_text(strip=True)
             class_info = a.get('class', [])
             classes = ' '.join(class_info) if isinstance(class_info, list) else str(class_info)
-            
+
             # Check if link appears to be a button based on classes
             is_button = any(btn_class in classes.lower() for btn_class in ['btn', 'button'])
-            
+
             # Set display text
             if text:
                 link_type = 'button' if is_button else 'text'
@@ -514,17 +514,17 @@ def extract_links(soup):
             else:
                 source_context = "Empty link"
                 link_text = ''
-        
+
         # Add the display text to the entry
         link_entry['link_source'] = source_context
         link_entry['link_text'] = link_text
-        
+
         # Add to links list
         links.append(link_entry)
-    
+
     # Convert to the expected format for backwards compatibility with older code
     formatted_links = [(item['link_source'], item['href']) for item in links]
-    
+
     # Return the enriched version with all the details
     return links
 
@@ -532,41 +532,79 @@ def validate_utm_parameters(url, expected_utm):
     """Validate UTM parameters in a URL against expected values."""
     url_parts = urlparse(url)
     query_params = parse_qs(url_parts.query)
-    
+
     utm_issues = []
-    
-    # Check required UTM parameters
-    for param, expected_value in expected_utm.items():
-        if expected_value:
-            if param in query_params:
-                actual_value = query_params[param][0]
-                if actual_value != expected_value:
-                    utm_issues.append(f"Parameter {param} has value '{actual_value}', but expected '{expected_value}'")
-            else:
-                # Report missing required UTM parameters
-                utm_issues.append(f"Missing parameter {param}")
-    
+
+    # Define allowed characters for UTM parameters (alphanumeric, dash, underscore)
+    allowed_pattern = re.compile(r'^[a-zA-Z0-9_-]+$')
+
+    # Check the entire query string for problematic characters
+    query_string = url_parts.query
+    if query_string:
+        # Check for common problematic patterns in the entire query string
+        if ' ' in query_string:
+            utm_issues.append("Query string contains unencoded spaces - this can break tracking")
+        if '%20' in query_string:
+            utm_issues.append("Query string contains encoded spaces (%20) - consider using underscores or dashes instead")
+        if any(char in query_string for char in '{}[]()'):
+            utm_issues.append("Query string contains braces/brackets which can break analytics tracking")
+
+        # Check for other potentially problematic characters in the entire query string
+        problematic_query_chars = []
+        for char in query_string:
+            # Allow standard URL characters: letters, numbers, =, &, %, -, _, and common URL-safe chars
+            if not re.match(r'[a-zA-Z0-9=&%_-]', char):
+                if char not in problematic_query_chars:
+                    problematic_query_chars.append(char)
+
+        if problematic_query_chars:
+            char_list = ', '.join([f"'{char}'" for char in problematic_query_chars])
+            utm_issues.append(f"Query string contains potentially problematic characters: {char_list}")
+
+    # Check all UTM parameters for invalid characters
+    for param_name, param_values in query_params.items():
+        if param_name.startswith('utm_'):
+            for value in param_values:
+                # Check for disallowed characters
+                if not allowed_pattern.match(value):
+                    # Find specific problematic characters
+                    problematic_chars = []
+                    for char in value:
+                        if not re.match(r'[a-zA-Z0-9_-]', char):
+                            if char not in problematic_chars:
+                                problematic_chars.append(char)
+
+                    if ' ' in problematic_chars:
+                        utm_issues.append(f"Parameter {param_name} contains spaces - use underscores or dashes instead")
+                    if '%20' in value:
+                        utm_issues.append(f"Parameter {param_name} contains encoded spaces (%20) - use underscores or dashes instead")
+                    if any(char in problematic_chars for char in '{}[]()'):
+                        utm_issues.append(f"Parameter {param_name} contains braces/brackets which can break analytics tracking")
+                    if problematic_chars:
+                        char_list = ', '.join([f"'{char}'" for char in problematic_chars])
+                        utm_issues.append(f"Parameter {param_name} contains invalid characters: {char_list}. Only letters, numbers, dashes, and underscores are allowed")
+
     return utm_issues
 
 def check_http_status(url, timeout=None):
     """
     Check HTTP status code of a URL with configurable timeout.
     Uses more robust checking with retries for production mode.
-    
+
     Args:
         url: The URL to check
         timeout: Request timeout in seconds, or None to use config default
-        
+
     Returns:
         Status code or error message
     """
     if timeout is None:
         timeout = config.request_timeout
-    
+
     # Determine number of retries based on mode
     max_retries = config.max_retries * 2 if config.is_production else config.max_retries
     retry_delay = 1  # seconds between retries
-    
+
     for attempt in range(max_retries + 1):
         try:
             # First try HEAD request (faster)
@@ -576,12 +614,12 @@ def check_http_status(url, timeout=None):
                 requests.exceptions.ConnectionError, 
                 requests.exceptions.SSLError) as e:
             logger.warning(f"Attempt {attempt+1}/{max_retries+1} failed for {url}: {str(e)}")
-            
+
             if attempt < max_retries:
                 # Try again after a short delay
                 time.sleep(retry_delay)
                 continue
-            
+
             # If we've exhausted retries with HEAD, try once with GET as last resort
             if attempt == max_retries:
                 try:
@@ -600,7 +638,7 @@ def check_http_status(url, timeout=None):
                         return "Connection Error"
                     else:
                         return f"Error: {error_type}: {str(final_e)[:100]}"
-    
+
     # This should never happen due to the return in the except block
     return "Connection failed after multiple attempts"
 
@@ -608,66 +646,66 @@ def check_for_product_tables(url, timeout=None):
     """
     Check if a URL's HTML contains product table classes with improved error handling.
     Enhanced with hybrid detection using both HTTP checks and browser automation.
-    
+
     Args:
         url: The URL to check for product tables
         timeout: Request timeout in seconds, or None to use config default
-        
+
     Returns:
         dict: Detection results including found status, class name, and errors
     """
     # Just use production mode for consistency
     runtime_mode = 'production'
-    
+
     # Set a very short timeout to prevent hanging 
     if timeout is None:
         timeout = 3  # 3 seconds is enough for basic checking
     elif timeout > 10:
         # Cap timeout at 10 seconds to prevent UI hanging
         timeout = 10
-        
+
     # Check if we're in a Replit environment
     repl_id = os.environ.get('REPL_ID')
     replit_env = os.environ.get('REPLIT_ENVIRONMENT')
     is_replit = repl_id is not None or replit_env is not None
-    
+
     # Check if this is a deployed app (not just a Replit dev environment)
     is_deployed = replit_env == 'production'
-    
+
     # Check for cloud browser API keys
     SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
     BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', '')
     CLOUD_BROWSER_AVAILABLE = bool(SCRAPINGBEE_API_KEY or BROWSERLESS_API_KEY)
-    
+
     # Log the environment and browser availability for debugging
     logger.info(f"Environment check - Replit: {is_replit}, Deployed: {is_deployed}, Selenium available: {SELENIUM_AVAILABLE}, Cloud browser available: {CLOUD_BROWSER_AVAILABLE}")
-    
+
     # Different handling based on environment and available automation methods
     # Always re-check API keys from environment to ensure we have the latest
     SCRAPINGBEE_API_KEY = os.environ.get('SCRAPINGBEE_API_KEY', '')
     BROWSERLESS_API_KEY = os.environ.get('BROWSERLESS_API_KEY', '')
     CLOUD_BROWSER_AVAILABLE = bool(SCRAPINGBEE_API_KEY or BROWSERLESS_API_KEY)
-    
+
     # Log key availability
     logger.info(f"Rechecked API keys - ScrapingBee: {bool(SCRAPINGBEE_API_KEY)}, Browserless: {bool(BROWSERLESS_API_KEY)}")
     logger.info(f"Cloud browser available: {CLOUD_BROWSER_AVAILABLE}")
-    
+
     if CLOUD_BROWSER_AVAILABLE:
         # Use cloud browser automation when available, regardless of environment
         logger.info(f"Using cloud browser automation for {url} with API key: {SCRAPINGBEE_API_KEY[:4] if SCRAPINGBEE_API_KEY else 'None'}...")
-        
+
         # Set a longer timeout for cloud browser API
         if timeout is None or timeout < 30:
             cloud_timeout = 30  # Use 30 seconds for cloud browser
             logger.info(f"Setting cloud browser timeout to {cloud_timeout} seconds")
         else:
             cloud_timeout = timeout
-            
+
         try:
             # Import directly to ensure we have the latest version
             from cloud_browser_automation import check_for_product_tables_cloud
             logger.info(f"Calling cloud browser automation with URL: {url}, timeout: {cloud_timeout}")
-            
+
             # CRITICAL - Force keys into environment again to ensure cloud module has them
             if SCRAPINGBEE_API_KEY:
                 os.environ['SCRAPINGBEE_API_KEY'] = SCRAPINGBEE_API_KEY
@@ -675,13 +713,13 @@ def check_for_product_tables(url, timeout=None):
             if BROWSERLESS_API_KEY:
                 os.environ['BROWSERLESS_API_KEY'] = BROWSERLESS_API_KEY
                 logger.info(f"Re-set Browserless API key in environment: {BROWSERLESS_API_KEY[:4]}...")
-            
+
             # Call cloud browser API with proper timeout
             cloud_result = check_for_product_tables_cloud(url, cloud_timeout)
-            
+
             # Log the result for debugging
             logger.info(f"Cloud browser result: {cloud_result}")
-            
+
             # Add is_test_domain flag for consistent response format
             cloud_result['is_test_domain'] = False
             return cloud_result
@@ -691,7 +729,7 @@ def check_for_product_tables(url, timeout=None):
             # Continue to fallback methods if cloud browser fails
     else:
         logger.warning(f"Cloud browser API key not available, SCRAPINGBEE_API_KEY present: {bool(SCRAPINGBEE_API_KEY)}")
-    
+
     # If cloud browser automation is not available or failed, use fallbacks
     if is_replit and not is_deployed:
         # Standard message for Replit dev environments
@@ -734,14 +772,14 @@ def check_for_product_tables(url, timeout=None):
             'message': 'Unknown - Browser automation unavailable - manual verification required',
             'is_test_domain': False
         }
-    
+
     # Special case for test domains - if this is a test domain, be more permissive
     parsed_url = urlparse(url)
     is_test_domain = parsed_url.netloc in config.test_domains
-    
+
     # Log the URL we're checking
     logger.info(f"Checking product showcase URL: {url}")
-    
+
     # For test domains, simulate success ONLY in development mode
     if is_test_domain and config.enable_test_redirects and not config.is_production:
         logger.info(f"Test domain detected - simulating product table for {url} (only in development mode)")
@@ -752,18 +790,18 @@ def check_for_product_tables(url, timeout=None):
             'is_test_domain': True,
             'is_simulated': True
         }
-        
+
     # Special handling for client-side rendered sites
     if 'partly-products-showcase.lovable.app' in url:
         logger.info(f"Client-side rendered site detected: {url}")
         # For sites using React or similar frameworks, we need browser automation
-        
+
         # Check again if we're in a Replit environment vs deployed environment
         repl_id = os.environ.get('REPL_ID')
         replit_env = os.environ.get('REPLIT_ENVIRONMENT')
         is_replit = repl_id is not None or replit_env is not None
         is_deployed = replit_env == 'production'
-        
+
         # Different handling based on environment and available automation methods
         if CLOUD_BROWSER_AVAILABLE:
             # Use cloud browser automation when available, regardless of environment
@@ -776,7 +814,7 @@ def check_for_product_tables(url, timeout=None):
             except Exception as e:
                 logger.error(f"Cloud browser automation error: {str(e)}")
                 # Continue to fallback methods if cloud browser fails
-        
+
         # If cloud browser automation is not available or failed, use fallbacks
         if is_replit and not is_deployed:
             # Standard message for Replit dev environments
@@ -808,7 +846,7 @@ def check_for_product_tables(url, timeout=None):
                 'message': 'Unknown - Browser automation unavailable - manual verification required',
                 'is_test_domain': is_test_domain
             }
-                
+
         # Try Selenium if available
         if SELENIUM_AVAILABLE:
             try:
@@ -823,10 +861,10 @@ def check_for_product_tables(url, timeout=None):
         else:
             logger.warning("Selenium not available")
             browser_error = "Browser automation not available"
-                    
+
         # Instead of text analysis fallback, show a clear message for marketers to manually check
         logger.info(f"Browser automation failed - instructing user to manually check: {url}")
-            
+
         # Create a standard error message for manual verification
         return {
             'found': None,  # Using None to indicate unknown status
@@ -837,39 +875,39 @@ def check_for_product_tables(url, timeout=None):
             'is_test_domain': is_test_domain,
             'message': 'Unknown - Browser automation unavailable - manual verification required'
         }
-        
+
         # We've already returned, so this code is unreachable
         # URL path heuristics removed to avoid false positives
-            
+
     # In production mode, we NEVER use simulated results
     if config.is_production and is_test_domain:
         logger.info(f"Production mode - using REAL detection for test domain: {url}")
         # Continue with real detection below...
-    
+
     # Try with Selenium first if available (more reliable for JavaScript-rendered content and bot protection)
     use_http_fallback = True  # Default to using HTTP fallback
     selenium_error = None
-    
+
     if SELENIUM_AVAILABLE and config.is_production:
         try:
             logger.info(f"Attempting to check {url} using Selenium browser automation")
             from selenium_automation import check_for_product_tables_selenium_sync
             selenium_result = check_for_product_tables_selenium_sync(url, timeout)
-            
+
             # If Selenium was successful or found a definitive answer, return it
             if selenium_result.get('detection_method', '').startswith('selenium') and not selenium_result.get('error'):
                 logger.info(f"Selenium check successful for {url}: {selenium_result}")
-                
+
                 # Add test domain flag for consistency
                 selenium_result['is_test_domain'] = is_test_domain
-                
+
                 return selenium_result
-            
+
             # If Selenium detected bot blocking, return that result
             if selenium_result.get('bot_blocked', False):
                 logger.warning(f"Selenium detected bot blocking for {url}")
                 return selenium_result
-            
+
             # If we had a serious error with Selenium, log it and fall back to HTTP checks
             if selenium_result.get('error'):
                 selenium_error = selenium_result.get('error')
@@ -891,13 +929,13 @@ def check_for_product_tables(url, timeout=None):
             }
         else:
             logger.info(f"Not in production mode, using HTTP check for {url}")
-    
+
     logger.info(f"Using HTTP method to check for product tables on {url}")
-    
+
     # Set higher in production mode for reliability
     max_retries = config.max_retries * 2 if config.is_production else config.max_retries
     retry_delay = 1  # seconds between retries
-    
+
     # Create a session with appropriate headers to appear more like a regular browser
     session = requests.Session()
     session.headers.update({
@@ -908,25 +946,25 @@ def check_for_product_tables(url, timeout=None):
         'Upgrade-Insecure-Requests': '1',
         'Cache-Control': 'max-age=0'
     })
-    
+
     # Normal path with retries
     for attempt in range(max_retries + 1):
         try:
             logger.info(f"Checking URL for product tables (attempt {attempt+1}/{max_retries+1}): {url}")
-            
+
             # Get the HTML content with timeout
             response = session.get(url, timeout=timeout, allow_redirects=True)
-            
+
             if response.status_code == 200:
                 page_content = response.text
-                
+
                 # Check for common bot detection signs
                 bot_detection_phrases = [
                     'captcha', 'security check', 'access denied', 
                     'suspicious activity', 'unusual traffic', 
                     'too many requests', 'rate limit', 'please verify'
                 ]
-                
+
                 # Check response content for bot detection indications - but be more specific
                 # to avoid false positives on common words like "blocked"
                 has_bot_protection = False
@@ -935,7 +973,7 @@ def check_for_product_tables(url, timeout=None):
                         has_bot_protection = True
                         logger.warning(f"Bot detection phrase '{phrase}' found on {url}")
                         break
-                        
+
                 # Only if we have a clear bot protection indicator 
                 if has_bot_protection:
                     logger.warning(f"Bot detection likely on {url} - found bot detection indicators in content")
@@ -945,7 +983,7 @@ def check_for_product_tables(url, timeout=None):
                         'detection_method': 'failed',
                         'bot_blocked': True
                     }
-                
+
                 # Enhanced pattern to detect various forms of product-related class names
                 product_class_patterns = [
                     # Standard product table class
@@ -1005,7 +1043,7 @@ def check_for_product_tables(url, timeout=None):
                     r'id=["\']product-grid["\']',
                     r'id=["\']product-inventory["\']'
                 ]
-                
+
                 # Check each pattern
                 print(f"Checking {len(product_class_patterns)} patterns for product tables in URL: {url}")
                 for pattern in product_class_patterns:
@@ -1017,7 +1055,7 @@ def check_for_product_tables(url, timeout=None):
                         except IndexError:
                             # For patterns without capture groups (JSX components, CSS styles)
                             class_name = "product-table"  # Use a standard class name
-                            
+
                         matched_text = match.group(0)
                         print(f"✓✓✓ FOUND PRODUCT TABLE: Pattern '{pattern}' matched '{matched_text}'")
                         logger.info(f"Found product class using pattern: {pattern}")
@@ -1026,9 +1064,9 @@ def check_for_product_tables(url, timeout=None):
                             'class_name': class_name,
                             'detection_method': 'direct_html'
                         }
-                    
+
                 print(f"No match found for URL: {url} - Unable to detect product table")
-                
+
                 # Also check for ID-based indicators
                 product_id_patterns = [
                     r'id=["\']([^"\']*?product[_\-\s]list[^"\']*?)["\']',
@@ -1042,7 +1080,7 @@ def check_for_product_tables(url, timeout=None):
                     r'id=["\']([^"\']*?itemsContainer[^"\']*?)["\']',
                     r'id=["\']([^"\']*?productGallery[^"\']*?)["\']'
                 ]
-                
+
                 for pattern in product_id_patterns:
                     match = re.search(pattern, page_content)
                     if match:
@@ -1053,7 +1091,7 @@ def check_for_product_tables(url, timeout=None):
                             'class_name': f"id:{id_value}",
                             'detection_method': 'direct_html'
                         }
-                
+
                 logger.info(f"No product table classes found on {url}")
                 return {
                     'found': False,
@@ -1075,10 +1113,10 @@ def check_for_product_tables(url, timeout=None):
                     logger.warning(f"Got status {response.status_code}, retrying in {retry_delay}s...")
                     time.sleep(retry_delay)
                     continue
-                    
+
                 error_message = f"Failed to get content, status code: {response.status_code}"
                 logger.error(error_message)
-                
+
                 # For certain status codes like 400, 401, 404, 502, it might be bot protection in disguise
                 if response.status_code in [400, 401, 404, 502]:
                     # Check response content for bot-protection indicators
@@ -1101,7 +1139,7 @@ def check_for_product_tables(url, timeout=None):
                                     has_bot_protection = True
                                     logger.warning(f"Bot protection phrase '{phrase}' found in response")
                                     break
-                                    
+
                             if has_bot_protection:
                                 logger.warning(f"Possible bot protection disguised as {response.status_code} status code")
                                 return {
@@ -1112,12 +1150,12 @@ def check_for_product_tables(url, timeout=None):
                                 }
                     except:
                         pass  # If we can't read response content, just proceed normally
-                
+
                 # For client-side rendered sites, try text analysis as a fallback
                 # DISABLED: No longer using URL pattern matching to identify product pages
                 # We'll ask for manual verification instead to prevent false positives
                 logger.info(f"Browser check failed - instructing manual verification for: {url}")
-                
+
                 return {
                     'found': False,
                     'error': 'Browser automation unavailable',
@@ -1130,7 +1168,7 @@ def check_for_product_tables(url, timeout=None):
                 requests.exceptions.ConnectionError, 
                 requests.exceptions.SSLError) as e:
             logger.warning(f"Attempt {attempt+1}/{max_retries+1} failed for {url}: {str(e)}")
-            
+
             if attempt < max_retries:
                 # Try again after a short delay
                 time.sleep(retry_delay)
@@ -1140,7 +1178,7 @@ def check_for_product_tables(url, timeout=None):
                 error_type = type(e).__name__
                 error_message = f"{error_type} connecting to {url}: {str(e)}"
                 logger.error(error_message)
-                
+
                 # Only check for Cloudflare-specific protection
                 if ('cloudflare' in url.lower() or 'cloudflare' in str(e).lower()) and 'challenge' in str(e).lower():
                     logger.warning(f"Connection issues with Cloudflare domain with challenge - likely bot protection")
@@ -1150,7 +1188,7 @@ def check_for_product_tables(url, timeout=None):
                         'detection_method': 'failed',
                         'bot_blocked': True
                     }
-                
+
                 return {
                     'found': False,
                     'error': error_message,
@@ -1159,7 +1197,7 @@ def check_for_product_tables(url, timeout=None):
         except Exception as e:
             error_message = f"Error checking for product tables: {str(e)}"
             logger.error(error_message)
-            
+
             # Check for bot detection indicators in the error message
             if 'captcha' in str(e).lower() or 'bot' in str(e).lower() or 'cloudflare' in str(e).lower() or 'security' in str(e).lower():
                 logger.warning(f"Generic error contains bot detection indicators: {str(e)}")
@@ -1169,19 +1207,19 @@ def check_for_product_tables(url, timeout=None):
                     'detection_method': 'failed',
                     'bot_blocked': True
                 }
-                
+
             return {
                 'found': False,
                 'error': error_message,
                 'detection_method': 'failed'
             }
-    
+
     # DISABLED: We are no longer using text analysis or URL pattern matching to prevent false positives
     # Instead, we now require manual verification for all cases where browser automation is unavailable
-    
+
     # Log the decision for transparency
     logger.info(f"Browser automation unavailable and direct HTML check failed for {url} - requesting manual verification")
-    
+
     # Return a clear result indicating manual check is needed
     return {
         'found': None,
@@ -1195,7 +1233,7 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
     """
     Check if links load correctly and have correct UTM parameters.
     Enhanced with smart redirection and improved product table detection.
-    
+
     Args:
         links: List of links to check
         expected_utm: Dictionary of expected UTM parameters
@@ -1212,14 +1250,14 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             product_table_timeout = 30  # 30 seconds max in production
         else:
             product_table_timeout = 45  # 45 seconds in development
-    
+
     # Enforce a maximum timeout to prevent hanging
     product_table_timeout = min(int(product_table_timeout), 60)  # Maximum 60 seconds
-    
+
     # Log the timeout being used
     logger.info(f"Using product table timeout of {product_table_timeout} seconds")
     results = []
-    
+
     # Links can now be either a list of tuples (legacy format) or a list of dictionaries (new format)
     # We need to handle both cases
     for link in links:
@@ -1237,15 +1275,15 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             link_dict = link
             url = link_dict['href']
             link_source = link_dict.get('link_source', '')
-        
+
         original_url = url
         processed_url = url
         redirected = False
-        
+
         # Process URL based on configuration
         domain = urlparse(url).netloc
         is_test_domain = domain in config.test_domains
-        
+
         # Special case for known problematic domains that we know work but have connection issues
         # This will make the system more resilient in production
         known_working_domains = [
@@ -1254,7 +1292,7 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             'www.partly-products-showcase.lovable.app'
         ]
         is_known_working = any(known_domain in url for known_domain in known_working_domains)
-        
+
         # Handle test domains and redirects in BOTH dev and prod mode for functionality
         # This ensures product table detection works properly
         if is_test_domain or config.enable_test_redirects:
@@ -1269,7 +1307,7 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
             except Exception as e:
                 # If test URL fails, continue with original
                 logger.warning(f"Test URL not accessible: {test_url}, using original. Error: {e}")
-        
+
         # Check HTTP status - special handling for known domains that may have connection issues
         if is_known_working and config.is_production:
             # For known working domains in production mode, assume 200 OK status
@@ -1279,17 +1317,17 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
         else:
             # Normal status check for all other domains
             status_code = check_http_status(processed_url)
-        
+
         # Check UTM parameters
         utm_issues = validate_utm_parameters(url, expected_utm)
-        
+
         # Initialize product table variables
         product_table_result = None
         product_table_found = False
         product_table_class = None
         product_table_error = None
         product_table_checked = False
-        
+
         # Only check for product tables if explicitly requested and status code is 200
         if check_product_tables and isinstance(status_code, int) and status_code == 200:
             product_table_checked = True
@@ -1298,11 +1336,11 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
                 check_timeout = product_table_timeout if product_table_timeout is not None else (
                     3 if config.is_production else config.product_table_timeout
                 )
-                
+
                 # Create a separate thread for the product table check with a timeout
                 # This ensures one slow check doesn't block subsequent ones
                 result_queue = queue.Queue()
-                
+
                 def check_table_thread():
                     try:
                         result = check_for_product_tables(processed_url, timeout=check_timeout)
@@ -1314,15 +1352,15 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
                             'error': f"Thread error: {str(e)}",
                             'detection_method': 'failed'
                         })
-                
+
                 # Start thread and wait with timeout
                 thread = threading.Thread(target=check_table_thread)
                 thread.daemon = True
                 thread.start()
-                
+
                 # Define thread timeout outside the try block to avoid unbound variable issues
                 thread_timeout = check_timeout + 1  # Give thread a little extra time
-                
+
                 try:
                     # Wait for result with timeout
                     product_table_result = result_queue.get(timeout=thread_timeout)
@@ -1334,11 +1372,11 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
                         'error': f"Thread timeout after {thread_timeout}s",
                         'detection_method': 'failed'
                     }
-                
+
                 # Extract results
                 product_table_found = product_table_result.get('found', False)
                 product_table_class = product_table_result.get('class_name')
-                
+
                 if not product_table_found and product_table_result.get('error'):
                     product_table_error = product_table_result.get('error')
             except Exception as e:
@@ -1352,17 +1390,17 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
                 product_table_error = "Product table check skipped (not requested)"
             else:
                 product_table_error = f"URL returned HTTP status {status_code}, product table check skipped"
-        
+
         # Compile result
         # Set status to PASS/FAIL - special handling for known working domains
         result_status = "PASS" if (
             (isinstance(status_code, int) and status_code == 200) or 
             (is_known_working and config.is_production)
         ) else "FAIL"
-        
+
         # Preserve the utm_content value from the original link object
         utm_content = link.get('utm_content') if isinstance(link, dict) else None
-        
+
         result = {
             'source': link_source,
             'url': original_url,
@@ -1382,23 +1420,23 @@ def check_links(links, expected_utm, check_product_tables=False, product_table_t
                 (processed_url != original_url) and config.is_development
             ) else None
         }
-        
+
         # Preserve image properties if this is an image link
         if isinstance(link, dict):
             # Copy image-specific properties
             for prop in ['is_image_link', 'image_src', 'image_alt', 'link_text']:
                 if prop in link:
                     result[prop] = link[prop]
-        
+
         results.append(result)
-    
+
     return results
 
 def validate_email(email_path, requirements_path, check_product_tables=False, product_table_timeout=None):
     """
     Main function to validate email against requirements.
     Enhanced with mode awareness and improved error handling.
-    
+
     Args:
         email_path: Path to the email HTML file
         requirements_path: Path to the requirements JSON file
@@ -1406,85 +1444,81 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
         product_table_timeout: Timeout for product table checks in seconds (default: use config)
     """
     metadata = None  # Initialize to avoid unbound variable issue
-    
+
     try:
         # Parse email HTML
         soup = parse_email_html(email_path)
-        
+
         # Load requirements
         requirements = load_requirements(requirements_path)
-        
+
         # Extract metadata and validate
         metadata = extract_email_metadata(soup)
-        
+
         # Process expected values
         expected_metadata = requirements.get('metadata', {})
         metadata_issues = []
-        
+
         # Special handling for campaign code with country formatting
         # First, ensure footer_campaign_code exists in expected metadata if campaign_code does
         if 'campaign_code' in requirements and 'country' in requirements:
             campaign_code = requirements.get('campaign_code')
             country = requirements.get('country')
-            
+
             # Extract base campaign code (remove country suffix if present)
             if campaign_code and " - " in campaign_code:
                 base_code = campaign_code.split(" - ")[0]
             else:
                 base_code = campaign_code
-            
+
             # Set properly formatted values in expected metadata
             if base_code and country:
                 formatted_code = f"{base_code} - {country}"
                 expected_metadata['campaign_code'] = formatted_code
                 expected_metadata['footer_campaign_code'] = formatted_code
-        
+
         # Handle legacy format where campaign_code might be in metadata section
         if 'campaign_code' in expected_metadata and 'country' in requirements:
             campaign_code = expected_metadata.get('campaign_code')
             country = requirements.get('country')
-            
+
             # Extract base campaign code (remove country suffix if present)
             if campaign_code and " - " in campaign_code:
                 base_code = campaign_code.split(" - ")[0]
             else:
                 base_code = campaign_code
-            
+
             # Format as "CODE - COUNTRY" if not already formatted
             if base_code and country:
                 formatted_code = f"{base_code} - {country}"
                 expected_metadata['campaign_code'] = formatted_code
                 expected_metadata['footer_campaign_code'] = formatted_code
-        
+
         # Special case: if footer_campaign_code is in expected metadata without country suffix,
         # but we have country info, format it properly
         if 'footer_campaign_code' in expected_metadata and 'country' in requirements:
             footer_code = expected_metadata.get('footer_campaign_code')
             country = requirements.get('country')
-            
+
             # Extract base code if it has country suffix
             if footer_code and " - " in footer_code:
                 base_code = footer_code.split(" - ")[0]
             else:
                 base_code = footer_code
-            
+
             if base_code and country:
                 expected_metadata['footer_campaign_code'] = f"{base_code} - {country}"
-        
+
         # Add copyright year as expected metadata for validation
         current_year = str(datetime.now().year)
         expected_metadata['copyright_year'] = current_year
-        
-        # Add copyright year as expected metadata for validation
-        current_year = str(datetime.now().year)
-        expected_metadata['copyright_year'] = current_year
-        
+
         # Compare actual vs expected values
         for key, expected_value in expected_metadata.items():
             if expected_value:  # If there's an expected value, we should validate it
                 # Get actual value from metadata, defaulting to "Not found" if key doesn't exist
                 actual_value = metadata.get(key, "Not found")
-                
+
                 # Special case for footer_campaign_code - handle the 'r' prefix issue
                 if key == 'footer_campaign_code' or key == 'campaign_code':
                     # Remove 'r' prefix if present in the actual value
@@ -1494,12 +1528,12 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
                         # Update the metadata dictionary with the cleaned value
                         metadata[key] = actual_value
                         logger.info(f"Updated {key} = {actual_value}")
-                
+
                 if actual_value != expected_value:
                     # If expected value exists but actual is "Not found", it's a FAIL
                     # If both have values but don't match, it's also a FAIL
                     metadata_issues.append(f"{key}: Expected '{expected_value}', found '{actual_value}'")
-        
+
         # Extract and check links
         links = extract_links(soup)
         link_results = check_links(
@@ -1508,10 +1542,10 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
             check_product_tables=check_product_tables,
             product_table_timeout=product_table_timeout
         )
-        
+
         # Extract standalone images (not in links)
         standalone_images = extract_standalone_images(soup)
-        
+
         # Add validation for alt text on standalone images
         for image in standalone_images:
             # Flag images without alt text
@@ -1521,7 +1555,7 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
             else:
                 image['alt_warning'] = False
                 image['alt_status'] = 'OK'
-        
+
         # Enrich the links results with additional details from original links
         enriched_links = []
         for link_result in link_results:
@@ -1535,7 +1569,7 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
                         link_result['image_src'] = original_link.get('image_src', '')
                     break
             enriched_links.append(link_result)
-        
+
         # Prepare results
         results = {
             'metadata': metadata,
@@ -1545,7 +1579,7 @@ def validate_email(email_path, requirements_path, check_product_tables=False, pr
             'mode': config.mode,
             'image_warnings': sum(1 for img in standalone_images if img['alt_warning'])  # Count of images with warnings
         }
-        
+
         return results
     except Exception as e:
         logger.error(f"Error in validate_email: {e}")
